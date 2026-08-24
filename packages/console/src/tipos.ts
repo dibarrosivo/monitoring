@@ -97,6 +97,15 @@ export interface ClienteDetalle extends Cliente {
   contactos: Contacto[];
 }
 
+/** Contexto de una alarma para el panel de detalle. */
+export interface ContextoAlarma {
+  cliente: { id: number; nombre: string; telefono: string | null } | null;
+  sitio: { id: number; nombre: string; direccion: string | null } | null;
+  panel: { id: number; numeroCuenta: string; tipo: string; modelo: string | null } | null;
+  contactos: Contacto[];
+  zonaDescripcion: string | null;
+}
+
 /** Mensajes que llegan por el WebSocket (NOTIFY de Postgres). */
 export interface MensajeTiempoReal {
   canal: 'nueva_alarma' | 'nuevo_evento';

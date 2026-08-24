@@ -1,16 +1,20 @@
 @import 'tailwindcss';
 
+/* Paleta estilo SIS (Security Information Systems): azul marino profundo,
+   bordes azul eléctrico y acento verde azulado. Los colores de prioridad
+   (rojo/ámbar) se conservan: son semántica de alarma, no estética. */
 @theme {
-  --color-fondo: #0c1116;
-  --color-superficie: #131a21;
-  --color-superficie-2: #1a232c;
-  --color-borde: #232d37;
-  --color-texto: #d7dee5;
-  --color-tenue: #7c8894;
+  --color-fondo: #050d18;
+  --color-superficie: #0a1626;
+  --color-superficie-2: #102035;
+  --color-borde: #1b3a5c;
+  --color-texto: #d8e6f5;
+  --color-tenue: #6e86a0;
+  --color-acento: #35c3e8;
   --color-prio1: #ff4d3d;
   --color-prio2: #ffb020;
-  --color-prio3: #4fa3e3;
-  --color-ok: #35c48d;
+  --color-prio3: #3e9bff;
+  --color-ok: #2ec4a0;
   --font-ui: 'Barlow', system-ui, sans-serif;
   --font-datos: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 }
@@ -47,7 +51,7 @@ html {
 }
 .led-verde {
   background: var(--color-ok);
-  box-shadow: 0 0 6px 1px rgb(53 196 141 / 0.7);
+  box-shadow: 0 0 6px 1px rgb(46 196 160 / 0.7);
 }
 .led-rojo {
   background: var(--color-prio1);
@@ -62,6 +66,6 @@ html {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-prio3);
+  outline: 2px solid var(--color-acento);
   outline-offset: 1px;
 }

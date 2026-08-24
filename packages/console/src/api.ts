@@ -4,6 +4,7 @@ import type {
   Cliente,
   ClienteDetalle,
   Contacto,
+  ContextoAlarma,
   EstadoPanel,
   Evento,
   Usuario,
@@ -60,6 +61,7 @@ export async function ingresar(email: string, clave: string): Promise<Usuario> {
 
 export const listarAlarmas = () => pedir<Alarma[]>('/alarmas');
 export const listarAcciones = (alarmaId: number) => pedir<AccionAlarma[]>(`/alarmas/${alarmaId}/acciones`);
+export const verContexto = (alarmaId: number) => pedir<ContextoAlarma>(`/alarmas/${alarmaId}/contexto`);
 export const tomarAlarma = (id: number) => pedir<Alarma>(`/alarmas/${id}/tomar`, { method: 'POST' });
 export const anotarAlarma = (id: number, detalle: string) =>
   pedir<AccionAlarma>(`/alarmas/${id}/notas`, { method: 'POST', body: JSON.stringify({ detalle }) });
