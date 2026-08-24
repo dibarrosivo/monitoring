@@ -1,0 +1,31 @@
+{
+  "name": "monitoring",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Central de monitoreo de alarmas: recepción de señales (SIA DC-09, Surgard/PIMA), gestión de clientes, paneles y alarmas",
+  "workspaces": [
+    "packages/*",
+    "tools/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "receiver": "tsx packages/receiver/src/index.ts",
+    "api": "tsx packages/api/src/index.ts",
+    "simulador": "tsx tools/simulator/src/index.ts",
+    "db:generar": "npm run generar -w @monitoring/db",
+    "db:migrar": "npm run migrar -w @monitoring/db",
+    "db:seed": "npm run seed -w @monitoring/db"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
+  }
+}

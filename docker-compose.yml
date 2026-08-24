@@ -1,0 +1,19 @@
+# Desarrollo: solo la base de datos. El receptor y la API corren con tsx en local.
+# El perfil "produccion" (receptor + api + consola + caddy) se agrega al configurar el VPS.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: monitoring
+      POSTGRES_PASSWORD: monitoring
+      POSTGRES_DB: monitoring
+    ports:
+      # 5433 en el host: 5432 suele estar ocupado por otro Postgres local
+      - '5433:5432'
+    volumes:
+      - ./infra/postgres/data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U monitoring']
+      interval: 5s
+      timeout: 3s
+      retries: 10

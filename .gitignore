@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+keys.json
+infra/*/data/
+infra/caddy/certs/
+coverage/
