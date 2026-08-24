@@ -30,32 +30,39 @@ app.decorate('autenticar', async (request, reply) => {
   }
 });
 
-app.get('/salud', async () => {
-  await pool.query('SELECT 1');
-  return { ok: true };
-});
-
-registrarAuth(app);
-await app.register(async (sub) => registrarClientes(sub));
-await app.register(async (sub) => registrarAlarmas(sub));
-await app.register(async (sub) => registrarEventos(sub));
-
 /** Tiempo real: puente entre NOTIFY de Postgres y los WebSockets de la consola. */
 const conexiones = new Set<WebSocket>();
 
-await app.register(async (sub) => {
-  sub.get('/ws', { websocket: true }, (socket, request) => {
-    const { token } = request.query as { token?: string };
-    try {
-      app.jwt.verify(token ?? '');
-    } catch {
-      socket.close(4401, 'No autorizado');
-      return;
-    }
-    conexiones.add(socket);
-    socket.on('close', () => conexiones.delete(socket));
-  });
-});
+// Todas las rutas viven bajo /api: simplifica el proxy de Vite en desarrollo
+// y el enrutamiento de Caddy en producción.
+await app.register(
+  async (api) => {
+    api.get('/salud', async () => {
+      await pool.query('SELECT 1');
+      return { ok: true };
+    });
+
+    registrarAuth(api);
+    await api.register(async (sub) => registrarClientes(sub));
+    await api.register(async (sub) => registrarAlarmas(sub));
+    await api.register(async (sub) => registrarEventos(sub));
+
+    await api.register(async (sub) => {
+      sub.get('/ws', { websocket: true }, (socket, request) => {
+        const { token } = request.query as { token?: string };
+        try {
+          app.jwt.verify(token ?? '');
+        } catch {
+          socket.close(4401, 'No autorizado');
+          return;
+        }
+        conexiones.add(socket);
+        socket.on('close', () => conexiones.delete(socket));
+      });
+    });
+  },
+  { prefix: '/api' },
+);
 
 const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (canal, carga) => {
   const mensaje = JSON.stringify({ canal, carga: carga ? JSON.parse(carga) : null });

@@ -1,0 +1,113 @@
+export interface Usuario {
+  id: number;
+  email: string;
+  nombre: string;
+  rol: 'admin' | 'operador';
+}
+
+export type CategoriaEvento =
+  | 'alarma'
+  | 'restauracion'
+  | 'apertura'
+  | 'cierre'
+  | 'averia'
+  | 'anulacion'
+  | 'prueba'
+  | 'cancelacion'
+  | 'sistema'
+  | 'desconocido';
+
+export interface Evento {
+  id: number;
+  panelId: number | null;
+  numeroCuenta: string | null;
+  categoria: CategoriaEvento;
+  codigo: string;
+  descripcion: string;
+  particion: string | null;
+  zona: string | null;
+  prioridad: number;
+  ocurridoEn: string;
+}
+
+export type EstadoAlarma = 'nueva' | 'en_atencion' | 'cerrada';
+
+export interface Alarma {
+  id: number;
+  estado: EstadoAlarma;
+  prioridad: number;
+  operadorId: number | null;
+  creadoEn: string;
+  tomadaEn: string | null;
+  cerradaEn: string | null;
+  resolucion: string | null;
+  panelId: number | null;
+  evento: Pick<Evento, 'id' | 'codigo' | 'categoria' | 'descripcion' | 'numeroCuenta' | 'particion' | 'zona' | 'ocurridoEn'>;
+}
+
+export interface AccionAlarma {
+  id: number;
+  alarmaId: number;
+  operadorId: number | null;
+  tipo: 'toma' | 'nota' | 'cierre' | 'sistema';
+  detalle: string | null;
+  creadoEn: string;
+}
+
+export interface EstadoPanel {
+  id: number;
+  sitioId: number;
+  numeroCuenta: string;
+  tipo: 'hikvision' | 'pima' | 'ebm' | 'otro';
+  supervisado: boolean;
+  intervaloPruebaMin: number;
+  ultimaSenalEn: string | null;
+  activo: boolean;
+}
+
+export interface Cliente {
+  id: number;
+  nombre: string;
+  telefono: string | null;
+  email: string | null;
+  direccion: string | null;
+  notas: string | null;
+  activo: boolean;
+}
+
+export interface Sitio {
+  id: number;
+  clienteId: number;
+  nombre: string;
+  direccion: string | null;
+}
+
+export interface Contacto {
+  id: number;
+  clienteId: number;
+  sitioId: number | null;
+  nombre: string;
+  telefono: string;
+  orden: number;
+  palabraClave: string | null;
+}
+
+export interface ClienteDetalle extends Cliente {
+  sitios: Sitio[];
+  contactos: Contacto[];
+}
+
+/** Mensajes que llegan por el WebSocket (NOTIFY de Postgres). */
+export interface MensajeTiempoReal {
+  canal: 'nueva_alarma' | 'nuevo_evento';
+  carga: {
+    alarmaId?: number;
+    eventoId: number;
+    panelId: number | null;
+    prioridad: number;
+    descripcion: string;
+    codigo?: string;
+    categoria?: CategoriaEvento;
+    numeroCuenta?: string | null;
+  };
+}

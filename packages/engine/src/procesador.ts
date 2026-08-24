@@ -109,6 +109,7 @@ export async function procesarEvento(entrada: {
     codigo: normalizado.codigo,
     descripcion,
     prioridad: normalizado.prioridad,
+    numeroCuenta: normalizado.numeroCuenta,
   });
 
   return { eventoId: filaEvento!.id, alarmaId, panelId: panelEncontrado?.id };

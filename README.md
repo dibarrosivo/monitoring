@@ -21,7 +21,8 @@ packages/
   db/          Esquema Drizzle + migraciones (PostgreSQL)
   engine/      Diario de señales, eventos, apertura de alarmas, vigilante de paneles silenciosos
   receiver/    Daemon: listeners TCP/UDP DC-09 → engine
-  api/         Fastify: auth JWT, CRUD, cola de alarmas, WebSocket en tiempo real
+  api/         Fastify: auth JWT, CRUD, cola de alarmas, WebSocket en tiempo real (todo bajo /api)
+  console/     Consola de operador: React + Vite + Tailwind, tema oscuro, cola en vivo con sonido
 tools/
   simulator/   Envía tramas DC-09 reales para probar sin hardware
 ```
@@ -41,7 +42,8 @@ npm run db:migrar             # aplica migraciones
 npm run db:seed               # admin@monitoring.local / admin123 + cliente demo (cuenta 1234)
 
 npm run receiver              # daemon receptor (DC-09 en :9999)
-npm run api                   # API en :3000
+npm run api                   # API en :3000 (rutas bajo /api)
+npm run console               # consola de operador (Vite, proxy /api → :3000)
 
 # En otra terminal: disparar señales de prueba
 npm run simulador -- escenario

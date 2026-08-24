@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-fondo: #0c1116;
+  --color-superficie: #131a21;
+  --color-superficie-2: #1a232c;
+  --color-borde: #232d37;
+  --color-texto: #d7dee5;
+  --color-tenue: #7c8894;
+  --color-prio1: #ff4d3d;
+  --color-prio2: #ffb020;
+  --color-prio3: #4fa3e3;
+  --color-ok: #35c48d;
+  --font-ui: 'Barlow', system-ui, sans-serif;
+  --font-datos: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+html {
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  font-family: var(--font-ui);
+}
+
+/* Pulso de alarma nueva: el único momento animado de la consola. */
+@keyframes pulso-alarma {
+  0% {
+    box-shadow: 0 0 0 0 rgb(255 77 61 / 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgb(255 77 61 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 77 61 / 0);
+  }
+}
+
+.alarma-nueva {
+  animation: pulso-alarma 1.4s ease-out 4;
+}
+
+/* LED de estado del enlace, como el frente de un receptor. */
+.led {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  display: inline-block;
+}
+.led-verde {
+  background: var(--color-ok);
+  box-shadow: 0 0 6px 1px rgb(53 196 141 / 0.7);
+}
+.led-rojo {
+  background: var(--color-prio1);
+  box-shadow: 0 0 6px 1px rgb(255 77 61 / 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarma-nueva {
+    animation: none;
+    outline: 2px solid var(--color-prio1);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-prio3);
+  outline-offset: 1px;
+}

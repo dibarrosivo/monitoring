@@ -89,6 +89,7 @@ export function registrarAlarmas(app: App) {
     db
       .select({
         id: panel.id,
+        sitioId: panel.sitioId,
         numeroCuenta: panel.numeroCuenta,
         tipo: panel.tipo,
         supervisado: panel.supervisado,

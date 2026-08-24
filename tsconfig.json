@@ -9,5 +9,6 @@
       "@monitoring/engine": ["packages/engine/src/index.ts"]
     }
   },
-  "include": ["packages/*/src/**/*.ts", "packages/*/pruebas/**/*.ts", "tools/*/src/**/*.ts"]
+  "include": ["packages/*/src/**/*.ts", "packages/*/pruebas/**/*.ts", "tools/*/src/**/*.ts"],
+  "exclude": ["packages/console"]
 }
