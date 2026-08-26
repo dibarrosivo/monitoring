@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { cerrarSesion, servidorGuardado, verAlarmas, verResumen, type UsuarioApp } from '../api.js';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { cambiarClave, cerrarSesion, servidorGuardado, verAlarmas, verResumen, type UsuarioApp } from '../api.js';
 import { Inicio } from './Inicio.js';
 import { Eventos } from './Eventos.js';
 import { Panico } from './Panico.js';
@@ -63,6 +63,19 @@ export function Principal({ usuario }: { usuario: UsuarioApp }) {
 }
 
 function Ajustes({ usuario }: { usuario: UsuarioApp }) {
+  const [actual, setActual] = useState('');
+  const [nueva, setNueva] = useState('');
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const cambiar = useMutation({
+    mutationFn: () => cambiarClave(actual, nueva),
+    onSuccess: () => {
+      setActual('');
+      setNueva('');
+      setMensaje('Clave cambiada');
+    },
+    onError: (err) => setMensaje(err instanceof Error ? err.message : 'No se pudo cambiar la clave'),
+  });
+
   return (
     <div className="flex flex-col gap-4 text-sm">
       <section className="bg-superficie border border-borde rounded p-4 flex flex-col gap-1">
@@ -71,6 +84,45 @@ function Ajustes({ usuario }: { usuario: UsuarioApp }) {
         <p className="font-datos text-tenue">{usuario.email}</p>
         <p className="font-datos text-tenue text-xs mt-1">Servidor: {servidorGuardado() || 'este mismo origen'}</p>
       </section>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMensaje(null);
+          cambiar.mutate();
+        }}
+        className="bg-superficie border border-borde rounded p-4 flex flex-col gap-2.5"
+      >
+        <h2 className="text-tenue text-xs uppercase tracking-wider">Cambiar clave</h2>
+        <input
+          type="password"
+          value={actual}
+          onChange={(e) => setActual(e.target.value)}
+          placeholder="Clave actual"
+          required
+          autoComplete="current-password"
+          className="bg-fondo border border-borde rounded px-3 py-2.5 font-datos"
+        />
+        <input
+          type="password"
+          value={nueva}
+          onChange={(e) => setNueva(e.target.value)}
+          placeholder="Clave nueva (mín. 6)"
+          required
+          minLength={6}
+          autoComplete="new-password"
+          className="bg-fondo border border-borde rounded px-3 py-2.5 font-datos"
+        />
+        {mensaje && <p className={mensaje === 'Clave cambiada' ? 'text-ok' : 'text-prio1'}>{mensaje}</p>}
+        <button
+          type="submit"
+          disabled={cambiar.isPending || nueva.length < 6}
+          className="self-end bg-superficie-2 border border-borde rounded px-4 py-2 font-semibold disabled:opacity-50"
+        >
+          Cambiar
+        </button>
+      </form>
+
       <button
         onClick={cerrarSesion}
         className="bg-superficie border border-borde rounded py-3 text-prio1 font-semibold"

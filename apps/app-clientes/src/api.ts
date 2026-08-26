@@ -105,6 +105,8 @@ export async function ingresar(email: string, clave: string): Promise<UsuarioApp
 export const verResumen = () => pedir<Resumen>('/cliente/resumen');
 export const verEventos = () => pedir<EventoApp[]>('/cliente/eventos?limite=100');
 export const verAlarmas = () => pedir<AlarmaApp[]>('/cliente/alarmas');
+export const cambiarClave = (actual: string, nueva: string) =>
+  pedir<{ ok: boolean }>('/auth/clave', { method: 'POST', body: JSON.stringify({ actual, nueva }) });
 export const enviarPanico = (sitioId: number) =>
   pedir<{ alarmaId: number; recibido: boolean }>('/cliente/panico', {
     method: 'POST',
