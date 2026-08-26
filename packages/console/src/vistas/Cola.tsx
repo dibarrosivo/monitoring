@@ -11,6 +11,7 @@ import {
 import type { Alarma } from '../tipos.js';
 import { fechaHora, transcurrido } from '../tiempo.js';
 import { clasesPrioridad } from '../ui.js';
+import { ModalSenal } from '../ModalSenal.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
 const NOMBRE_ESTADO = { nueva: 'NUEVA', en_atencion: 'EN ATENCIÓN', cerrada: 'CERRADA' } as const;
@@ -56,7 +57,7 @@ export function Cola({ alarmaReciente }: { alarmaReciente: number | null }) {
               <th className="px-3 py-2 font-medium">Código</th>
               <th className="px-3 py-2 font-medium">Descripción</th>
               <th className="px-3 py-2 font-medium">Cuenta</th>
-              <th className="px-3 py-2 font-medium">Zona</th>
+              <th className="px-3 py-2 font-medium">Usuario / Zona</th>
               <th className="px-3 py-2 font-medium">Part</th>
               <th className="px-3 py-2 font-medium">Estado</th>
               <th className="px-3 py-2 font-medium text-right">Espera</th>
@@ -110,11 +111,19 @@ function FilaAlarma({
     onSuccess: () => clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] }),
   });
 
+  // Como en toda central: la fila entera de una alarma real sin atender se pinta.
+  const fondoFila =
+    alarma.estado === 'nueva' && alarma.prioridad <= 1
+      ? 'bg-prio1/20 hover:bg-prio1/25'
+      : alarma.estado === 'nueva' && alarma.prioridad === 2
+        ? 'bg-prio2/10 hover:bg-prio2/15'
+        : 'hover:bg-superficie-2/60';
+
   return (
     <tr
       onClick={alSeleccionar}
       className={`cursor-pointer border-b border-borde/40 ${
-        seleccionada ? 'bg-acento/10' : 'hover:bg-superficie-2/60'
+        seleccionada ? 'bg-acento/10' : fondoFila
       } ${reciente ? 'alarma-nueva' : ''}`}
     >
       <td className={`p-0 ${prio.barra}`} aria-hidden />
@@ -122,7 +131,10 @@ function FilaAlarma({
       <td className={`px-3 py-1.5 font-semibold ${prio.texto}`}>{alarma.evento.codigo}</td>
       <td className="px-3 py-1.5 font-ui">{alarma.evento.descripcion}</td>
       <td className="px-3 py-1.5">{alarma.evento.numeroCuenta ?? '—'}</td>
-      <td className="px-3 py-1.5 text-tenue">{alarma.evento.zona ?? '—'}</td>
+      <td className="px-3 py-1.5 text-tenue">
+        {alarma.evento.zona ?? '—'}
+        {alarma.zonaDescripcion && <span className="font-ui text-texto"> - {alarma.zonaDescripcion}</span>}
+      </td>
       <td className="px-3 py-1.5 text-tenue">{alarma.evento.particion ?? '—'}</td>
       <td className={`px-3 py-1.5 text-xs ${alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
         {NOMBRE_ESTADO[alarma.estado]}
@@ -160,6 +172,7 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
   });
   const [nota, setNota] = useState('');
   const [resolucion, setResolucion] = useState('');
+  const [senalVisible, setSenalVisible] = useState(false);
 
   function refrescar() {
     void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
@@ -202,10 +215,21 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
             Tomar
           </button>
         )}
+        {alarma.evento.senalId && (
+          <button
+            onClick={() => setSenalVisible(true)}
+            className="text-tenue hover:text-acento text-xs font-datos underline underline-offset-2"
+          >
+            Ver señal
+          </button>
+        )}
         <button onClick={alCerrarPanel} className="ml-auto text-tenue hover:text-texto" aria-label="Cerrar panel">
           ✕
         </button>
       </header>
+      {senalVisible && alarma.evento.senalId && (
+        <ModalSenal senalId={alarma.evento.senalId} alCerrar={() => setSenalVisible(false)} />
+      )}
 
       <div className="flex-1 min-h-0 grid grid-cols-3 divide-x divide-borde">
         {/* Cuenta y lista de llamadas */}

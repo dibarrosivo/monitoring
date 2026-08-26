@@ -19,6 +19,7 @@ export type CategoriaEvento =
 
 export interface Evento {
   id: number;
+  senalId: number | null;
   panelId: number | null;
   numeroCuenta: string | null;
   categoria: CategoriaEvento;
@@ -28,6 +29,45 @@ export interface Evento {
   zona: string | null;
   prioridad: number;
   ocurridoEn: string;
+  zonaDescripcion?: string | null;
+}
+
+export interface Senal {
+  id: number;
+  fuente: string;
+  remoto: string | null;
+  cruda: string;
+  estadoParse: string;
+  detalleError: string | null;
+  panelId: number | null;
+  recibidaEn: string;
+}
+
+export interface Zona {
+  id: number;
+  panelId: number;
+  numero: string;
+  particion: string;
+  descripcion: string | null;
+}
+
+export interface Horario {
+  id: number;
+  panelId: number;
+  dias: string;
+  apertura: string;
+  cierre: string;
+  toleranciaMin: number;
+  activo: boolean;
+}
+
+export interface UsuarioAdmin {
+  id: number;
+  email: string;
+  nombre: string;
+  rol: 'admin' | 'operador';
+  activo: boolean;
+  creadoEn: string;
 }
 
 export type EstadoAlarma = 'nueva' | 'en_atencion' | 'cerrada';
@@ -42,7 +82,10 @@ export interface Alarma {
   cerradaEn: string | null;
   resolucion: string | null;
   panelId: number | null;
-  evento: Pick<Evento, 'id' | 'codigo' | 'categoria' | 'descripcion' | 'numeroCuenta' | 'particion' | 'zona' | 'ocurridoEn'>;
+  zonaDescripcion: string | null;
+  evento: Pick<Evento, 'id' | 'codigo' | 'categoria' | 'descripcion' | 'numeroCuenta' | 'particion' | 'zona' | 'ocurridoEn'> & {
+    senalId: number | null;
+  };
 }
 
 export interface AccionAlarma {

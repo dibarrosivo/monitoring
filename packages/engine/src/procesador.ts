@@ -5,11 +5,13 @@ import {
   alarma,
   db,
   evento,
+  horario,
   notificar,
   panel,
   senal,
 } from '@monitoring/db';
 import { interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
+import { esAperturaFueraDeHorario } from './horarios.js';
 
 /** Categorías que abren una alarma para el operador. Las averías quedan en el registro de eventos. */
 const CATEGORIAS_CON_ALARMA = new Set(['alarma', 'cancelacion', 'sistema']);
@@ -100,6 +102,40 @@ export async function procesarEvento(entrada: {
       descripcion,
       numeroCuenta: normalizado.numeroCuenta,
     });
+  }
+
+  // Apertura fuera del horario permitido: alguien entró con código válido en un
+  // momento en que el sitio debería estar cerrado. Alarma aparte, prioridad alta.
+  if (panelEncontrado && normalizado.categoria === 'apertura') {
+    const horarios = await db
+      .select()
+      .from(horario)
+      .where(and(eq(horario.panelId, panelEncontrado.id), eq(horario.activo, true)));
+    if (esAperturaFueraDeHorario(horarios, recibidaEn)) {
+      const descripcionFuera = `Apertura fuera de horario (cuenta ${normalizado.numeroCuenta})`;
+      const [filaFuera] = await db
+        .insert(evento)
+        .values({
+          senalId,
+          panelId: panelEncontrado.id,
+          numeroCuenta: normalizado.numeroCuenta,
+          categoria: 'sistema',
+          codigo: 'HOR-AF',
+          descripcion: descripcionFuera,
+          particion: normalizado.particion,
+          zona: normalizado.zona,
+          prioridad: 2,
+          ocurridoEn: recibidaEn,
+        })
+        .returning({ id: evento.id });
+      await abrirAlarma({
+        eventoId: filaFuera!.id,
+        panelId: panelEncontrado.id,
+        prioridad: 2,
+        descripcion: descripcionFuera,
+        numeroCuenta: normalizado.numeroCuenta,
+      });
+    }
   }
 
   await notificar(CANAL_EVENTOS, {

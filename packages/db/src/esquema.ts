@@ -7,6 +7,7 @@ import {
   pgTable,
   serial,
   text,
+  time,
   timestamp,
   uniqueIndex,
   varchar,
@@ -161,6 +162,25 @@ export const accionAlarma = pgTable('accion_alarma', {
   tipo: tipoAccionEnum('tipo').notNull(),
   detalle: text('detalle'),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Horario esperado de apertura/cierre de un panel. El vigilante genera eventos
+ * de sistema ante apertura tarde, falta de cierre o apertura fuera de horario.
+ * v1: horarios dentro del mismo día (apertura < cierre); un panel puede tener
+ * varias filas para días distintos.
+ */
+export const horario = pgTable('horario', {
+  id: serial('id').primaryKey(),
+  panelId: integer('id_panel')
+    .notNull()
+    .references(() => panel.id),
+  /** Días activos como 'LMXJVSD' con '-' en los días libres, p. ej. 'LMXJV--' */
+  dias: varchar('dias', { length: 7 }).notNull(),
+  apertura: time('apertura').notNull(),
+  cierre: time('cierre').notNull(),
+  toleranciaMin: integer('tolerancia_min').notNull().default(30),
+  activo: boolean('activo').notNull().default(true),
 });
 
 export const contacto = pgTable('contacto', {

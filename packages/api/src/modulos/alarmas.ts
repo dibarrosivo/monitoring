@@ -25,6 +25,7 @@ export function registrarAlarmas(app: App) {
         resolucion: alarma.resolucion,
         evento: {
           id: evento.id,
+          senalId: evento.senalId,
           codigo: evento.codigo,
           categoria: evento.categoria,
           descripcion: evento.descripcion,
@@ -33,10 +34,12 @@ export function registrarAlarmas(app: App) {
           zona: evento.zona,
           ocurridoEn: evento.ocurridoEn,
         },
+        zonaDescripcion: zona.descripcion,
         panelId: alarma.panelId,
       })
       .from(alarma)
       .innerJoin(evento, eq(alarma.eventoId, evento.id))
+      .leftJoin(zona, and(eq(zona.panelId, alarma.panelId), eq(zona.numero, evento.zona)))
       .where(condicion)
       .orderBy(alarma.prioridad, desc(alarma.creadoEn))
       .limit(500);

@@ -7,7 +7,11 @@ import type {
   ContextoAlarma,
   EstadoPanel,
   Evento,
+  Horario,
+  Senal,
   Usuario,
+  UsuarioAdmin,
+  Zona,
 } from './tipos.js';
 
 const CLAVE_TOKEN = 'monitoring.token';
@@ -92,3 +96,37 @@ export const crearContacto = (datos: {
   orden?: number;
   palabraClave?: string;
 }) => pedir<Contacto>('/contactos', { method: 'POST', body: JSON.stringify(datos) });
+
+export const verSenal = (id: number) => pedir<Senal>(`/senales/${id}`);
+
+const editar = <T>(ruta: string, datos: unknown) =>
+  pedir<T>(ruta, { method: 'PUT', body: JSON.stringify(datos) });
+const eliminar = (ruta: string) => pedir<{ eliminado: boolean }>(ruta, { method: 'DELETE' });
+
+export const editarCliente = (id: number, datos: Partial<Cliente>) => editar<Cliente>(`/clientes/${id}`, datos);
+export const editarSitio = (id: number, datos: { nombre?: string; direccion?: string }) => editar(`/sitios/${id}`, datos);
+export const eliminarSitio = (id: number) => eliminar(`/sitios/${id}`);
+export const editarPanel = (id: number, datos: Partial<Omit<EstadoPanel, 'id' | 'sitioId' | 'ultimaSenalEn'>> & { modelo?: string }) =>
+  editar<EstadoPanel>(`/paneles/${id}`, datos);
+export const listarZonas = (panelId: number) => pedir<Zona[]>(`/paneles/${panelId}/zonas`);
+export const crearZona = (datos: { panelId: number; numero: string; particion?: string; descripcion?: string }) =>
+  pedir<Zona>('/zonas', { method: 'POST', body: JSON.stringify(datos) });
+export const editarZona = (id: number, datos: { numero?: string; particion?: string; descripcion?: string }) =>
+  editar<Zona>(`/zonas/${id}`, datos);
+export const eliminarZona = (id: number) => eliminar(`/zonas/${id}`);
+export const editarContacto = (id: number, datos: Partial<Omit<Contacto, 'id' | 'clienteId'>>) =>
+  editar<Contacto>(`/contactos/${id}`, datos);
+export const eliminarContacto = (id: number) => eliminar(`/contactos/${id}`);
+
+export const listarHorarios = (panelId: number) => pedir<Horario[]>(`/paneles/${panelId}/horarios`);
+export const crearHorario = (datos: { panelId: number; dias: string; apertura: string; cierre: string; toleranciaMin?: number }) =>
+  pedir<Horario>('/horarios', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarHorario = (id: number) => eliminar(`/horarios/${id}`);
+
+export const listarUsuarios = () => pedir<UsuarioAdmin[]>('/usuarios');
+export const crearUsuario = (datos: { email: string; nombre: string; clave: string; rol: 'admin' | 'operador' }) =>
+  pedir<UsuarioAdmin>('/usuarios', { method: 'POST', body: JSON.stringify(datos) });
+export const editarUsuario = (id: number, datos: { nombre?: string; rol?: 'admin' | 'operador'; activo?: boolean; clave?: string }) =>
+  editar<UsuarioAdmin>(`/usuarios/${id}`, datos);
+export const cambiarClave = (actual: string, nueva: string) =>
+  pedir<{ ok: boolean }>('/auth/clave', { method: 'POST', body: JSON.stringify({ actual, nueva }) });

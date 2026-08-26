@@ -33,6 +33,11 @@ Reglas de oro del receptor:
 3. El silencio también alarma: un panel supervisado sin señales por 1.5× su intervalo de prueba abre una alarma de sistema.
 4. Una cuenta desconocida genera alarma para el operador (alguien transmite y nadie lo mira).
 
+Supervisión de horarios (por panel, opcional): con un horario cargado, el sistema abre alarmas de
+sistema ante **apertura tarde** (`HOR-AT`), **falta de cierre** (`HOR-SC`) y **apertura fuera de
+horario** (`HOR-AF`, prioridad alta: alguien entró con código válido cuando el sitio debía estar
+cerrado). Sin horario cargado no se supervisa.
+
 ## Desarrollo
 
 ```bash

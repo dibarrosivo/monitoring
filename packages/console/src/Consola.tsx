@@ -8,14 +8,17 @@ import { Cola } from './vistas/Cola.js';
 import { Eventos } from './vistas/Eventos.js';
 import { Paneles } from './vistas/Paneles.js';
 import { Clientes } from './vistas/Clientes.js';
+import { Usuarios } from './vistas/Usuarios.js';
+import { ModalClave } from './ModalClave.js';
 
-type Vista = 'cola' | 'eventos' | 'paneles' | 'clientes';
+type Vista = 'cola' | 'eventos' | 'paneles' | 'clientes' | 'usuarios';
 
-const VISTAS: { clave: Vista; nombre: string }[] = [
+const VISTAS: { clave: Vista; nombre: string; soloAdmin?: boolean }[] = [
   { clave: 'cola', nombre: 'Cola de alarmas' },
   { clave: 'eventos', nombre: 'Eventos' },
   { clave: 'paneles', nombre: 'Paneles' },
   { clave: 'clientes', nombre: 'Clientes' },
+  { clave: 'usuarios', nombre: 'Usuarios', soloAdmin: true },
 ];
 
 export function Consola({ usuario }: { usuario: Usuario }) {
@@ -23,6 +26,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
   const [vista, setVista] = useState<Vista>('cola');
   const [reloj, setReloj] = useState(() => new Date());
   const [sonido, setSonido] = useState(() => localStorage.getItem('monitoring.sonido') !== 'no');
+  const [claveVisible, setClaveVisible] = useState(false);
   const [ultimaSenal, setUltimaSenal] = useState<string | null>(null);
   const [alarmaReciente, setAlarmaReciente] = useState<number | null>(null);
 
@@ -79,7 +83,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           <h1 className="font-datos font-semibold tracking-[0.2em] text-xs">CENTRAL DE MONITOREO</h1>
         </div>
         <div className="flex-1 py-2">
-          {VISTAS.map((v) => (
+          {VISTAS.filter((v) => !v.soloAdmin || usuario.rol === 'admin').map((v) => (
             <button
               key={v.clave}
               onClick={() => setVista(v.clave)}
@@ -101,6 +105,9 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           <div className="text-tenue truncate" title={usuario.email}>
             {usuario.nombre}
           </div>
+          <button onClick={() => setClaveVisible(true)} className="text-left text-tenue hover:text-texto">
+            Cambiar clave
+          </button>
           <button onClick={cerrarSesion} className="text-left text-tenue hover:text-prio1">
             Cerrar sesión
           </button>
@@ -140,8 +147,10 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'eventos' && <Eventos />}
           {vista === 'paneles' && <Paneles />}
           {vista === 'clientes' && <Clientes />}
+          {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
       </div>
+      {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
     </div>
   );
 }

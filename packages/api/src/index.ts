@@ -8,6 +8,7 @@ import { registrarAuth } from './modulos/auth.js';
 import { registrarClientes } from './modulos/clientes.js';
 import { registrarAlarmas } from './modulos/alarmas.js';
 import { registrarEventos } from './modulos/eventos.js';
+import { registrarUsuarios } from './modulos/usuarios.js';
 import './tipos.js';
 
 try {
@@ -46,6 +47,7 @@ await app.register(
     await api.register(async (sub) => registrarClientes(sub));
     await api.register(async (sub) => registrarAlarmas(sub));
     await api.register(async (sub) => registrarEventos(sub));
+    await api.register(async (sub) => registrarUsuarios(sub));
 
     await api.register(async (sub) => {
       sub.get('/ws', { websocket: true }, (socket, request) => {
