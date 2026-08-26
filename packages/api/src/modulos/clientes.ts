@@ -81,6 +81,7 @@ const esquemaContacto = z.object({
 
 export function registrarClientes(app: App) {
   app.addHook('onRequest', app.autenticar);
+  app.addHook('onRequest', app.soloPersonal);
 
   app.get('/clientes', async () => db.select().from(cliente).orderBy(cliente.nombre));
 

@@ -15,6 +15,13 @@
       "when": 1787752957111,
       "tag": "0001_absurd_madame_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787755316670,
+      "tag": "0002_brief_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

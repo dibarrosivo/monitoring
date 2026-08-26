@@ -9,7 +9,7 @@ const BOTON_MINI = 'text-xs text-tenue hover:text-acento underline underline-off
 const BOTON_MINI_ROJO = 'text-xs text-tenue hover:text-prio1 underline underline-offset-2';
 
 export function Usuarios({ usuarioActualId }: { usuarioActualId: number }) {
-  const { data: usuarios, isLoading } = useQuery({ queryKey: ['usuarios'], queryFn: listarUsuarios });
+  const { data: usuarios, isLoading } = useQuery({ queryKey: ['usuarios'], queryFn: () => listarUsuarios() });
 
   if (isLoading) return <p className="text-tenue">Cargando usuarios…</p>;
 

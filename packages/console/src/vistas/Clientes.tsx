@@ -6,6 +6,7 @@ import {
   crearHorario,
   crearPanel,
   crearSitio,
+  crearUsuario,
   crearZona,
   editarCliente,
   editarContacto,
@@ -16,10 +17,13 @@ import {
   eliminarHorario,
   eliminarSitio,
   eliminarZona,
+  editarUsuario,
   listarClientes,
   listarHorarios,
   listarPaneles,
+  listarUsuarios,
   listarZonas,
+  usuarioGuardado,
   verCliente,
 } from '../api.js';
 import type { Cliente, Contacto, EstadoPanel, Sitio } from '../tipos.js';
@@ -139,7 +143,79 @@ function DetalleCliente({ clienteId }: { clienteId: number }) {
         </ol>
         <FormularioContacto clienteId={clienteId} alCrear={refrescar} />
       </section>
+
+      {usuarioGuardado()?.rol === 'admin' && <UsuariosApp clienteId={clienteId} />}
     </div>
+  );
+}
+
+/** Cuentas de la app móvil del cliente (solo administradores). */
+function UsuariosApp({ clienteId }: { clienteId: number }) {
+  const clienteConsultas = useQueryClient();
+  const { data: usuarios } = useQuery({
+    queryKey: ['usuarios-app', clienteId],
+    queryFn: () => listarUsuarios(clienteId),
+  });
+  const [datos, setDatos] = useState({ nombre: '', email: '', clave: '' });
+  const [error, setError] = useState<string | null>(null);
+  const refrescar = () => void clienteConsultas.invalidateQueries({ queryKey: ['usuarios-app', clienteId] });
+
+  const crear = useMutation({
+    mutationFn: () => crearUsuario({ ...datos, rol: 'cliente', clienteId }),
+    onSuccess: () => {
+      setDatos({ nombre: '', email: '', clave: '' });
+      setError(null);
+      refrescar();
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'No se pudo crear'),
+  });
+  const alternar = useMutation({
+    mutationFn: ({ id, activo }: { id: number; activo: boolean }) => editarUsuario(id, { activo }),
+    onSuccess: refrescar,
+  });
+
+  return (
+    <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-3">
+      <h3 className="text-tenue text-xs uppercase tracking-wider">Usuarios de la app móvil</h3>
+      <ul className="text-sm flex flex-col gap-1.5">
+        {(usuarios ?? []).map((u) => (
+          <li key={u.id} className={`flex gap-3 items-center ${u.activo ? '' : 'opacity-50'}`}>
+            <span className="font-semibold">{u.nombre}</span>
+            <span className="font-datos text-tenue">{u.email}</span>
+            {!u.activo && <span className="text-prio2 text-xs">INACTIVO</span>}
+            <button
+              onClick={() => alternar.mutate({ id: u.id, activo: !u.activo })}
+              className={u.activo ? BOTON_MINI_ROJO : BOTON_MINI}
+            >
+              {u.activo ? 'Desactivar' : 'Reactivar'}
+            </button>
+          </li>
+        ))}
+        {(usuarios ?? []).length === 0 && <li className="text-tenue">El cliente todavía no tiene acceso a la app.</li>}
+      </ul>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          crear.mutate();
+        }}
+        className="flex flex-wrap gap-2 items-center"
+      >
+        <input value={datos.nombre} onChange={(e) => setDatos({ ...datos, nombre: e.target.value })} placeholder="Nombre" required className={CAMPO} />
+        <input value={datos.email} onChange={(e) => setDatos({ ...datos, email: e.target.value })} type="email" placeholder="Email" required className={CAMPO} />
+        <input
+          value={datos.clave}
+          onChange={(e) => setDatos({ ...datos, clave: e.target.value })}
+          placeholder="Clave inicial (mín. 6)"
+          required
+          minLength={6}
+          className={`${CAMPO} font-datos`}
+        />
+        <button type="submit" disabled={crear.isPending} className={BOTON}>
+          Dar acceso a la app
+        </button>
+        {error && <span className="text-prio1 text-xs">{error}</span>}
+      </form>
+    </section>
   );
 }
 

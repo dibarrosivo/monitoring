@@ -23,8 +23,14 @@ export function registrarAuth(app: App) {
       return reply.code(401).send({ error: 'Credenciales inválidas' });
     }
 
-    const token = app.jwt.sign({ id: fila.id, email: fila.email, rol: fila.rol }, { expiresIn: '12h' });
-    return { token, usuario: { id: fila.id, email: fila.email, nombre: fila.nombre, rol: fila.rol } };
+    const token = app.jwt.sign(
+      { id: fila.id, email: fila.email, rol: fila.rol, clienteId: fila.clienteId },
+      { expiresIn: fila.rol === 'cliente' ? '30d' : '12h' },
+    );
+    return {
+      token,
+      usuario: { id: fila.id, email: fila.email, nombre: fila.nombre, rol: fila.rol, clienteId: fila.clienteId },
+    };
   });
 
   /** Cambio de la propia clave (requiere la clave actual). */

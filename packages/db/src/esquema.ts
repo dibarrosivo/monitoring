@@ -29,7 +29,7 @@ export const categoriaEventoEnum = pgEnum('categoria_evento', [
 ]);
 export const estadoAlarmaEnum = pgEnum('estado_alarma', ['nueva', 'en_atencion', 'cerrada']);
 export const tipoAccionEnum = pgEnum('tipo_accion', ['toma', 'nota', 'cierre', 'sistema']);
-export const rolUsuarioEnum = pgEnum('rol_usuario', ['admin', 'operador']);
+export const rolUsuarioEnum = pgEnum('rol_usuario', ['admin', 'operador', 'cliente']);
 
 export const cliente = pgTable('cliente', {
   id: serial('id').primaryKey(),
@@ -130,6 +130,8 @@ export const usuario = pgTable('usuario', {
   nombre: text('nombre').notNull(),
   hashClave: text('hash_clave').notNull(),
   rol: rolUsuarioEnum('rol').notNull().default('operador'),
+  /** Solo para rol 'cliente': el cliente al que pertenece; su acceso queda acotado a él. */
+  clienteId: integer('id_cliente').references(() => cliente.id),
   activo: boolean('activo').notNull().default(true),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 });

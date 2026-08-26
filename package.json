@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Central de monitoreo de alarmas: recepción de señales (SIA DC-09, Surgard/PIMA), gestión de clientes, paneles y alarmas",
+  "description": "Central de monitoreo de alarmas: recepci\u00f3n de se\u00f1ales (SIA DC-09, Surgard/PIMA), gesti\u00f3n de clientes, paneles y alarmas",
   "workspaces": [
     "packages/*",
-    "tools/*"
+    "tools/*",
+    "apps/*"
   ],
   "engines": {
     "node": ">=22"
@@ -14,14 +15,15 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/console",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/console && tsc --noEmit -p apps/app-clientes",
     "receiver": "tsx packages/receiver/src/index.ts",
     "api": "tsx packages/api/src/index.ts",
     "console": "npm run dev -w @monitoring/console",
     "simulador": "tsx tools/simulator/src/index.ts",
     "db:generar": "npm run generar -w @monitoring/db",
     "db:migrar": "npm run migrar -w @monitoring/db",
-    "db:seed": "npm run seed -w @monitoring/db"
+    "db:seed": "npm run seed -w @monitoring/db",
+    "app": "npm run dev -w @monitoring/app-clientes"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

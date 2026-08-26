@@ -54,13 +54,16 @@ async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
 }
 
 export async function ingresar(email: string, clave: string): Promise<Usuario> {
-  const datos = await pedir<{ token: string; usuario: Usuario }>('/auth/login', {
+  const datos = await pedir<{ token: string; usuario: Omit<Usuario, 'rol'> & { rol: string } }>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, clave }),
   });
+  if (datos.usuario.rol === 'cliente') {
+    throw new Error('Esta consola es del personal de la central; los clientes usan la app');
+  }
   localStorage.setItem(CLAVE_TOKEN, datos.token);
   localStorage.setItem(CLAVE_USUARIO, JSON.stringify(datos.usuario));
-  return datos.usuario;
+  return datos.usuario as Usuario;
 }
 
 export const listarAlarmas = () => pedir<Alarma[]>('/alarmas');
@@ -123,9 +126,15 @@ export const crearHorario = (datos: { panelId: number; dias: string; apertura: s
   pedir<Horario>('/horarios', { method: 'POST', body: JSON.stringify(datos) });
 export const eliminarHorario = (id: number) => eliminar(`/horarios/${id}`);
 
-export const listarUsuarios = () => pedir<UsuarioAdmin[]>('/usuarios');
-export const crearUsuario = (datos: { email: string; nombre: string; clave: string; rol: 'admin' | 'operador' }) =>
-  pedir<UsuarioAdmin>('/usuarios', { method: 'POST', body: JSON.stringify(datos) });
+export const listarUsuarios = (clienteId?: number) =>
+  pedir<UsuarioAdmin[]>(clienteId ? `/usuarios?clienteId=${clienteId}` : '/usuarios');
+export const crearUsuario = (datos: {
+  email: string;
+  nombre: string;
+  clave: string;
+  rol: 'admin' | 'operador' | 'cliente';
+  clienteId?: number;
+}) => pedir<UsuarioAdmin>('/usuarios', { method: 'POST', body: JSON.stringify(datos) });
 export const editarUsuario = (id: number, datos: { nombre?: string; rol?: 'admin' | 'operador'; activo?: boolean; clave?: string }) =>
   editar<UsuarioAdmin>(`/usuarios/${id}`, datos);
 export const cambiarClave = (actual: string, nueva: string) =>

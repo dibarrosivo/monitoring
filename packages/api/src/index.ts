@@ -9,6 +9,7 @@ import { registrarClientes } from './modulos/clientes.js';
 import { registrarAlarmas } from './modulos/alarmas.js';
 import { registrarEventos } from './modulos/eventos.js';
 import { registrarUsuarios } from './modulos/usuarios.js';
+import { registrarClienteApp } from './modulos/clienteApp.js';
 import './tipos.js';
 
 try {
@@ -31,6 +32,10 @@ app.decorate('autenticar', async (request, reply) => {
   }
 });
 
+app.decorate('soloPersonal', async (request, reply) => {
+  if (request.user.rol === 'cliente') return reply.code(403).send({ error: 'Solo personal de la central' });
+});
+
 /** Tiempo real: puente entre NOTIFY de Postgres y los WebSockets de la consola. */
 const conexiones = new Set<WebSocket>();
 
@@ -48,6 +53,7 @@ await app.register(
     await api.register(async (sub) => registrarAlarmas(sub));
     await api.register(async (sub) => registrarEventos(sub));
     await api.register(async (sub) => registrarUsuarios(sub));
+    await api.register(async (sub) => registrarClienteApp(sub));
 
     await api.register(async (sub) => {
       sub.get('/ws', { websocket: true }, (socket, request) => {

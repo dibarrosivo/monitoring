@@ -4,6 +4,7 @@ import type { App } from '../tipos.js';
 
 export function registrarEventos(app: App) {
   app.addHook('onRequest', app.autenticar);
+  app.addHook('onRequest', app.soloPersonal);
 
   app.get('/eventos', async (request) => {
     const { panelId, limite } = request.query as { panelId?: string; limite?: string };

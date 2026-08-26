@@ -65,7 +65,8 @@ export interface UsuarioAdmin {
   id: number;
   email: string;
   nombre: string;
-  rol: 'admin' | 'operador';
+  rol: 'admin' | 'operador' | 'cliente';
+  clienteId: number | null;
   activo: boolean;
   creadoEn: string;
 }

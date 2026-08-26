@@ -8,6 +8,7 @@ const esquemaCierre = z.object({ resolucion: z.string().min(1) });
 
 export function registrarAlarmas(app: App) {
   app.addHook('onRequest', app.autenticar);
+  app.addHook('onRequest', app.soloPersonal);
 
   /** Cola del operador: por defecto todas las alarmas no cerradas, primero las de mayor prioridad. */
   app.get('/alarmas', async (request) => {
