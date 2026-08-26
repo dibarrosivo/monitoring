@@ -1,4 +1,5 @@
 import type {
+  Acceso,
   AccionAlarma,
   Alarma,
   Cliente,
@@ -11,6 +12,7 @@ import type {
   Senal,
   Usuario,
   UsuarioAdmin,
+  UsuarioPanel,
   Zona,
 } from './tipos.js';
 
@@ -128,6 +130,15 @@ export const eliminarHorario = (id: number) => eliminar(`/horarios/${id}`);
 
 export const listarUsuarios = (clienteId?: number) =>
   pedir<UsuarioAdmin[]>(clienteId ? `/usuarios?clienteId=${clienteId}` : '/usuarios');
+export const listarAccesos = (usuarioId: number) => pedir<Acceso[]>(`/usuarios/${usuarioId}/accesos`);
+export const crearAcceso = (datos: { usuarioId: number; clienteId: number; sitioId?: number; panelId?: number }) =>
+  pedir<Acceso>('/accesos', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarAcceso = (id: number) => eliminar(`/accesos/${id}`);
+
+export const listarUsuariosPanel = (panelId: number) => pedir<UsuarioPanel[]>(`/paneles/${panelId}/usuarios-panel`);
+export const crearUsuarioPanel = (datos: { panelId: number; numero: string; nombre: string; telefono?: string }) =>
+  pedir<UsuarioPanel>('/usuarios-panel', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarUsuarioPanel = (id: number) => eliminar(`/usuarios-panel/${id}`);
 export const crearUsuario = (datos: {
   email: string;
   nombre: string;

@@ -4,8 +4,6 @@ export interface CargaJwt {
   id: number;
   email: string;
   rol: 'admin' | 'operador' | 'cliente';
-  /** Solo rol 'cliente': acota todo su acceso a este cliente */
-  clienteId?: number | null;
 }
 
 declare module 'fastify' {

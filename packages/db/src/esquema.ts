@@ -130,11 +130,53 @@ export const usuario = pgTable('usuario', {
   nombre: text('nombre').notNull(),
   hashClave: text('hash_clave').notNull(),
   rol: rolUsuarioEnum('rol').notNull().default('operador'),
-  /** Solo para rol 'cliente': el cliente al que pertenece; su acceso queda acotado a él. */
-  clienteId: integer('id_cliente').references(() => cliente.id),
   activo: boolean('activo').notNull().default(true),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Permiso de un usuario de plataforma (rol 'cliente') sobre el árbol de un cliente.
+ * Granularidad por fila: panelId ⇒ solo ese panel; si no, sitioId ⇒ solo ese sitio;
+ * si ambos son NULL ⇒ todos los sitios y paneles del cliente. Un usuario puede
+ * tener varias filas (varios clientes, o varios alcances dentro de uno).
+ */
+export const acceso = pgTable(
+  'acceso',
+  {
+    id: serial('id').primaryKey(),
+    usuarioId: integer('id_usuario')
+      .notNull()
+      .references(() => usuario.id),
+    clienteId: integer('id_cliente')
+      .notNull()
+      .references(() => cliente.id),
+    sitioId: integer('id_sitio').references(() => sitio.id),
+    panelId: integer('id_panel').references(() => panel.id),
+    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('acceso_usuario').on(t.usuarioId)],
+);
+
+/**
+ * Usuario del panel físico: el número de código en el teclado (los eventos 4xx
+ * de Contact ID reportan este número). No inicia sesión en nada; puede estar
+ * vinculado opcionalmente a una persona de la lista de contactos.
+ */
+export const usuarioPanel = pgTable(
+  'usuario_panel',
+  {
+    id: serial('id').primaryKey(),
+    panelId: integer('id_panel')
+      .notNull()
+      .references(() => panel.id),
+    /** Número de usuario tal como transmite el panel, normalizado a 3 dígitos ('005') */
+    numero: varchar('numero', { length: 4 }).notNull(),
+    nombre: text('nombre').notNull(),
+    telefono: text('telefono'),
+    contactoId: integer('id_contacto').references(() => contacto.id),
+  },
+  (t) => [uniqueIndex('usuario_panel_unico').on(t.panelId, t.numero)],
+);
 
 export const alarma = pgTable(
   'alarma',
@@ -197,4 +239,6 @@ export const contacto = pgTable('contacto', {
   orden: integer('orden').notNull().default(1),
   palabraClave: text('palabra_clave'),
   notas: text('notas'),
+  /** Opcional: esta persona también tiene cuenta de plataforma (la app) */
+  usuarioId: integer('id_usuario').references(() => usuario.id),
 });

@@ -9,6 +9,7 @@ import {
   notificar,
   panel,
   senal,
+  usuarioPanel,
 } from '@monitoring/db';
 import { interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
 import { esAperturaFueraDeHorario } from './horarios.js';
@@ -66,9 +67,24 @@ export async function procesarEvento(entrada: {
   const { senalId, normalizado, recibidaEn } = entrada;
   const panelEncontrado = await buscarPanelPorCuenta(normalizado.numeroCuenta);
 
-  const descripcion = panelEncontrado
+  let descripcion = panelEncontrado
     ? normalizado.descripcion
     : `${normalizado.descripcion} — CUENTA DESCONOCIDA (${normalizado.numeroCuenta})`;
+
+  // En los eventos 4xx el campo zona es el número de usuario del teclado:
+  // si está dado de alta, el evento nombra a la persona.
+  if (
+    panelEncontrado &&
+    normalizado.zona &&
+    ['apertura', 'cierre', 'cancelacion'].includes(normalizado.categoria)
+  ) {
+    const [personaPanel] = await db
+      .select({ nombre: usuarioPanel.nombre })
+      .from(usuarioPanel)
+      .where(and(eq(usuarioPanel.panelId, panelEncontrado.id), eq(usuarioPanel.numero, normalizado.zona)))
+      .limit(1);
+    if (personaPanel) descripcion += ` — ${personaPanel.nombre} (cód. ${Number(normalizado.zona)})`;
+  }
 
   const [filaEvento] = await db
     .insert(evento)

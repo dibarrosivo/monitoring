@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { cliente, contacto, db, horario, panel, sitio, zona } from '@monitoring/db';
+import { cliente, contacto, db, horario, panel, sitio, usuarioPanel, zona } from '@monitoring/db';
 import type { App } from '../tipos.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
@@ -172,4 +172,35 @@ export function registrarClientes(app: App) {
     actualizar(req, res, esquemaHorario.omit({ panelId: true }).partial().extend({ activo: z.boolean().optional() }), horario),
   );
   app.delete('/horarios/:id', (req, res) => borrar(req, res, horario));
+
+  // ---- Usuarios del panel físico (códigos del teclado) ----
+  const esquemaUsuarioPanel = z.object({
+    panelId: z.number().int(),
+    /** Se normaliza a 3 dígitos: los eventos Contact ID transmiten '005' */
+    numero: z
+      .string()
+      .regex(/^\d{1,4}$/)
+      .transform((n) => n.padStart(3, '0')),
+    nombre: z.string().min(1),
+    telefono: z.string().optional(),
+    contactoId: z.number().int().optional(),
+  });
+
+  app.get('/paneles/:id/usuarios-panel', async (request) =>
+    db.select().from(usuarioPanel).where(eq(usuarioPanel.panelId, idDe(request))).orderBy(usuarioPanel.numero),
+  );
+
+  app.post('/usuarios-panel', async (request, reply) => {
+    const datos = esquemaUsuarioPanel.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    try {
+      const [fila] = await db.insert(usuarioPanel).values(datos.data).returning();
+      return reply.code(201).send(fila);
+    } catch {
+      return reply.code(409).send({ error: 'Ese número de usuario ya existe en el panel' });
+    }
+  });
+
+  app.put('/usuarios-panel/:id', (req, res) => actualizar(req, res, esquemaUsuarioPanel.omit({ panelId: true }).partial(), usuarioPanel));
+  app.delete('/usuarios-panel/:id', (req, res) => borrar(req, res, usuarioPanel));
 }

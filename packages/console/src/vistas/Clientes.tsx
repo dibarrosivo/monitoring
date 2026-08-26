@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  crearAcceso,
   crearCliente,
   crearContacto,
   crearHorario,
   crearPanel,
   crearSitio,
   crearUsuario,
+  crearUsuarioPanel,
   crearZona,
+  eliminarAcceso,
+  eliminarUsuarioPanel,
+  listarAccesos,
+  listarUsuariosPanel,
   editarCliente,
   editarContacto,
   editarPanel,
@@ -144,13 +150,19 @@ function DetalleCliente({ clienteId }: { clienteId: number }) {
         <FormularioContacto clienteId={clienteId} alCrear={refrescar} />
       </section>
 
-      {usuarioGuardado()?.rol === 'admin' && <UsuariosApp clienteId={clienteId} />}
+      {usuarioGuardado()?.rol === 'admin' && (
+        <UsuariosApp
+          clienteId={clienteId}
+          sitios={detalle.sitios}
+          paneles={(paneles ?? []).filter((p) => detalle.sitios.some((s) => s.id === p.sitioId))}
+        />
+      )}
     </div>
   );
 }
 
-/** Cuentas de la app móvil del cliente (solo administradores). */
-function UsuariosApp({ clienteId }: { clienteId: number }) {
+/** Cuentas de la app móvil con acceso a este cliente (solo administradores). */
+function UsuariosApp({ clienteId, sitios, paneles }: { clienteId: number; sitios: Sitio[]; paneles: EstadoPanel[] }) {
   const clienteConsultas = useQueryClient();
   const { data: usuarios } = useQuery({
     queryKey: ['usuarios-app', clienteId],
@@ -177,18 +189,21 @@ function UsuariosApp({ clienteId }: { clienteId: number }) {
   return (
     <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-3">
       <h3 className="text-tenue text-xs uppercase tracking-wider">Usuarios de la app móvil</h3>
-      <ul className="text-sm flex flex-col gap-1.5">
+      <ul className="text-sm flex flex-col gap-2">
         {(usuarios ?? []).map((u) => (
-          <li key={u.id} className={`flex gap-3 items-center ${u.activo ? '' : 'opacity-50'}`}>
-            <span className="font-semibold">{u.nombre}</span>
-            <span className="font-datos text-tenue">{u.email}</span>
-            {!u.activo && <span className="text-prio2 text-xs">INACTIVO</span>}
-            <button
-              onClick={() => alternar.mutate({ id: u.id, activo: !u.activo })}
-              className={u.activo ? BOTON_MINI_ROJO : BOTON_MINI}
-            >
-              {u.activo ? 'Desactivar' : 'Reactivar'}
-            </button>
+          <li key={u.id} className={`flex flex-col gap-1 ${u.activo ? '' : 'opacity-50'}`}>
+            <div className="flex gap-3 items-center">
+              <span className="font-semibold">{u.nombre}</span>
+              <span className="font-datos text-tenue">{u.email}</span>
+              {!u.activo && <span className="text-prio2 text-xs">INACTIVO</span>}
+              <button
+                onClick={() => alternar.mutate({ id: u.id, activo: !u.activo })}
+                className={u.activo ? BOTON_MINI_ROJO : BOTON_MINI}
+              >
+                {u.activo ? 'Desactivar' : 'Reactivar'}
+              </button>
+            </div>
+            <AccesosDeUsuario usuarioId={u.id} clienteId={clienteId} sitios={sitios} paneles={paneles} />
           </li>
         ))}
         {(usuarios ?? []).length === 0 && <li className="text-tenue">El cliente todavía no tiene acceso a la app.</li>}
@@ -410,8 +425,9 @@ function TarjetaPanel({ panel, alCambiar }: { panel: EstadoPanel; alCambiar: () 
       )}
 
       {abierto && (
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid md:grid-cols-3 gap-3">
           <Zonas panelId={panel.id} />
+          <UsuariosPanel panelId={panel.id} />
           <Horarios panelId={panel.id} />
         </div>
       )}
@@ -495,6 +511,65 @@ function FilaZona({ zona, alCambiar }: { zona: { id: number; numero: string; des
         Eliminar
       </button>
     </li>
+  );
+}
+
+/** Códigos del teclado del panel: con esto los eventos 4xx nombran a la persona. */
+function UsuariosPanel({ panelId }: { panelId: number }) {
+  const clienteConsultas = useQueryClient();
+  const { data: usuarios } = useQuery({
+    queryKey: ['usuarios-panel', panelId],
+    queryFn: () => listarUsuariosPanel(panelId),
+  });
+  const [numero, setNumero] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const refrescar = () => void clienteConsultas.invalidateQueries({ queryKey: ['usuarios-panel', panelId] });
+  const crear = useMutation({
+    mutationFn: () => crearUsuarioPanel({ panelId, numero, nombre }),
+    onSuccess: () => {
+      setNumero('');
+      setNombre('');
+      setError(null);
+      refrescar();
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'No se pudo crear'),
+  });
+  const borrar = useMutation({ mutationFn: eliminarUsuarioPanel, onSuccess: refrescar });
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h4 className="text-tenue text-xs uppercase tracking-wider">Usuarios del panel (códigos)</h4>
+      <ul className="text-sm flex flex-col gap-1">
+        {(usuarios ?? []).map((u) => (
+          <li key={u.id} className="flex gap-2 items-center">
+            <span className="font-datos text-tenue">{u.numero}</span>
+            <span className="flex-1">{u.nombre}</span>
+            <button onClick={() => borrar.mutate(u.id)} className={BOTON_MINI_ROJO}>
+              Eliminar
+            </button>
+          </li>
+        ))}
+        {(usuarios ?? []).length === 0 && (
+          <li className="text-tenue">Sin códigos cargados: los eventos mostrarán solo el número.</li>
+        )}
+      </ul>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          crear.mutate();
+        }}
+        className="flex flex-wrap gap-1.5"
+      >
+        <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="N°" required pattern="\d{1,4}" className={`${CAMPO} w-16 font-datos`} />
+        <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la persona" required className={`${CAMPO} flex-1`} />
+        <button type="submit" disabled={!numero.trim() || !nombre.trim() || crear.isPending} className={BOTON}>
+          Agregar
+        </button>
+        {error && <span className="text-prio1 text-xs">{error}</span>}
+      </form>
+    </div>
   );
 }
 
@@ -617,6 +692,79 @@ function FilaContacto({ contacto, alCambiar }: { contacto: Contacto; alCambiar: 
         Eliminar
       </button>
     </li>
+  );
+}
+
+/** Los alcances de un usuario sobre este cliente: todo, un sitio o un panel. */
+function AccesosDeUsuario({
+  usuarioId,
+  clienteId,
+  sitios,
+  paneles,
+}: {
+  usuarioId: number;
+  clienteId: number;
+  sitios: Sitio[];
+  paneles: EstadoPanel[];
+}) {
+  const clienteConsultas = useQueryClient();
+  const { data: accesos } = useQuery({
+    queryKey: ['accesos', usuarioId],
+    queryFn: () => listarAccesos(usuarioId),
+  });
+  const [alcance, setAlcance] = useState('cliente');
+
+  const refrescar = () => void clienteConsultas.invalidateQueries({ queryKey: ['accesos', usuarioId] });
+  const agregar = useMutation({
+    mutationFn: () => {
+      const [tipo, id] = alcance.split(':');
+      return crearAcceso({
+        usuarioId,
+        clienteId,
+        sitioId: tipo === 'sitio' ? Number(id) : undefined,
+        panelId: tipo === 'panel' ? Number(id) : undefined,
+      });
+    },
+    onSuccess: refrescar,
+  });
+  const quitar = useMutation({ mutationFn: eliminarAcceso, onSuccess: refrescar });
+
+  const deEsteCliente = (accesos ?? []).filter((a) => a.clienteId === clienteId);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pl-2 border-l-2 border-borde">
+      {deEsteCliente.map((a) => (
+        <span key={a.id} className="flex items-center gap-1 bg-superficie-2 border border-borde rounded-sm px-2 py-0.5 text-xs">
+          {a.panelId ? (
+            <span className="font-datos">panel {a.panelCuenta}</span>
+          ) : a.sitioId ? (
+            <>sitio {a.sitioNombre}</>
+          ) : (
+            'todo el cliente'
+          )}
+          <button onClick={() => quitar.mutate(a.id)} className="text-tenue hover:text-prio1" aria-label="Quitar acceso">
+            ✕
+          </button>
+        </span>
+      ))}
+      {deEsteCliente.length === 0 && <span className="text-prio2 text-xs">Sin accesos sobre este cliente</span>}
+      <select value={alcance} onChange={(e) => setAlcance(e.target.value)} className={`${CAMPO} text-xs py-0.5`}>
+        <option value="cliente">todo el cliente</option>
+        {sitios.map((s) => (
+          <option key={s.id} value={`sitio:${s.id}`}>
+            sitio: {s.nombre}
+          </option>
+        ))}
+        {paneles.map((p) => (
+          <option key={p.id} value={`panel:${p.id}`}>
+            panel: cuenta {p.numeroCuenta}
+          </option>
+        ))}
+      </select>
+      <button onClick={() => agregar.mutate()} disabled={agregar.isPending} className={BOTON_MINI}>
+        Dar acceso
+      </button>
+    </div>
   );
 }
 

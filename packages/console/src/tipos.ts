@@ -66,9 +66,29 @@ export interface UsuarioAdmin {
   email: string;
   nombre: string;
   rol: 'admin' | 'operador' | 'cliente';
-  clienteId: number | null;
   activo: boolean;
   creadoEn: string;
+}
+
+/** Permiso de un usuario de app: cliente entero, un sitio o un panel puntual. */
+export interface Acceso {
+  id: number;
+  clienteId: number;
+  clienteNombre: string;
+  sitioId: number | null;
+  sitioNombre: string | null;
+  panelId: number | null;
+  panelCuenta: string | null;
+}
+
+/** Usuario del panel físico: código del teclado con nombre. */
+export interface UsuarioPanel {
+  id: number;
+  panelId: number;
+  numero: string;
+  nombre: string;
+  telefono: string | null;
+  contactoId: number | null;
 }
 
 export type EstadoAlarma = 'nueva' | 'en_atencion' | 'cerrada';

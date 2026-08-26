@@ -23,7 +23,7 @@ export function Principal({ usuario }: { usuario: UsuarioApp }) {
     <div className="min-h-screen bg-fondo flex flex-col">
       <header className="px-4 py-3 border-b border-borde bg-superficie flex items-center gap-2">
         <span className="font-datos font-semibold tracking-[0.15em] text-sm">MI ALARMA</span>
-        <span className="text-tenue text-sm truncate ml-auto">{resumen?.cliente.nombre ?? usuario.nombre}</span>
+        <span className="text-tenue text-sm truncate ml-auto">{usuario.nombre}</span>
       </header>
 
       {(alarmas ?? []).length > 0 && (

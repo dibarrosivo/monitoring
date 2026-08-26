@@ -3,7 +3,6 @@ export interface UsuarioApp {
   email: string;
   nombre: string;
   rol: string;
-  clienteId: number | null;
 }
 
 export interface PanelResumen {
@@ -15,12 +14,13 @@ export interface PanelResumen {
   sitioId: number;
   sitioNombre: string;
   sitioDireccion: string | null;
+  clienteId: number;
+  clienteNombre: string;
   estadoArmado: 'armado' | 'desarmado' | 'desconocido';
   ultimoMovimientoEn: string | null;
 }
 
 export interface Resumen {
-  cliente: { id: number; nombre: string; telefono: string | null };
   paneles: PanelResumen[];
 }
 

@@ -24,12 +24,12 @@ export function registrarAuth(app: App) {
     }
 
     const token = app.jwt.sign(
-      { id: fila.id, email: fila.email, rol: fila.rol, clienteId: fila.clienteId },
+      { id: fila.id, email: fila.email, rol: fila.rol },
       { expiresIn: fila.rol === 'cliente' ? '30d' : '12h' },
     );
     return {
       token,
-      usuario: { id: fila.id, email: fila.email, nombre: fila.nombre, rol: fila.rol, clienteId: fila.clienteId },
+      usuario: { id: fila.id, email: fila.email, nombre: fila.nombre, rol: fila.rol },
     };
   });
 
