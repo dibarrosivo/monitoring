@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Monitoring</string>
+    <string name="title_activity_main">Monitoring</string>
+    <string name="package_name">com.monitoring.movil</string>
+    <string name="custom_url_scheme">com.monitoring.movil</string>
+</resources>

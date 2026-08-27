@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { crearUsuario, editarUsuario, listarUsuarios } from '../api.js';
+import { crearUsuario, editarUsuario, guardarHombreMuerto, listarUsuarios, verConfiguracion } from '../api.js';
 import type { UsuarioAdmin } from '../tipos.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
@@ -15,6 +15,7 @@ export function Usuarios({ usuarioActualId }: { usuarioActualId: number }) {
 
   return (
     <div className="max-w-3xl flex flex-col gap-4">
+      <ConfigPresencia />
       <FormularioUsuario />
       <ul className="bg-superficie border border-borde rounded-sm">
         {(usuarios ?? []).map((usuario) => (
@@ -22,6 +23,85 @@ export function Usuarios({ usuarioActualId }: { usuarioActualId: number }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+/** Parámetros del control de presencia (hombre muerto) de toda la central. */
+function ConfigPresencia() {
+  const clienteConsultas = useQueryClient();
+  const { data: config } = useQuery({ queryKey: ['configuracion'], queryFn: verConfiguracion });
+  const [activo, setActivo] = useState(true);
+  const [intervaloMin, setIntervaloMin] = useState('30');
+  const [respuestaSeg, setRespuestaSeg] = useState('90');
+  const [guardado, setGuardado] = useState(false);
+
+  useEffect(() => {
+    if (config?.hombreMuerto) {
+      setActivo(config.hombreMuerto.activo);
+      setIntervaloMin(String(config.hombreMuerto.intervaloMin));
+      setRespuestaSeg(String(config.hombreMuerto.respuestaSeg));
+    }
+  }, [config]);
+
+  const guardar = useMutation({
+    mutationFn: () =>
+      guardarHombreMuerto({
+        activo,
+        intervaloMin: Number(intervaloMin),
+        respuestaSeg: Number(respuestaSeg),
+      }),
+    onSuccess: () => {
+      setGuardado(true);
+      setTimeout(() => setGuardado(false), 3000);
+      void clienteConsultas.invalidateQueries({ queryKey: ['configuracion'] });
+    },
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        guardar.mutate();
+      }}
+      className="bg-superficie border border-borde rounded-sm p-4 flex flex-wrap gap-3 items-center"
+    >
+      <h2 className="w-full text-tenue text-xs uppercase tracking-wider">Control de presencia (hombre muerto)</h2>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
+        Activado
+      </label>
+      <label className={`flex items-center gap-1.5 text-sm ${activo ? 'text-texto' : 'text-tenue'}`}>
+        cada
+        <input
+          type="number"
+          min="1"
+          max="480"
+          value={intervaloMin}
+          onChange={(e) => setIntervaloMin(e.target.value)}
+          disabled={!activo}
+          className={`${CAMPO} w-20 font-datos`}
+        />
+        min
+      </label>
+      <label className={`flex items-center gap-1.5 text-sm ${activo ? 'text-texto' : 'text-tenue'}`}>
+        respuesta
+        <input
+          type="number"
+          min="10"
+          max="600"
+          value={respuestaSeg}
+          onChange={(e) => setRespuestaSeg(e.target.value)}
+          disabled={!activo}
+          className={`${CAMPO} w-20 font-datos`}
+        />
+        s
+      </label>
+      <button type="submit" disabled={guardar.isPending} className={BOTON}>
+        Guardar
+      </button>
+      {guardado && <span className="text-ok text-sm">Guardado — aplica en las consolas en menos de un minuto</span>}
+      {guardar.isError && <span className="text-prio1 text-sm">No se pudo guardar</span>}
+    </form>
   );
 }
 
@@ -90,7 +170,7 @@ function FilaUsuario({ usuario, esUsuarioActual }: { usuario: UsuarioAdmin; esUs
       <span className="font-datos text-tenue">{usuario.email}</span>
       <span className={usuario.rol === 'admin' ? 'text-acento text-xs uppercase' : 'text-tenue text-xs uppercase'}>{usuario.rol}</span>
       {!usuario.activo && <span className="text-prio2 text-xs">INACTIVO</span>}
-      {esUsuarioActual && <span className="text-ok text-xs">(vos)</span>}
+      {esUsuarioActual && <span className="text-ok text-xs">(usted)</span>}
 
       <span className="ml-auto flex gap-3 items-center">
         {claveNueva === null ? (
@@ -112,12 +192,14 @@ function FilaUsuario({ usuario, esUsuarioActual }: { usuario: UsuarioAdmin; esUs
         )}
         {!esUsuarioActual && (
           <>
-            <button
-              onClick={() => editar.mutate({ rol: usuario.rol === 'admin' ? 'operador' : 'admin' })}
-              className={BOTON_MINI}
-            >
-              Hacer {usuario.rol === 'admin' ? 'operador' : 'admin'}
-            </button>
+            {usuario.rol !== 'cliente' && (
+              <button
+                onClick={() => editar.mutate({ rol: usuario.rol === 'admin' ? 'operador' : 'admin' })}
+                className={BOTON_MINI}
+              >
+                Hacer {usuario.rol === 'admin' ? 'operador' : 'admin'}
+              </button>
+            )}
             <button onClick={() => editar.mutate({ activo: !usuario.activo })} className={usuario.activo ? BOTON_MINI_ROJO : BOTON_MINI}>
               {usuario.activo ? 'Desactivar' : 'Reactivar'}
             </button>

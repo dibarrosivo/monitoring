@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   serial,
@@ -31,6 +32,12 @@ export const estadoAlarmaEnum = pgEnum('estado_alarma', ['nueva', 'en_atencion',
 export const tipoAccionEnum = pgEnum('tipo_accion', ['toma', 'nota', 'cierre', 'sistema']);
 export const rolUsuarioEnum = pgEnum('rol_usuario', ['admin', 'operador', 'cliente']);
 
+/** Parámetros de la central (clave/valor JSON): hombre muerto, y lo que venga. */
+export const configuracion = pgTable('configuracion', {
+  clave: varchar('clave', { length: 64 }).primaryKey(),
+  valor: jsonb('valor').notNull(),
+});
+
 export const cliente = pgTable('cliente', {
   id: serial('id').primaryKey(),
   nombre: text('nombre').notNull(),
@@ -38,6 +45,8 @@ export const cliente = pgTable('cliente', {
   email: text('email'),
   direccion: text('direccion'),
   notas: text('notas'),
+  /** Plan de acción: qué debe hacer el operador ante una alarma de este cliente */
+  instrucciones: text('instrucciones'),
   activo: boolean('activo').notNull().default(true),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -63,6 +72,7 @@ export const panel = pgTable(
     /** Número de cuenta de abonado con el que transmite el panel (hex, 3-16) */
     numeroCuenta: varchar('numero_cuenta', { length: 16 }).notNull(),
     tipo: tipoPanelEnum('tipo').notNull().default('otro'),
+    marca: text('marca'),
     modelo: text('modelo'),
     /** Si está supervisado, la falta de señales genera una alarma de sistema */
     supervisado: boolean('supervisado').notNull().default(true),

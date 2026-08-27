@@ -21,8 +21,16 @@ const NOMBRE_ESTADO = { nueva: 'NUEVA', en_atencion: 'EN ATENCIÓN', cerrada: 'C
  * panel de detalle fijo abajo con cuenta, lista de llamadas, historial y gestión.
  * El operador nunca navega a otra pantalla para procesar una alarma.
  */
-export function Cola({ alarmaReciente }: { alarmaReciente: number | null }) {
-  const { data: alarmas, isLoading } = useQuery({ queryKey: ['alarmas'], queryFn: listarAlarmas, refetchInterval: 15_000 });
+export type FiltroCola = 'abiertas' | 'nueva' | 'en_atencion' | 'cerrada';
+
+export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: number | null; filtro?: FiltroCola }) {
+  // Las cerradas son otra consulta; nueva/en atención se filtran sobre las abiertas
+  const cerradas = filtro === 'cerrada';
+  const { data: alarmas, isLoading } = useQuery({
+    queryKey: cerradas ? ['alarmas', 'cerrada'] : ['alarmas'],
+    queryFn: () => listarAlarmas(cerradas ? 'cerrada' : undefined),
+    refetchInterval: cerradas ? 60_000 : 15_000,
+  });
   const [seleccionada, setSeleccionada] = useState<number | null>(null);
   const [ahora, setAhora] = useState(() => Date.now());
 
@@ -31,16 +39,18 @@ export function Cola({ alarmaReciente }: { alarmaReciente: number | null }) {
     return () => clearInterval(temporizador);
   }, []);
 
-  const ordenadas = useMemo(
-    () =>
-      [...(alarmas ?? [])].sort(
-        (a, b) =>
-          ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado] ||
+  const ordenadas = useMemo(() => {
+    const visibles = (alarmas ?? []).filter((a) =>
+      filtro === 'abiertas' || filtro === 'cerrada' ? true : a.estado === filtro,
+    );
+    return visibles.sort((a, b) =>
+      cerradas
+        ? new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()
+        : ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado] ||
           a.prioridad - b.prioridad ||
           new Date(a.creadoEn).getTime() - new Date(b.creadoEn).getTime(),
-      ),
-    [alarmas],
-  );
+    );
+  }, [alarmas, filtro, cerradas]);
 
   const detalle = ordenadas.find((a) => a.id === seleccionada) ?? null;
 
@@ -58,7 +68,6 @@ export function Cola({ alarmaReciente }: { alarmaReciente: number | null }) {
               <th className="px-3 py-2 font-medium">Descripción</th>
               <th className="px-3 py-2 font-medium">Cuenta</th>
               <th className="px-3 py-2 font-medium">Usuario / Zona</th>
-              <th className="px-3 py-2 font-medium">Part</th>
               <th className="px-3 py-2 font-medium">Estado</th>
               <th className="px-3 py-2 font-medium text-right">Espera</th>
               <th className="px-3 py-2" aria-label="Acciones" />
@@ -77,8 +86,10 @@ export function Cola({ alarmaReciente }: { alarmaReciente: number | null }) {
             ))}
             {ordenadas.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-10 text-center text-tenue font-ui">
-                  Sin alarmas abiertas. El receptor sigue escuchando; las nuevas aparecen acá al instante.
+                <td colSpan={9} className="px-4 py-10 text-center text-tenue font-ui">
+                  {cerradas
+                    ? 'Sin alarmas cerradas todavía.'
+                    : 'Sin alarmas en este estado. El receptor sigue escuchando; las nuevas aparecen aquí al instante.'}
                 </td>
               </tr>
             )}
@@ -130,12 +141,14 @@ function FilaAlarma({
       <td className="px-3 py-1.5 text-tenue whitespace-nowrap">{fechaHora(alarma.evento.ocurridoEn)}</td>
       <td className={`px-3 py-1.5 font-semibold ${prio.texto}`}>{alarma.evento.codigo}</td>
       <td className="px-3 py-1.5 font-ui">{alarma.evento.descripcion}</td>
-      <td className="px-3 py-1.5">{alarma.evento.numeroCuenta ?? '—'}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap">
+        {alarma.evento.numeroCuenta ?? '—'}
+        {alarma.clienteNombre && <span className="font-ui text-texto"> {alarma.clienteNombre}</span>}
+      </td>
       <td className="px-3 py-1.5 text-tenue">
         {alarma.evento.zona ?? '—'}
         {alarma.zonaDescripcion && <span className="font-ui text-texto"> - {alarma.zonaDescripcion}</span>}
       </td>
-      <td className="px-3 py-1.5 text-tenue">{alarma.evento.particion ?? '—'}</td>
       <td className={`px-3 py-1.5 text-xs ${alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
         {NOMBRE_ESTADO[alarma.estado]}
       </td>
@@ -237,6 +250,12 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
           <h3 className="text-tenue text-xs uppercase tracking-wider">Cuenta</h3>
           {contexto?.cliente ? (
             <>
+              {contexto.cliente.instrucciones && (
+                <div className="bg-prio2/10 border border-prio2/40 rounded-sm p-2">
+                  <h3 className="text-prio2 text-xs uppercase tracking-wider mb-1">Plan de acción</h3>
+                  <p className="whitespace-pre-wrap">{contexto.cliente.instrucciones}</p>
+                </div>
+              )}
               <div>
                 <p className="font-semibold">{contexto.cliente.nombre}</p>
                 <p className="text-tenue">

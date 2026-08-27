@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { ingresar } from './api.js';
+import { esNativo, guardarServidor, ingresar, servidorGuardado } from './api.js';
 import type { Usuario } from './tipos.js';
 
 export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }) {
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
+  // En el envoltorio nativo el servidor es configurable; en la web es el mismo origen
+  const [servidor, setServidor] = useState(servidorGuardado());
+  const mostrarServidor = esNativo() || servidorGuardado() !== '';
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -13,6 +16,7 @@ export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }
     setError(null);
     setCargando(true);
     try {
+      if (mostrarServidor) guardarServidor(servidor);
       alIngresar(await ingresar(email, clave));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo ingresar');
@@ -34,6 +38,19 @@ export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }
             <p className="text-tenue text-sm">Consola de operador</p>
           </div>
         </header>
+
+        {mostrarServidor && (
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="text-tenue">Servidor de la central</span>
+            <input
+              type="url"
+              placeholder="http://192.168.0.184:3000"
+              value={servidor}
+              onChange={(e) => setServidor(e.target.value)}
+              className="bg-fondo border border-borde rounded px-3 py-2 font-datos text-sm"
+            />
+          </label>
+        )}
 
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-tenue">Email</span>

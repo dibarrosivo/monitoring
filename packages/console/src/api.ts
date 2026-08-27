@@ -2,14 +2,22 @@ import type {
   Acceso,
   AccionAlarma,
   Alarma,
+  AlarmaCliente,
   Cliente,
   ClienteDetalle,
+  ClienteResumen,
+  ConfigHombreMuerto,
   Contacto,
   ContextoAlarma,
   EstadoPanel,
   Evento,
+  EventoCliente,
   Horario,
+  Reporte,
+  ResultadoBusqueda,
+  ResumenCliente,
   Senal,
+  Tablero,
   Usuario,
   UsuarioAdmin,
   UsuarioPanel,
@@ -18,6 +26,21 @@ import type {
 
 const CLAVE_TOKEN = 'monitoring.token';
 const CLAVE_USUARIO = 'monitoring.usuario';
+const CLAVE_SERVIDOR = 'monitoring.servidor';
+
+/** ¿Corre dentro del envoltorio nativo (Capacitor)? Ahí el servidor es configurable. */
+export function esNativo(): boolean {
+  return Boolean((window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.());
+}
+
+/** URL del servidor de la central. Vacío = mismo origen (web). */
+export function servidorGuardado(): string {
+  return localStorage.getItem(CLAVE_SERVIDOR) ?? '';
+}
+export function guardarServidor(url: string): void {
+  if (url.trim()) localStorage.setItem(CLAVE_SERVIDOR, url.trim().replace(/\/+$/, ''));
+  else localStorage.removeItem(CLAVE_SERVIDOR);
+}
 
 export function tokenGuardado(): string | null {
   return localStorage.getItem(CLAVE_TOKEN);
@@ -31,21 +54,49 @@ export function usuarioGuardado(): Usuario | null {
 export function cerrarSesion(): void {
   localStorage.removeItem(CLAVE_TOKEN);
   localStorage.removeItem(CLAVE_USUARIO);
+  localStorage.removeItem(CLAVE_IMP_TOKEN);
+  localStorage.removeItem(CLAVE_IMP_USUARIO);
+  window.location.reload();
+}
+
+// ---- Impersonación: el admin ve la plataforma como un usuario de la app ----
+const CLAVE_IMP_TOKEN = 'monitoring.imp.token';
+const CLAVE_IMP_USUARIO = 'monitoring.imp.usuario';
+
+export function impersonando(): Usuario | null {
+  const crudo = localStorage.getItem(CLAVE_IMP_USUARIO);
+  return crudo && localStorage.getItem(CLAVE_IMP_TOKEN) ? (JSON.parse(crudo) as Usuario) : null;
+}
+
+export function iniciarImpersonacion(datos: { token: string; usuario: Usuario }): void {
+  localStorage.setItem(CLAVE_IMP_TOKEN, datos.token);
+  localStorage.setItem(CLAVE_IMP_USUARIO, JSON.stringify(datos.usuario));
+  window.location.reload();
+}
+
+export function salirImpersonacion(): void {
+  localStorage.removeItem(CLAVE_IMP_TOKEN);
+  localStorage.removeItem(CLAVE_IMP_USUARIO);
   window.location.reload();
 }
 
 async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
-  const token = tokenGuardado();
-  const respuesta = await fetch(`/api${ruta}`, {
+  // Durante una impersonación, todos los pedidos van con el token del cliente
+  const tokenImp = localStorage.getItem(CLAVE_IMP_TOKEN);
+  const token = tokenImp ?? tokenGuardado();
+  const respuesta = await fetch(`${servidorGuardado()}/api${ruta}`, {
     ...opciones,
     headers: {
-      'content-type': 'application/json',
+      // content-type solo cuando hay cuerpo: Fastify rechaza JSON vacío
+      ...(opciones.body != null ? { 'content-type': 'application/json' } : {}),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...opciones.headers,
     },
   });
   if (respuesta.status === 401 && token) {
-    cerrarSesion();
+    // Impersonación vencida: se vuelve a la consola sin tirar la sesión del admin
+    if (tokenImp) salirImpersonacion();
+    else cerrarSesion();
     throw new Error('Sesión vencida');
   }
   if (!respuesta.ok) {
@@ -60,15 +111,13 @@ export async function ingresar(email: string, clave: string): Promise<Usuario> {
     method: 'POST',
     body: JSON.stringify({ email, clave }),
   });
-  if (datos.usuario.rol === 'cliente') {
-    throw new Error('Esta consola es del personal de la central; los clientes usan la app');
-  }
   localStorage.setItem(CLAVE_TOKEN, datos.token);
   localStorage.setItem(CLAVE_USUARIO, JSON.stringify(datos.usuario));
   return datos.usuario as Usuario;
 }
 
-export const listarAlarmas = () => pedir<Alarma[]>('/alarmas');
+export const listarAlarmas = (estado?: 'nueva' | 'en_atencion' | 'cerrada') =>
+  pedir<Alarma[]>(estado ? `/alarmas?estado=${estado}` : '/alarmas');
 export const listarAcciones = (alarmaId: number) => pedir<AccionAlarma[]>(`/alarmas/${alarmaId}/acciones`);
 export const verContexto = (alarmaId: number) => pedir<ContextoAlarma>(`/alarmas/${alarmaId}/contexto`);
 export const tomarAlarma = (id: number) => pedir<Alarma>(`/alarmas/${id}/tomar`, { method: 'POST' });
@@ -80,7 +129,7 @@ export const cerrarAlarma = (id: number, resolucion: string) =>
 export const listarEventos = (limite = 200) => pedir<Evento[]>(`/eventos?limite=${limite}`);
 export const listarPaneles = () => pedir<EstadoPanel[]>('/paneles/estado');
 
-export const listarClientes = () => pedir<Cliente[]>('/clientes');
+export const listarClientes = () => pedir<ClienteResumen[]>('/clientes');
 export const verCliente = (id: number) => pedir<ClienteDetalle>(`/clientes/${id}`);
 export const crearCliente = (datos: { nombre: string; telefono?: string; direccion?: string }) =>
   pedir<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(datos) });
@@ -103,6 +152,7 @@ export const crearContacto = (datos: {
 }) => pedir<Contacto>('/contactos', { method: 'POST', body: JSON.stringify(datos) });
 
 export const verSenal = (id: number) => pedir<Senal>(`/senales/${id}`);
+export const listarSenales = (limite = 200) => pedir<Senal[]>(`/senales?limite=${limite}`);
 
 const editar = <T>(ruta: string, datos: unknown) =>
   pedir<T>(ruta, { method: 'PUT', body: JSON.stringify(datos) });
@@ -130,6 +180,9 @@ export const eliminarHorario = (id: number) => eliminar(`/horarios/${id}`);
 
 export const listarUsuarios = (clienteId?: number) =>
   pedir<UsuarioAdmin[]>(clienteId ? `/usuarios?clienteId=${clienteId}` : '/usuarios');
+export const impersonar = (usuarioId: number) =>
+  pedir<{ token: string; usuario: Usuario }>(`/usuarios/${usuarioId}/impersonar`, { method: 'POST' });
+export const buscar = (q: string) => pedir<ResultadoBusqueda>(`/buscar?q=${encodeURIComponent(q)}`);
 export const listarAccesos = (usuarioId: number) => pedir<Acceso[]>(`/usuarios/${usuarioId}/accesos`);
 export const crearAcceso = (datos: { usuarioId: number; clienteId: number; sitioId?: number; panelId?: number }) =>
   pedir<Acceso>('/accesos', { method: 'POST', body: JSON.stringify(datos) });
@@ -148,5 +201,30 @@ export const crearUsuario = (datos: {
 }) => pedir<UsuarioAdmin>('/usuarios', { method: 'POST', body: JSON.stringify(datos) });
 export const editarUsuario = (id: number, datos: { nombre?: string; rol?: 'admin' | 'operador'; activo?: boolean; clave?: string }) =>
   editar<UsuarioAdmin>(`/usuarios/${id}`, datos);
+export const verTablero = () => pedir<Tablero>('/tablero');
+
+export const generarReporte = (clienteId: number, desde: string, hasta: string) =>
+  pedir<Reporte>(`/reportes?clienteId=${clienteId}&desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);
+
+export const avisarHombreMuerto = () =>
+  pedir<{ alarmaId: number }>('/vigilancia/hombre-muerto', { method: 'POST' });
+
+export const verConfiguracion = () => pedir<{ hombreMuerto: ConfigHombreMuerto }>('/configuracion');
+export const guardarHombreMuerto = (datos: ConfigHombreMuerto) =>
+  pedir<{ hombreMuerto: ConfigHombreMuerto }>('/configuracion/hombre-muerto', {
+    method: 'PUT',
+    body: JSON.stringify(datos),
+  });
+
 export const cambiarClave = (actual: string, nueva: string) =>
   pedir<{ ok: boolean }>('/auth/clave', { method: 'POST', body: JSON.stringify({ actual, nueva }) });
+
+// ---- Vista de clientes (rol 'cliente') ----
+export const verResumenCliente = () => pedir<ResumenCliente>('/cliente/resumen');
+export const verEventosCliente = () => pedir<EventoCliente[]>('/cliente/eventos?limite=100');
+export const verAlarmasCliente = () => pedir<AlarmaCliente[]>('/cliente/alarmas');
+export const enviarPanico = (sitioId: number) =>
+  pedir<{ alarmaId: number; recibido: boolean }>('/cliente/panico', {
+    method: 'POST',
+    body: JSON.stringify({ sitioId }),
+  });

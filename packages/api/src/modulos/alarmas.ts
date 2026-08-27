@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { accionAlarma, alarma, cliente, contacto, db, evento, panel, sitio, zona } from '@monitoring/db';
+import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
 const esquemaNota = z.object({ detalle: z.string().min(1) });
@@ -36,11 +37,15 @@ export function registrarAlarmas(app: App) {
           ocurridoEn: evento.ocurridoEn,
         },
         zonaDescripcion: zona.descripcion,
+        clienteNombre: cliente.nombre,
         panelId: alarma.panelId,
       })
       .from(alarma)
       .innerJoin(evento, eq(alarma.eventoId, evento.id))
       .leftJoin(zona, and(eq(zona.panelId, alarma.panelId), eq(zona.numero, evento.zona)))
+      .leftJoin(panel, eq(alarma.panelId, panel.id))
+      .leftJoin(sitio, eq(panel.sitioId, sitio.id))
+      .leftJoin(cliente, eq(sitio.clienteId, cliente.id))
       .where(condicion)
       .orderBy(alarma.prioridad, desc(alarma.creadoEn))
       .limit(500);
@@ -62,7 +67,7 @@ export function registrarAlarmas(app: App) {
       .select({
         panel: { id: panel.id, numeroCuenta: panel.numeroCuenta, tipo: panel.tipo, modelo: panel.modelo },
         sitio: { id: sitio.id, nombre: sitio.nombre, direccion: sitio.direccion },
-        cliente: { id: cliente.id, nombre: cliente.nombre, telefono: cliente.telefono },
+        cliente: { id: cliente.id, nombre: cliente.nombre, telefono: cliente.telefono, instrucciones: cliente.instrucciones },
       })
       .from(panel)
       .innerJoin(sitio, eq(panel.sitioId, sitio.id))
@@ -134,20 +139,63 @@ export function registrarAlarmas(app: App) {
     return fila;
   });
 
-  /** Estado operativo de los paneles (última señal de vida). */
-  app.get('/paneles/estado', async () =>
-    db
+  /**
+   * Hombre muerto: la consola avisó que el operador no confirmó presencia.
+   * Queda como alarma de sistema (prioridad 2) y en el registro de auditoría.
+   */
+  app.post('/vigilancia/hombre-muerto', async (request, reply) => {
+    const descripcion = `HOMBRE MUERTO: ${request.user.email} no confirmó presencia en la consola`;
+    const [filaEvento] = await db
+      .insert(evento)
+      .values({ categoria: 'sistema', codigo: 'HM', descripcion, prioridad: 2, ocurridoEn: new Date() })
+      .returning({ id: evento.id });
+    const alarmaId = await abrirAlarma({ eventoId: filaEvento!.id, prioridad: 2, descripcion });
+    return reply.code(201).send({ alarmaId });
+  });
+
+  /** Estado operativo de los dispositivos: vida, armado y a quién pertenecen. */
+  app.get('/paneles/estado', async () => {
+    const paneles = await db
       .select({
         id: panel.id,
         sitioId: panel.sitioId,
         numeroCuenta: panel.numeroCuenta,
         tipo: panel.tipo,
+        marca: panel.marca,
+        modelo: panel.modelo,
         supervisado: panel.supervisado,
         intervaloPruebaMin: panel.intervaloPruebaMin,
         ultimaSenalEn: panel.ultimaSenalEn,
         activo: panel.activo,
+        sitioNombre: sitio.nombre,
+        clienteId: cliente.id,
+        clienteNombre: cliente.nombre,
       })
       .from(panel)
-      .orderBy(panel.numeroCuenta),
-  );
+      .innerJoin(sitio, eq(panel.sitioId, sitio.id))
+      .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
+      .orderBy(panel.numeroCuenta);
+
+    // Último movimiento de apertura/cierre por panel, en una sola consulta
+    const movimientos = await db
+      .selectDistinctOn([evento.panelId], {
+        panelId: evento.panelId,
+        categoria: evento.categoria,
+        ocurridoEn: evento.ocurridoEn,
+      })
+      .from(evento)
+      .where(inArray(evento.categoria, ['apertura', 'cierre']))
+      .orderBy(evento.panelId, desc(evento.ocurridoEn));
+    const porPanel = new Map(movimientos.map((m) => [m.panelId, m]));
+
+    return paneles.map((p) => {
+      const movimiento = porPanel.get(p.id);
+      return {
+        ...p,
+        estadoArmado:
+          movimiento?.categoria === 'cierre' ? 'armado' : movimiento?.categoria === 'apertura' ? 'desarmado' : 'desconocido',
+        ultimoMovimientoEn: movimiento?.ocurridoEn ?? null,
+      };
+    });
+  });
 }

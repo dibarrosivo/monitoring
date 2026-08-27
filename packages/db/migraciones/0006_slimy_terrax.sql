@@ -1,0 +1,1 @@
+ALTER TABLE "panel" ADD COLUMN "marca" text;

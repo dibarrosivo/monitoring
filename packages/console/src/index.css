@@ -58,14 +58,54 @@ html {
   box-shadow: 0 0 6px 1px rgb(255 77 61 / 0.7);
 }
 
+@keyframes latido-panico {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 77 61 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 18px rgb(255 77 61 / 0);
+  }
+}
+.boton-panico {
+  animation: latido-panico 2s ease-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .alarma-nueva {
     animation: none;
     outline: 2px solid var(--color-prio1);
+  }
+  .boton-panico {
+    animation: none;
   }
 }
 
 :focus-visible {
   outline: 2px solid var(--color-acento);
   outline-offset: 1px;
+}
+
+/* Impresión de reportes: la app entera pasa a claro y solo queda el reporte. */
+@media print {
+  :root {
+    --color-fondo: #ffffff;
+    --color-superficie: #ffffff;
+    --color-superficie-2: #f2f4f7;
+    --color-borde: #c9d2dc;
+    --color-texto: #101820;
+    --color-tenue: #4a5a6a;
+  }
+  nav,
+  .no-imprimir,
+  header:not(.reporte header) {
+    display: none !important;
+  }
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  .reporte {
+    border: none !important;
+  }
 }

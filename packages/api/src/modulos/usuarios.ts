@@ -88,7 +88,14 @@ export function registrarUsuarios(app: App) {
     const { clave, ...resto } = datos.data;
     // Un admin no puede desactivarse ni degradarse a sí mismo (evita quedarse afuera).
     if (id === request.user.id && (resto.activo === false || resto.rol === 'operador')) {
-      return reply.code(400).send({ error: 'No podés desactivar o degradar tu propio usuario' });
+      return reply.code(400).send({ error: 'No puede desactivar o degradar su propio usuario' });
+    }
+    // Una cuenta de la app de clientes jamás pasa a personal de la central.
+    if (resto.rol) {
+      const [actual] = await db.select({ rol: usuario.rol }).from(usuario).where(eq(usuario.id, id)).limit(1);
+      if (actual?.rol === 'cliente') {
+        return reply.code(400).send({ error: 'Un usuario de la app no puede cambiar de rol' });
+      }
     }
     const [fila] = await db
       .update(usuario)
@@ -97,6 +104,26 @@ export function registrarUsuarios(app: App) {
       .returning(COLUMNAS_PUBLICAS);
     if (!fila) return reply.code(404).send({ error: 'Usuario no encontrado' });
     return fila;
+  });
+
+  /**
+   * Impersonar a un usuario de la app: devuelve un token de 1 hora con su
+   * identidad para que el administrador vea exactamente lo que ve el cliente.
+   * Solo sobre cuentas de rol 'cliente' activas; queda registrado en el log.
+   */
+  app.post('/usuarios/:id/impersonar', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const [objetivo] = await db.select().from(usuario).where(eq(usuario.id, id)).limit(1);
+    if (!objetivo) return reply.code(404).send({ error: 'Usuario no encontrado' });
+    if (objetivo.rol !== 'cliente' || !objetivo.activo) {
+      return reply.code(400).send({ error: 'Solo se puede impersonar a usuarios de la app activos' });
+    }
+    request.log.warn({ admin: request.user.email, objetivo: objetivo.email }, 'Impersonación de usuario de app');
+    const token = app.jwt.sign({ id: objetivo.id, email: objetivo.email, rol: 'cliente' }, { expiresIn: '1h' });
+    return {
+      token,
+      usuario: { id: objetivo.id, email: objetivo.email, nombre: objetivo.nombre, rol: objetivo.rol },
+    };
   });
 
   // ---- Accesos (permisos de la app sobre clientes/sitios/paneles) ----

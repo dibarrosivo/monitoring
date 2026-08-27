@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { eq, getTableColumns, ilike, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { cliente, contacto, db, horario, panel, sitio, usuarioPanel, zona } from '@monitoring/db';
+import { alarma, cliente, contacto, db, horario, panel, sitio, usuarioPanel, zona } from '@monitoring/db';
 import type { App } from '../tipos.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
@@ -44,6 +44,7 @@ const esquemaCliente = z.object({
   email: z.string().email().optional(),
   direccion: z.string().optional(),
   notas: z.string().optional(),
+  instrucciones: z.string().optional(),
 });
 
 const esquemaSitio = z.object({
@@ -57,6 +58,7 @@ const esquemaPanel = z.object({
   sitioId: z.number().int(),
   numeroCuenta: z.string().regex(/^[0-9A-Fa-f]{3,16}$/),
   tipo: z.enum(['hikvision', 'pima', 'ebm', 'otro']).default('otro'),
+  marca: z.string().optional(),
   modelo: z.string().optional(),
   supervisado: z.boolean().default(true),
   intervaloPruebaMin: z.number().int().positive().default(1440),
@@ -83,7 +85,57 @@ export function registrarClientes(app: App) {
   app.addHook('onRequest', app.autenticar);
   app.addHook('onRequest', app.soloPersonal);
 
-  app.get('/clientes', async () => db.select().from(cliente).orderBy(cliente.nombre));
+  /** Lista de clientes con el resumen a simple vista: sitios, dispositivos, salud y alarmas. */
+  app.get('/clientes', async () =>
+    db
+      .select({
+        ...getTableColumns(cliente),
+        sitios: sql<number>`count(distinct ${sitio.id})`.mapWith(Number),
+        dispositivos: sql<number>`count(distinct ${panel.id})`.mapWith(Number),
+        silenciosos: sql<number>`count(distinct ${panel.id}) filter (where ${panel.activo} and ${panel.supervisado} and coalesce(${panel.ultimaSenalEn}, ${panel.creadoEn}) < now() - (${panel.intervaloPruebaMin} * interval '90 seconds'))`.mapWith(Number),
+        alarmasAbiertas: sql<number>`count(distinct ${alarma.id}) filter (where ${alarma.estado} <> 'cerrada')`.mapWith(Number),
+      })
+      .from(cliente)
+      .leftJoin(sitio, eq(sitio.clienteId, cliente.id))
+      .leftJoin(panel, eq(panel.sitioId, sitio.id))
+      .leftJoin(alarma, eq(alarma.panelId, panel.id))
+      .groupBy(cliente.id)
+      .orderBy(cliente.nombre),
+  );
+
+  /** Búsqueda global: clientes, sitios, paneles y contactos, agrupados. */
+  app.get('/buscar', async (request, reply) => {
+    const { q } = request.query as { q?: string };
+    const termino = (q ?? '').trim();
+    if (termino.length < 2) return reply.code(400).send({ error: 'Mínimo 2 caracteres' });
+    const patron = `%${termino}%`;
+
+    const [clientes, sitios, paneles, contactos] = await Promise.all([
+      db
+        .select({ id: cliente.id, nombre: cliente.nombre, telefono: cliente.telefono })
+        .from(cliente)
+        .where(or(ilike(cliente.nombre, patron), ilike(cliente.telefono, patron), ilike(cliente.email, patron)))
+        .limit(6),
+      db
+        .select({ id: sitio.id, nombre: sitio.nombre, direccion: sitio.direccion, clienteId: sitio.clienteId })
+        .from(sitio)
+        .where(or(ilike(sitio.nombre, patron), ilike(sitio.direccion, patron)))
+        .limit(6),
+      db
+        .select({ id: panel.id, numeroCuenta: panel.numeroCuenta, tipo: panel.tipo, clienteId: sitio.clienteId, sitioNombre: sitio.nombre })
+        .from(panel)
+        .innerJoin(sitio, eq(panel.sitioId, sitio.id))
+        .where(ilike(panel.numeroCuenta, patron))
+        .limit(6),
+      db
+        .select({ id: contacto.id, nombre: contacto.nombre, telefono: contacto.telefono, clienteId: contacto.clienteId })
+        .from(contacto)
+        .where(or(ilike(contacto.nombre, patron), ilike(contacto.telefono, patron)))
+        .limit(6),
+    ]);
+
+    return { clientes, sitios, paneles, contactos };
+  });
 
   app.post('/clientes', async (request, reply) => {
     const datos = esquemaCliente.safeParse(request.body);
