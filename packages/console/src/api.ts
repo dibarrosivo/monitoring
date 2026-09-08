@@ -9,14 +9,20 @@ import type {
   ConfigHombreMuerto,
   Contacto,
   ContextoAlarma,
+  EntradaCatalogo,
+  EstadoCliente,
   EstadoPanel,
   Evento,
   EventoCliente,
+  Feriado,
   Horario,
+  Puente,
+  RegistroAuditoria,
   Reporte,
   ResultadoBusqueda,
   ResumenCliente,
   Senal,
+  Sitio,
   Tablero,
   Usuario,
   UsuarioAdmin,
@@ -152,6 +158,40 @@ export const crearContacto = (datos: {
 }) => pedir<Contacto>('/contactos', { method: 'POST', body: JSON.stringify(datos) });
 
 export const verSenal = (id: number) => pedir<Senal>(`/senales/${id}`);
+
+/** Alta en un paso: cliente + sitio + dispositivo (+ contacto opcional). */
+export const crearAlta = (datos: {
+  cliente: Record<string, unknown>;
+  sitio: Record<string, unknown>;
+  dispositivo: Record<string, unknown>;
+  contacto?: Record<string, unknown>;
+}) => pedir<{ cliente: Cliente; sitio: Sitio; dispositivo: EstadoPanel }>('/altas', {
+  method: 'POST',
+  body: JSON.stringify(datos),
+});
+
+export const cambiarEstadoCliente = (id: number, estado: EstadoCliente, motivoEstado?: string) =>
+  pedir<Cliente>(`/clientes/${id}/estado`, { method: 'PUT', body: JSON.stringify({ estado, motivoEstado }) });
+
+export const registrarPago = (panelId: number) =>
+  pedir<EstadoPanel>(`/paneles/${panelId}/pago`, { method: 'POST' });
+
+export const listarPuentes = () => pedir<Puente[]>('/bridges');
+export const editarPuente = (id: number, datos: { descripcion?: string; supervisado?: boolean; intervaloLatidoSeg?: number; activo?: boolean }) =>
+  editar<Puente>(`/bridges/${id}`, datos);
+
+export const listarCatalogo = (tipo: string) =>
+  pedir<EntradaCatalogo[]>(`/catalogos?tipo=${encodeURIComponent(tipo)}`);
+
+export const listarFeriados = () => pedir<Feriado[]>('/feriados');
+export const crearFeriado = (datos: { fecha: string; descripcion?: string }) =>
+  pedir<Feriado>('/feriados', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarFeriado = (id: number) => eliminar(`/feriados/${id}`);
+
+export const listarAuditoria = (entidad?: string, entidadId?: number) =>
+  pedir<RegistroAuditoria[]>(
+    entidad && entidadId ? `/auditoria?entidad=${entidad}&entidadId=${entidadId}` : '/auditoria',
+  );
 export const listarSenales = (limite = 200) => pedir<Senal[]>(`/senales?limite=${limite}`);
 
 const editar = <T>(ruta: string, datos: unknown) =>
@@ -159,7 +199,8 @@ const editar = <T>(ruta: string, datos: unknown) =>
 const eliminar = (ruta: string) => pedir<{ eliminado: boolean }>(ruta, { method: 'DELETE' });
 
 export const editarCliente = (id: number, datos: Partial<Cliente>) => editar<Cliente>(`/clientes/${id}`, datos);
-export const editarSitio = (id: number, datos: { nombre?: string; direccion?: string }) => editar(`/sitios/${id}`, datos);
+export const editarSitio = (id: number, datos: Partial<Omit<Sitio, 'id' | 'clienteId'>>) =>
+  editar<Sitio>(`/sitios/${id}`, datos);
 export const eliminarSitio = (id: number) => eliminar(`/sitios/${id}`);
 export const editarPanel = (id: number, datos: Partial<Omit<EstadoPanel, 'id' | 'sitioId' | 'ultimaSenalEn'>> & { modelo?: string }) =>
   editar<EstadoPanel>(`/paneles/${id}`, datos);

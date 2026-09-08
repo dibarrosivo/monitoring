@@ -5,7 +5,7 @@ import { manejarTramaDc09 } from './dc09Manejador.js';
 const TIMEOUT_SOCKET_MS = 5 * 60_000;
 
 /** Servidor TCP para SIA DC-09. Las tramas terminan en CR; puede haber varias por conexión. */
-export function iniciarDc09Tcp(puerto: string | number, log: Logger): net.Server {
+export function iniciarDc09Tcp(puerto: string | number, log: Logger, claveAes?: Buffer): net.Server {
   const servidor = net.createServer((socket) => {
     const remoto = `${socket.remoteAddress}:${socket.remotePort}`;
     log.debug({ remoto }, 'Conexión DC-09 TCP');
@@ -22,7 +22,7 @@ export function iniciarDc09Tcp(puerto: string | number, log: Logger): net.Server
         const trama = resto.subarray(0, indice + 1);
         resto = resto.subarray(indice + 1);
         cola = cola.then(async () => {
-          const respuesta = await manejarTramaDc09(trama, 'dc09-tcp', remoto, log);
+          const respuesta = await manejarTramaDc09(trama, 'dc09-tcp', remoto, log, claveAes);
           if (!socket.destroyed) socket.write(respuesta);
         });
       }

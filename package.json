@@ -14,14 +14,20 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/console",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/console && tsc --noEmit -p packages/pima-bridge",
     "receiver": "tsx packages/receiver/src/index.ts",
     "api": "tsx packages/api/src/index.ts",
     "console": "npm run dev -w @monitoring/console",
     "simulador": "tsx tools/simulator/src/index.ts",
     "db:generar": "npm run generar -w @monitoring/db",
     "db:migrar": "npm run migrar -w @monitoring/db",
-    "db:seed": "npm run seed -w @monitoring/db"
+    "db:seed": "npm run seed -w @monitoring/db",
+    "test:integracion": "vitest run --config vitest.integracion.config.ts",
+    "test:todo": "npm test && npm run test:integracion",
+    "db:depurar": "npm run depurar -w @monitoring/db",
+    "puente": "npm run dev -w @monitoring/pima-bridge",
+    "simulador:pima": "tsx tools/simulator/src/receptorPima.ts",
+    "puente:exe": "npm run empaquetar -w @monitoring/pima-bridge"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

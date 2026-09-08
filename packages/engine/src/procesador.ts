@@ -1,4 +1,4 @@
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, ne, or } from 'drizzle-orm';
 import {
   CANAL_ALARMAS,
   CANAL_EVENTOS,
@@ -42,8 +42,17 @@ export async function registrarSenal(entrada: EntradaSenal): Promise<number> {
   return fila!.id;
 }
 
+/**
+ * Busca el equipo por su número de cuenta. Contempla la cuenta secundaria:
+ * un mismo panel puede reportar con otro número según la vía que use, y sin
+ * esto esas señales entrarían como cuenta desconocida.
+ */
 export async function buscarPanelPorCuenta(numeroCuenta: string) {
-  const [fila] = await db.select().from(panel).where(eq(panel.numeroCuenta, numeroCuenta)).limit(1);
+  const [fila] = await db
+    .select()
+    .from(panel)
+    .where(or(eq(panel.numeroCuenta, numeroCuenta), eq(panel.cuentaSecundaria, numeroCuenta)))
+    .limit(1);
   return fila ?? null;
 }
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   crearContacto,
+  registrarPago,
   crearHorario,
   crearUsuarioPanel,
   crearZona,
@@ -20,12 +21,19 @@ import {
 import type { EstadoPanel } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { Modal } from '../Modal.js';
+import { CampoSugerido } from '../CampoSugerido.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
 const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
 const BOTON_MINI = 'text-xs text-tenue hover:text-acento underline underline-offset-2';
 const BOTON_MINI_ROJO = 'text-xs text-tenue hover:text-prio1 underline underline-offset-2';
 const DIAS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const;
+
+function fechaCorta(iso: string | null | undefined): string {
+  return iso
+    ? new Date(`${iso}T00:00:00`).toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    : '—';
+}
 
 /**
  * Ficha completa del dispositivo: información, zonas, usuarios del teclado,
@@ -49,8 +57,14 @@ export function DetalleDispositivo({
     mutationFn: () => editarPanel(panelId, { activo: !panel?.activo }),
     onSuccess: () => void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] }),
   });
+  const pagar = useMutation({
+    mutationFn: () => registrarPago(panelId),
+    onSuccess: () => void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] }),
+  });
 
   if (!panel) return <p className="text-tenue">Cargando dispositivo…</p>;
+
+  const vencido = Boolean(panel.proximoVencimiento && panel.proximoVencimiento < new Date().toISOString().slice(0, 10));
 
   return (
     <div className="flex flex-col gap-4 max-w-6xl">
@@ -60,7 +74,12 @@ export function DetalleDispositivo({
 
       <header className={`bg-superficie border border-borde rounded-sm p-4 ${panel.activo ? '' : 'opacity-60'}`}>
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="font-datos font-semibold text-xl">cuenta {panel.numeroCuenta}</h2>
+          <h2 className="font-datos font-semibold text-xl">
+            cuenta {panel.numeroCuenta}
+            {panel.cuentaSecundaria && (
+              <span className="text-tenue text-base font-normal"> · también reporta como {panel.cuentaSecundaria}</span>
+            )}
+          </h2>
           {!panel.activo && <span className="text-prio2 text-xs font-semibold">INACTIVO</span>}
           <button onClick={() => setEditando(true)} className={BOTON_MINI} title="Editar dispositivo">
             ✎ Editar
@@ -73,8 +92,23 @@ export function DetalleDispositivo({
           </span>
         </div>
         <p className="text-sm text-tenue mt-1">
-          {[panel.tipo, panel.marca, panel.modelo].filter(Boolean).join(' · ')} · prueba cada {panel.intervaloPruebaMin} min
+          {[panel.alias, panel.tipo, panel.marca, panel.modelo].filter(Boolean).join(' · ')} · prueba cada{' '}
+          {panel.intervaloPruebaMin} min
           {!panel.supervisado && ' · sin supervisión'}
+          {panel.propiedad && panel.propiedad !== 'propio' && ` · ${panel.propiedad}`}
+        </p>
+        <p className="text-sm mt-1 flex flex-wrap items-center gap-x-3">
+          <span className={vencido ? 'text-prio2 font-semibold' : 'text-tenue'}>
+            {panel.proximoVencimiento
+              ? `${vencido ? 'Vencido' : 'Vence'} el ${fechaCorta(panel.proximoVencimiento)}`
+              : 'Sin vencimiento cargado'}
+            {panel.montoAbono && ` · abono ${panel.montoAbono}`}
+          </span>
+          {panel.proximoVencimiento && (
+            <button onClick={() => pagar.mutate()} disabled={pagar.isPending} className={BOTON_MINI}>
+              Registrar pago
+            </button>
+          )}
         </p>
         <p className="text-sm mt-1">
           <button
@@ -114,11 +148,22 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
   const clienteConsultas = useQueryClient();
   const [datos, setDatos] = useState({
     numeroCuenta: panel.numeroCuenta,
+    cuentaSecundaria: panel.cuentaSecundaria ?? '',
+    prefijo: panel.prefijo ?? '',
+    alias: panel.alias ?? '',
     tipo: panel.tipo,
     marca: panel.marca ?? '',
     modelo: panel.modelo ?? '',
+    serial: panel.serial ?? '',
+    claveMaestra: panel.claveMaestra ?? '',
+    instalador: panel.instalador ?? '',
+    fechaInstalacion: panel.fechaInstalacion ?? '',
+    propiedad: panel.propiedad ?? 'propio',
     supervisado: panel.supervisado,
     intervaloPruebaMin: String(panel.intervaloPruebaMin),
+    montoAbono: panel.montoAbono ?? '',
+    frecuenciaMeses: String(panel.frecuenciaMeses ?? 1),
+    proximoVencimiento: panel.proximoVencimiento ?? '',
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -126,11 +171,22 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
     mutationFn: () =>
       editarPanel(panel.id, {
         numeroCuenta: datos.numeroCuenta,
+        cuentaSecundaria: datos.cuentaSecundaria || null,
+        prefijo: datos.prefijo || undefined,
+        alias: datos.alias || undefined,
         tipo: datos.tipo,
         marca: datos.marca || undefined,
         modelo: datos.modelo || undefined,
+        serial: datos.serial || undefined,
+        claveMaestra: datos.claveMaestra || undefined,
+        instalador: datos.instalador || undefined,
+        fechaInstalacion: datos.fechaInstalacion || undefined,
+        propiedad: datos.propiedad,
         supervisado: datos.supervisado,
         intervaloPruebaMin: Number(datos.intervaloPruebaMin),
+        montoAbono: datos.montoAbono || undefined,
+        frecuenciaMeses: Number(datos.frecuenciaMeses) || 1,
+        proximoVencimiento: datos.proximoVencimiento || null,
       }),
     onSuccess: () => {
       void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] });
@@ -140,7 +196,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
   });
 
   return (
-    <Modal titulo={`Editar dispositivo — cuenta ${panel.numeroCuenta}`} alCerrar={alCerrar}>
+    <Modal titulo={`Editar dispositivo — cuenta ${panel.numeroCuenta}`} alCerrar={alCerrar} ancho="max-w-2xl">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -148,17 +204,41 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
         }}
         className="flex flex-col gap-3 text-sm"
       >
-        <label className="flex flex-col gap-1">
-          <span className="text-tenue">Número de cuenta</span>
-          <input
-            value={datos.numeroCuenta}
-            onChange={(e) => setDatos({ ...datos, numeroCuenta: e.target.value })}
-            required
-            pattern="[0-9A-Fa-f]{3,16}"
-            className={`${CAMPO} font-datos`}
-          />
-        </label>
         <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Número de cuenta</span>
+            <input
+              value={datos.numeroCuenta}
+              onChange={(e) => setDatos({ ...datos, numeroCuenta: e.target.value })}
+              required
+              pattern="[0-9A-Fa-f]{3,16}"
+              className={`${CAMPO} font-datos`}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Cuenta secundaria</span>
+            <input
+              value={datos.cuentaSecundaria}
+              onChange={(e) => setDatos({ ...datos, cuentaSecundaria: e.target.value })}
+              pattern="[0-9A-Fa-f]{3,16}"
+              placeholder="opcional"
+              className={`${CAMPO} font-datos`}
+            />
+            <span className="text-xs text-tenue">
+              Si el equipo reporta con otro número por una segunda vía, cargarlo acá para que esas
+              señales no entren como cuenta desconocida.
+            </span>
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Prefijo (AL, EBS, HIK…)</span>
+            <input value={datos.prefijo} onChange={(e) => setDatos({ ...datos, prefijo: e.target.value })} className={`${CAMPO} font-datos`} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Alias del equipo</span>
+            <input value={datos.alias} onChange={(e) => setDatos({ ...datos, alias: e.target.value })} className={CAMPO} />
+          </label>
           <label className="flex flex-col gap-1">
             <span className="text-tenue">Tipo</span>
             <select value={datos.tipo} onChange={(e) => setDatos({ ...datos, tipo: e.target.value as typeof datos.tipo })} className={CAMPO}>
@@ -168,15 +248,55 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
               <option value="otro">Otro</option>
             </select>
           </label>
+          <CampoSugerido
+            etiqueta="Marca"
+            tipo="marca"
+            value={datos.marca}
+            onChange={(v) => setDatos({ ...datos, marca: v })}
+            className={CAMPO}
+          />
+          <CampoSugerido
+            etiqueta="Modelo"
+            tipo="modelo"
+            value={datos.modelo}
+            onChange={(v) => setDatos({ ...datos, modelo: v })}
+            className={CAMPO}
+          />
           <label className="flex flex-col gap-1">
-            <span className="text-tenue">Marca</span>
-            <input value={datos.marca} onChange={(e) => setDatos({ ...datos, marca: e.target.value })} className={CAMPO} />
+            <span className="text-tenue">Serial</span>
+            <input value={datos.serial} onChange={(e) => setDatos({ ...datos, serial: e.target.value })} className={`${CAMPO} font-datos`} />
           </label>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-tenue">Modelo</span>
-            <input value={datos.modelo} onChange={(e) => setDatos({ ...datos, modelo: e.target.value })} className={CAMPO} />
+            <span className="text-tenue">Clave maestra</span>
+            <input value={datos.claveMaestra} onChange={(e) => setDatos({ ...datos, claveMaestra: e.target.value })} className={`${CAMPO} font-datos`} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Propiedad del equipo</span>
+            <select
+              value={datos.propiedad}
+              onChange={(e) => setDatos({ ...datos, propiedad: e.target.value as typeof datos.propiedad })}
+              className={CAMPO}
+            >
+              <option value="propio">Del cliente</option>
+              <option value="comodato">Comodato</option>
+              <option value="prestamo">Préstamo</option>
+            </select>
+          </label>
+          <CampoSugerido
+            etiqueta="Instalador"
+            tipo="instalador"
+            value={datos.instalador}
+            onChange={(v) => setDatos({ ...datos, instalador: v })}
+            className={CAMPO}
+          />
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Fecha de instalación</span>
+            <input
+              type="date"
+              value={datos.fechaInstalacion}
+              onChange={(e) => setDatos({ ...datos, fechaInstalacion: e.target.value })}
+              className={CAMPO}
+            />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-tenue">Prueba cada (min)</span>
@@ -186,6 +306,34 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
               value={datos.intervaloPruebaMin}
               onChange={(e) => setDatos({ ...datos, intervaloPruebaMin: e.target.value })}
               className={`${CAMPO} font-datos`}
+            />
+          </label>
+        </div>
+
+        <h3 className="text-tenue text-xs uppercase tracking-wider mt-1">Facturación de la cuenta</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Abono</span>
+            <input value={datos.montoAbono} onChange={(e) => setDatos({ ...datos, montoAbono: e.target.value })} className={`${CAMPO} font-datos`} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Cada (meses)</span>
+            <input
+              type="number"
+              min="1"
+              max="24"
+              value={datos.frecuenciaMeses}
+              onChange={(e) => setDatos({ ...datos, frecuenciaMeses: e.target.value })}
+              className={`${CAMPO} font-datos`}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-tenue">Próximo vencimiento</span>
+            <input
+              type="date"
+              value={datos.proximoVencimiento}
+              onChange={(e) => setDatos({ ...datos, proximoVencimiento: e.target.value })}
+              className={CAMPO}
             />
           </label>
         </div>

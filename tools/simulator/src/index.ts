@@ -7,6 +7,7 @@
  *   npm run simulador -- robo --cuenta 1234 --zona 015
  *   npm run simulador -- escenario
  *   npm run simulador -- latido --udp
+ *   npm run simulador -- robo --clave 000102030405060708090A0B0C0D0E0F   (trama cifrada)
  *
  * Comandos: robo, fuego, panico, medica, prueba, apertura, cierre,
  *           restauracion, averia-red, latido, desconocida, escenario
@@ -14,7 +15,13 @@
 import net from 'node:net';
 import dgram from 'node:dgram';
 import { parseArgs } from 'node:util';
-import { construirTramaAdmCid, construirTramaNull, parsearTramaDc09 } from '@monitoring/protocols';
+import {
+  construirTramaAdmCid,
+  construirTramaAdmCidCifrada,
+  construirTramaNull,
+  normalizarClaveAes,
+  parsearTramaDc09,
+} from '@monitoring/protocols';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -25,6 +32,7 @@ const { values, positionals } = parseArgs({
     zona: { type: 'string', default: '015' },
     particion: { type: 'string', default: '01' },
     udp: { type: 'boolean', default: false },
+    clave: { type: 'string' },
   },
 });
 
@@ -34,6 +42,13 @@ const puerto = Number(values.puerto);
 const cuenta = values.cuenta!;
 const zona = values.zona!;
 const particion = values.particion!;
+
+// Con --clave se envían tramas cifradas, como un panel con AES activado
+const claveAes = values.clave ? normalizarClaveAes(values.clave) : null;
+if (values.clave && !claveAes) {
+  console.error('Clave AES inválida: debe ser hexadecimal de 32, 48 o 64 caracteres.');
+  process.exit(1);
+}
 
 let secuencia = 0;
 function proximaSecuencia(): string {
@@ -86,7 +101,7 @@ function enviarUdp(trama: Buffer): Promise<Buffer> {
 
 async function enviar(trama: Buffer, etiqueta: string) {
   const respuesta = await (values.udp ? enviarUdp(trama) : enviarTcp(trama));
-  const parseada = parsearTramaDc09(respuesta);
+  const parseada = parsearTramaDc09(respuesta, { claveAes: claveAes ?? undefined });
   const id = parseada.ok ? parseada.trama.id : `ilegible (${parseada.error})`;
   console.log(`→ ${etiqueta}\n← Respuesta: ${id}`);
   if (parseada.ok && parseada.trama.id === 'NAK') {
@@ -97,6 +112,18 @@ async function enviar(trama: Buffer, etiqueta: string) {
 function tramaDe(nombre: string, cuentaTrama: string): Buffer {
   const def = CODIGOS[nombre];
   if (!def) throw new Error(`Comando desconocido: ${nombre}`);
+  if (claveAes) {
+    return construirTramaAdmCidCifrada({
+      cuenta: cuentaTrama,
+      calificador: def.calificador,
+      codigoCid: def.codigoCid,
+      claveAes,
+      particion,
+      zona,
+      secuencia: proximaSecuencia(),
+      marcaTiempo: new Date(),
+    });
+  }
   return construirTramaAdmCid({
     cuenta: cuentaTrama,
     calificador: def.calificador,

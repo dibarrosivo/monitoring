@@ -13,10 +13,12 @@ export function Tablero({
   alIrACola,
   alIrAPaneles,
   alIrASenales,
+  alIrAClientes,
 }: {
   alIrACola: (filtro: FiltroCola) => void;
   alIrAPaneles: () => void;
   alIrASenales: () => void;
+  alIrAClientes: () => void;
 }) {
   const { data: tablero, isLoading } = useQuery({ queryKey: ['tablero'], queryFn: verTablero, refetchInterval: 30_000 });
 
@@ -44,7 +46,35 @@ export function Tablero({
         <Ficha nombre="Señales hoy" valor={tablero.hoy.senales} alClickear={alIrASenales} />
         <Ficha nombre="Cerradas hoy" valor={tablero.alarmas.cerradasHoy} alClickear={() => alIrACola('cerrada')} />
         <Ficha nombre="Dispositivos activos" valor={tablero.paneles.activos} alClickear={alIrAPaneles} />
+        <Ficha
+          nombre="Cuentas vencidas"
+          valor={tablero.facturacion.vencidos}
+          alerta={tablero.facturacion.vencidos > 0}
+          alClickear={alIrAClientes}
+        />
       </div>
+
+      {(tablero.facturacion.vencidos > 0 || tablero.facturacion.porVencer > 0) && (
+        <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-1.5">
+          <h2 className="text-tenue text-xs uppercase tracking-wider">
+            Facturación · {tablero.facturacion.vencidos} vencidas y {tablero.facturacion.porVencer} por vencer
+          </h2>
+          {tablero.facturacion.cuentas.map((c) => {
+            const vencida = Boolean(c.proximoVencimiento && c.proximoVencimiento < new Date().toISOString().slice(0, 10));
+            return (
+              <div key={c.panelId} className="flex items-center gap-3 text-sm">
+                <span className="font-datos">{c.numeroCuenta}</span>
+                <span className="flex-1 truncate">{c.clienteNombre}</span>
+                {c.montoAbono && <span className="font-datos text-tenue">{c.montoAbono}</span>}
+                <span className={`font-datos text-xs ${vencida ? 'text-prio2 font-semibold' : 'text-tenue'}`}>
+                  {vencida ? 'vencida el ' : 'vence el '}
+                  {c.proximoVencimiento}
+                </span>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         {/* Magnitud del día por categoría: una sola tinta, barras finas */}

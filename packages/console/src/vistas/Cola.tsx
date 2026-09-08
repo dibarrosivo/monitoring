@@ -250,22 +250,53 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
           <h3 className="text-tenue text-xs uppercase tracking-wider">Cuenta</h3>
           {contexto?.cliente ? (
             <>
-              {contexto.cliente.instrucciones && (
+              {/* El plan del sitio manda sobre el del cliente */}
+              {(contexto.sitio?.instrucciones || contexto.cliente.instrucciones) && (
                 <div className="bg-prio2/10 border border-prio2/40 rounded-sm p-2">
-                  <h3 className="text-prio2 text-xs uppercase tracking-wider mb-1">Plan de acción</h3>
-                  <p className="whitespace-pre-wrap">{contexto.cliente.instrucciones}</p>
+                  <h3 className="text-prio2 text-xs uppercase tracking-wider mb-1">
+                    Plan de acción{contexto.sitio?.instrucciones ? ' del sitio' : ''}
+                  </h3>
+                  <p className="whitespace-pre-wrap">
+                    {contexto.sitio?.instrucciones ?? contexto.cliente.instrucciones}
+                  </p>
                 </div>
+              )}
+              {contexto.cliente.estado !== 'activo' && (
+                <p className="text-prio2 text-xs font-semibold uppercase tracking-wider">
+                  Cliente {contexto.cliente.estado}
+                  {contexto.cliente.motivoEstado && <span className="font-normal normal-case"> — {contexto.cliente.motivoEstado}</span>}
+                </p>
               )}
               <div>
                 <p className="font-semibold">{contexto.cliente.nombre}</p>
                 <p className="text-tenue">
                   {contexto.sitio?.nombre}
                   {contexto.sitio?.direccion && ` · ${contexto.sitio.direccion}`}
+                  {contexto.sitio?.ciudad && `, ${contexto.sitio.ciudad}`}
                 </p>
+                {contexto.sitio?.referencia && <p className="text-tenue text-xs">Ref.: {contexto.sitio.referencia}</p>}
+                {(contexto.sitio?.llaves || contexto.sitio?.instruccionesAcceso) && (
+                  <p className="text-tenue text-xs">
+                    {contexto.sitio.llaves && `Llaves: ${contexto.sitio.llaves}`}
+                    {contexto.sitio.llaves && contexto.sitio.instruccionesAcceso && ' · '}
+                    {contexto.sitio.instruccionesAcceso}
+                  </p>
+                )}
                 <p className="font-datos text-xs text-tenue mt-1">
                   cuenta {contexto.panel?.numeroCuenta} · {contexto.panel?.tipo}
                   {contexto.panel?.modelo && ` ${contexto.panel.modelo}`}
+                  {contexto.sitio?.telefono && ` · sitio ${contexto.sitio.telefono}`}
                 </p>
+                {contexto.sitio?.latitud != null && contexto.sitio?.longitud != null && (
+                  <a
+                    href={`https://www.google.com/maps?q=${contexto.sitio.latitud},${contexto.sitio.longitud}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-acento text-xs underline underline-offset-2"
+                  >
+                    Ver ubicación en el mapa
+                  </a>
+                )}
                 {contexto.zonaDescripcion && (
                   <p className="mt-1">
                     <span className="text-tenue">Zona {alarma.evento.zona}:</span>{' '}
@@ -278,9 +309,13 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
                 {contexto.contactos.map((c) => (
                   <li key={c.id}>
                     <span className="font-datos text-tenue">{c.orden}.</span>{' '}
-                    <span className="font-semibold">{c.nombre}</span>{' '}
-                    <span className="font-datos text-acento">{c.telefono}</span>
+                    <span className="font-semibold">{c.nombre}</span>
+                    {c.rol && <span className="text-tenue text-xs"> ({c.rol})</span>}{' '}
+                    <a href={`tel:${c.telefono}`} className="font-datos text-acento">
+                      {c.telefono}
+                    </a>
                     {c.palabraClave && <span className="text-tenue"> · clave: {c.palabraClave}</span>}
+                    {c.autorizadoCancelar && <span className="text-ok text-xs font-semibold"> · puede cancelar</span>}
                   </li>
                 ))}
                 {contexto.contactos.length === 0 && <li className="text-tenue">Sin contactos cargados.</li>}

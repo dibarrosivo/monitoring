@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { listarPaneles } from '../api.js';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { editarPuente, listarPaneles, listarPuentes } from '../api.js';
 import type { EstadoPanel } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { DetalleDispositivo } from './Dispositivo.js';
@@ -72,6 +72,7 @@ export function Paneles({
 
   return (
     <div className="flex flex-col gap-3">
+      <Puentes />
       <div className="flex flex-wrap items-center gap-3">
         <input
           value={filtro}
@@ -139,5 +140,48 @@ export function Paneles({
         </table>
       </div>
     </div>
+  );
+}
+
+/**
+ * Puentes de la central: el programa que reenvía lo que sale del receptor
+ * PIMA. Si uno se calla, la central deja de recibir todo un receptor, así que
+ * se muestra arriba de todo y en rojo.
+ */
+function Puentes() {
+  const clienteConsultas = useQueryClient();
+  const { data: puentes } = useQuery({ queryKey: ['puentes'], queryFn: listarPuentes, refetchInterval: 30_000 });
+  const alternar = useMutation({
+    mutationFn: ({ id, supervisado }: { id: number; supervisado: boolean }) => editarPuente(id, { supervisado }),
+    onSuccess: () => void clienteConsultas.invalidateQueries({ queryKey: ['puentes'] }),
+  });
+
+  if (!puentes || puentes.length === 0) return null;
+
+  return (
+    <section className="bg-superficie border border-borde rounded-sm p-3 flex flex-col gap-1.5">
+      <h3 className="text-tenue text-xs uppercase tracking-wider">Puentes de la central</h3>
+      {puentes.map((p) => (
+        <div key={p.id} className="flex items-center gap-3 text-sm flex-wrap">
+          <span className={`led ${p.silencioso ? 'led-rojo' : 'led-verde'}`} aria-hidden />
+          <span className="font-semibold">{p.nombre}</span>
+          <span className="text-tenue font-datos text-xs">
+            {[p.fuente, p.version && `v${p.version}`].filter(Boolean).join(' · ')} · {p.tramasRecibidas} tramas
+          </span>
+          <span className={`text-xs font-semibold ${p.silencioso ? 'text-prio1' : 'text-ok'}`}>
+            {p.silencioso ? 'SIN REPORTAR' : 'en línea'}
+          </span>
+          <span className="text-tenue text-xs font-datos">
+            {p.ultimoLatidoEn ? `último latido ${transcurrido(p.ultimoLatidoEn)}` : 'nunca reportó'}
+          </span>
+          <button
+            onClick={() => alternar.mutate({ id: p.id, supervisado: !p.supervisado })}
+            className="ml-auto text-xs text-tenue hover:text-acento underline underline-offset-2"
+          >
+            {p.supervisado ? 'Dejar de supervisar' : 'Supervisar'}
+          </button>
+        </div>
+      ))}
+    </section>
   );
 }

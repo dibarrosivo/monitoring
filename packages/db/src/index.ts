@@ -8,6 +8,7 @@ export const pool = new pg.Pool({ connectionString: url });
 export const db = drizzle(pool, { schema: esquema });
 export * from './esquema.js';
 export * from './claves.js';
+export * from './depuracion.js';
 
 export const CANAL_ALARMAS = 'nueva_alarma';
 export const CANAL_EVENTOS = 'nuevo_evento';

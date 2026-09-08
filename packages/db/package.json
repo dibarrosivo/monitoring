@@ -8,7 +8,8 @@
   "scripts": {
     "generar": "drizzle-kit generate",
     "migrar": "drizzle-kit migrate",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx src/seed.ts",
+    "depurar": "tsx src/depurarCli.ts"
   },
   "dependencies": {
     "@monitoring/shared": "*",

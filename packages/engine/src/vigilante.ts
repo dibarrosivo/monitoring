@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
-import { db, evento, horario, panel } from '@monitoring/db';
+import { bridge, db, evento, feriado, horario, panel, sitio } from '@monitoring/db';
 import { abrirAlarma, tieneAlarmaSistemaAbierta } from './procesador.js';
-import { evaluarPendientesDia } from './horarios.js';
+import { ahoraEnZona, evaluarPendientesDia } from './horarios.js';
 
 /**
  * Vigilante de paneles silenciosos: en este rubro el silencio es en sí una emergencia
@@ -86,24 +86,35 @@ export async function revisarHorarios(): Promise<number> {
       apertura: horario.apertura,
       cierre: horario.cierre,
       toleranciaMin: horario.toleranciaMin,
+      zonaHoraria: sitio.zonaHoraria,
     })
     .from(horario)
     .innerJoin(panel, eq(horario.panelId, panel.id))
+    .innerJoin(sitio, eq(panel.sitioId, sitio.id))
     .where(and(eq(horario.activo, true), eq(panel.activo, true)));
   if (filas.length === 0) return 0;
 
-  const porPanel = new Map<number, { numeroCuenta: string; horarios: typeof filas }>();
+  const porPanel = new Map<number, { numeroCuenta: string; zonaHoraria: string | null; horarios: typeof filas }>();
   for (const fila of filas) {
-    const entrada = porPanel.get(fila.panelId) ?? { numeroCuenta: fila.numeroCuenta, horarios: [] };
+    const entrada =
+      porPanel.get(fila.panelId) ?? { numeroCuenta: fila.numeroCuenta, zonaHoraria: fila.zonaHoraria, horarios: [] };
     entrada.horarios.push(fila);
     porPanel.set(fila.panelId, entrada);
   }
 
   const ahora = new Date();
   const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+
+  // En feriado el comercio no abre: no se supervisan aperturas ni cierres
+  const hoyIso = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+  const feriados = await db.select({ fecha: feriado.fecha }).from(feriado).where(eq(feriado.fecha, hoyIso)).limit(1);
+  if (feriados.length > 0) return 0;
+
   let abiertas = 0;
 
-  for (const [panelId, { numeroCuenta, horarios }] of porPanel) {
+  for (const [panelId, { numeroCuenta, zonaHoraria, horarios }] of porPanel) {
+    // Cada sitio se evalúa con su propia hora local
+    const ahoraLocal = ahoraEnZona(zonaHoraria, ahora);
     const movimientos = await db
       .select({ categoria: evento.categoria, ocurridoEn: evento.ocurridoEn })
       .from(evento)
@@ -117,7 +128,7 @@ export async function revisarHorarios(): Promise<number> {
     const aperturas = movimientos.filter((m) => m.categoria === 'apertura').map((m) => m.ocurridoEn);
     const cierres = movimientos.filter((m) => m.categoria === 'cierre').map((m) => m.ocurridoEn);
 
-    const pendientes = evaluarPendientesDia(horarios, aperturas, cierres, ahora);
+    const pendientes = evaluarPendientesDia(horarios, aperturas, cierres, ahoraLocal);
 
     if (pendientes.aperturaTarde && !(await yaAvisadoHoy(panelId, 'HOR-AT', inicioDia))) {
       await abrirAlarmaHorario(panelId, numeroCuenta, 'HOR-AT', `Apertura tarde: cuenta ${numeroCuenta} no abrió a horario`);
@@ -127,6 +138,46 @@ export async function revisarHorarios(): Promise<number> {
       await abrirAlarmaHorario(panelId, numeroCuenta, 'HOR-SC', `Sin cierre: cuenta ${numeroCuenta} sigue abierta pasado el horario`);
       abiertas++;
     }
+  }
+  return abiertas;
+}
+
+/**
+ * Puentes caídos: si el programa de la PC de la central deja de latir, la
+ * central deja de recibir todo un receptor sin enterarse. Es de las fallas
+ * más graves posibles, así que abre alarma de prioridad 2.
+ */
+export async function revisarPuentes(): Promise<number> {
+  const silenciosos = await db
+    .select({ id: bridge.id, nombre: bridge.nombre, intervaloLatidoSeg: bridge.intervaloLatidoSeg })
+    .from(bridge)
+    .where(
+      and(
+        eq(bridge.activo, true),
+        eq(bridge.supervisado, true),
+        sql`COALESCE(${bridge.ultimoLatidoEn}, ${bridge.creadoEn}) < now() - (${bridge.intervaloLatidoSeg} * 3 * interval '1 second')`,
+      ),
+    );
+
+  let abiertas = 0;
+  for (const p of silenciosos) {
+    const descripcion = `PUENTE CAÍDO: ${p.nombre} no reporta hace más de ${p.intervaloLatidoSeg * 3} segundos`;
+    // Un aviso por puente y por día: el operador ya lo tiene en la cola
+    const inicioDia = new Date();
+    inicioDia.setHours(0, 0, 0, 0);
+    const [yaAvisado] = await db
+      .select({ id: evento.id })
+      .from(evento)
+      .where(and(eq(evento.codigo, 'BRIDGE'), eq(evento.descripcion, descripcion), gte(evento.ocurridoEn, inicioDia)))
+      .limit(1);
+    if (yaAvisado) continue;
+
+    const [filaEvento] = await db
+      .insert(evento)
+      .values({ categoria: 'sistema', codigo: 'BRIDGE', descripcion, prioridad: 2, ocurridoEn: new Date() })
+      .returning({ id: evento.id });
+    await abrirAlarma({ eventoId: filaEvento!.id, prioridad: 2, descripcion });
+    abiertas++;
   }
   return abiertas;
 }
@@ -144,6 +195,7 @@ export function iniciarVigilante(opciones: {
     try {
       await revisarPanelesSilenciosos();
       await revisarHorarios();
+      await revisarPuentes();
     } catch (err) {
       alError?.(err);
     } finally {

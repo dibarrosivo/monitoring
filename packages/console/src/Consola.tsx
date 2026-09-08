@@ -184,6 +184,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
               alIrACola={(f) => irACola(f)}
               alIrAPaneles={() => setVista('paneles')}
               alIrASenales={irASenales}
+              alIrAClientes={() => irAVista('clientes')}
             />
           )}
           {vista === 'cola' && <ColaMovil />}
@@ -200,7 +201,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
   }
 
   return (
-    <div className="min-h-screen bg-fondo flex">
+    <div className="h-screen overflow-hidden bg-fondo flex">
       {/* Riel de navegación */}
       <nav className="w-52 shrink-0 border-r border-borde bg-superficie flex flex-col">
         <div className="px-4 py-5 border-b border-borde">
@@ -286,6 +287,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
               alIrACola={(f) => irACola(f)}
               alIrAPaneles={() => setVista('paneles')}
               alIrASenales={irASenales}
+              alIrAClientes={() => irAVista('clientes')}
             />
           )}
           {vista === 'cola' && <Cola alarmaReciente={alarmaReciente} filtro={filtroCola} />}

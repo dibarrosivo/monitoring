@@ -8,9 +8,11 @@ Software de central de monitoreo: recibe señales de alarma de distintos transmi
 | --- | --- | --- |
 | Paneles Hikvision (AX Pro) | SIA DC-09 (ADM-CID) por TCP/UDP directo al servidor | ✅ Fase 1 |
 | Tarjetas transmisoras EBM | Contact ID sobre IP (mismo listener DC-09) | ✅ Fase 1 (verificar framing real) |
-| Receptor PIMA (RS-232) | Bridge serie→servidor en la PC Windows de la central | 🔜 Fase 2 (`apps/pima-bridge`) |
+| Receptor PIMA (RS-232 o TCP) | Puente serie→servidor en la PC de la central (`packages/pima-bridge`) | ✅ Listo, a la espera del receptor real |
 
-> Los paneles Hikvision deben configurarse en formato **ADM-CID sin cifrar** (el descifrado AES está pendiente). La marca de tiempo del panel se guarda como referencia; la hora canónica de los eventos es la de recepción en el servidor.
+> Los paneles Hikvision deben configurarse en formato **ADM-CID**. El cifrado AES de DC-09 está implementado: si el panel cifra, se carga la clave en `DC09_CLAVE_AES` (hexadecimal de 32, 48 o 64 caracteres) y el receptor descifra la trama y responde el ACK también cifrado. Sin clave, las tramas cifradas se rechazan con NAK y quedan registradas en el diario crudo. La marca de tiempo del panel se guarda como referencia; la hora canónica de los eventos es la de recepción en el servidor.
+>
+> El descifrado está probado de punta a punta contra el simulador (`npm run simulador -- robo --clave <hex>`), pero **todavía no contra un panel real**: si un Hikvision usara otra convención de relleno o de vector inicial, la trama queda íntegra en `senal` y el ajuste es de minutos.
 
 ## Arquitectura
 
@@ -23,6 +25,7 @@ packages/
   receiver/    Daemon: listeners TCP/UDP DC-09 → engine
   api/         Fastify: auth JWT, CRUD, cola de alarmas, WebSocket en tiempo real (todo bajo /api)
   console/     Consola de operador: React + Vite + Tailwind, tema oscuro, cola en vivo con sonido
+  pima-bridge/ Puente para la PC de la central: lee el receptor y reenvía las tramas crudas
 tools/
   simulator/   Envía tramas DC-09 reales para probar sin hardware
 ```
@@ -32,6 +35,25 @@ Reglas de oro del receptor:
 2. Si la persistencia falla, se responde NAK y el panel reintenta.
 3. El silencio también alarma: un panel supervisado sin señales por 1.5× su intervalo de prueba abre una alarma de sistema.
 4. Una cuenta desconocida genera alarma para el operador (alguien transmite y nadie lo mira).
+
+Retención del diario crudo: `senal` crece sin parar (los latidos solos son miles por día). Con
+`RETENCION_SENALES_DIAS` el receptor depura una vez por día las tramas más viejas que ese plazo, y
+`npm run db:depurar -- 365` hace lo mismo a mano (pensado para cron en el VPS). Los eventos y las
+alarmas **nunca** se depuran: al borrar una señal, su evento conserva todo lo decodificado y solo
+pierde el enlace a la trama.
+
+Un equipo puede declarar una **cuenta secundaria**: el segundo número con el que reporta cuando usa
+otra vía de comunicación (línea telefónica frente a IP/GPRS). Sin ella esas señales entrarían como
+cuenta desconocida. Ninguna cuenta —principal o secundaria— puede repetirse en dos equipos: la API
+responde 409, porque una señal repetida no tendría dueño único.
+
+Cada sitio puede fijar su **zona horaria**; vacío significa la del servidor. La supervisión de
+horarios evalúa cada sitio con su hora local, así un cliente en otra franja no dispara falsos
+avisos de apertura tarde.
+
+Marca, modelo e instalador se completan con **sugerencias de lo ya cargado**. El catálogo se
+alimenta solo: al guardar un equipo con un valor nuevo, queda disponible para el siguiente. Evita
+que convivan "Bosch", "BOSCH" y "bosh" sin obligar a mantener listas a mano.
 
 Supervisión de horarios (por panel, opcional): con un horario cargado, el sistema abre alarmas de
 sistema ante **apertura tarde** (`HOR-AT`), **falta de cierre** (`HOR-SC`) y **apertura fuera de
@@ -55,8 +77,97 @@ npm run simulador -- escenario
 npm run simulador -- robo --cuenta 1234 --zona 015
 npm run simulador -- desconocida
 
-npm test                      # pruebas de parsers y clasificación
+npm test                      # pruebas unitarias (parsers, cifrado, motor, clasificación)
+npm run test:integracion      # pruebas de la API contra PostgreSQL (base monitoring_test aparte)
+npm run test:todo             # unitarias + integración
 npm run typecheck
+```
+
+## Puente PIMA (la PC de la central)
+
+`packages/pima-bridge` es un programa aparte que corre en la máquina conectada al receptor. Lee las
+tramas del **puerto serie** (o de una **salida TCP**), las guarda en disco, le responde **ACK (0x06)**
+al receptor y las reenvía al servidor. **No interpreta nada**: todo el parseo Sur-Gard vive en el
+servidor, así un formato inesperado se corrige sin volver a pisar esa máquina.
+
+Garantías, probadas de punta a punta contra un receptor simulado:
+
+1. **Primero disco, después ACK.** La trama se escribe en la cola antes de confirmarle al receptor,
+   así un corte entre medio no la pierde.
+2. **Servidor caído no pierde señales.** Se acumulan en `cola-pendiente.jsonl` con reintentos de
+   espera creciente y se entregan solas al volver el servidor. El receptor sigue recibiendo su ACK.
+3. **El silencio del puente alarma.** Late cada minuto; si deja de reportar, la central abre una
+   alarma `BRIDGE` de prioridad 2 (queda ciega a todo un receptor, es de las peores fallas posibles).
+
+### Ejecutable para Windows (sin instalar nada en la PC de la central)
+
+```bash
+npm run puente:exe        # genera packages/pima-bridge/dist/win/
+```
+
+Usa el empaquetador oficial de Node 22 (SEA): junta el código con esbuild, arma el blob y lo inyecta
+en el `node.exe` oficial que baja de nodejs.org. El `.exe` se construye desde Linux sin necesidad de
+una máquina Windows.
+
+Queda una carpeta lista para copiar tal cual (~82 MB):
+
+```
+dist/win/
+  puente.exe        el programa, con Node adentro
+  node_modules/     serialport y su binario nativo (win32-x64)
+  .env.ejemplo      configuración a completar
+  LEEME.txt         instrucciones para quien lo instale
+```
+
+En la PC de la central: copiar la carpeta, renombrar `.env.ejemplo` a `.env`, completar
+`BRIDGE_SERVIDOR`, `BRIDGE_TOKEN` y `BRIDGE_PUERTO_SERIE` (COM1, COM3…), y doble clic en
+`puente.exe`. **No hace falta instalar Node.**
+
+Para averiguar el puerto: `puente.exe --puertos` los lista con su descripción (el receptor suele
+estar en el adaptador USB-serie). Si el puerto configurado no abre, el programa muestra esa misma
+lista al arrancar en vez de dejar al técnico adivinando. Para que arranque solo con Windows:
+`nssm install PuenteMonitoreo C:\PuenteMonitoreo\puente.exe`.
+
+Dos detalles del empaquetado:
+
+- El módulo del puerto serie es código nativo y no puede ir dentro del ejecutable: viaja en
+  `node_modules` al lado y el puente lo carga desde ahí al arrancar (`createRequire(process.execPath)`).
+- Inyectar el blob invalida la firma Authenticode del `node.exe` original, así que Windows puede
+  mostrar el aviso de SmartScreen la primera vez ("Más información → Ejecutar de todas formas"). Se
+  evita firmando el ejecutable con un certificado propio (`signtool`).
+
+El servidor exige `BRIDGE_TOKEN` (el mismo valor en su `.env` y en el del puente).
+
+### Convivir con el sistema de monitoreo actual
+
+**Un puerto COM lo abre un solo proceso a la vez**: es una restricción del sistema operativo, no del
+programa. El puente no puede leer el mismo puerto que ya está usando el software viejo. Para recibir
+en los dos sistemas a la vez —lo recomendable durante la migración, para comparar antes de cambiar—
+hay tres caminos, de mejor a peor:
+
+1. **Segunda salida del receptor.** Muchos receptores traen dos puertos de automatización. Si el PIMA
+   tiene uno libre, los dos sistemas quedan independientes y no hace falta nada más.
+2. **Duplicar el puerto por software** con [com0com + hub4com](https://sourceforge.net/projects/com0com/)
+   (gratis): `hub4com` lee el puerto real y copia el flujo a dos puertos virtuales; el software viejo
+   lee uno y el puente el otro.
+3. **Cable derivador RS-232**, con la línea de transmisión conectada a un solo equipo.
+
+En los casos 2 y 3 el ACK lo tiene que mandar **un solo** programa. Se deja que lo siga mandando el
+sistema actual y el puente va en **modo pasivo**:
+
+```
+BRIDGE_ACK=no
+```
+
+Así escucha y reenvía sin escribir una sola vez en el puerto, sin interferir con el sistema en
+producción. Verificado: con `BRIDGE_ACK=no` el puente recibe y entrega las tramas sin emitir ningún
+ACK hacia el receptor.
+
+Prueba sin hardware, con un receptor simulado:
+
+```bash
+npm run simulador:pima -- --evento robo --cuenta 7002   # receptor falso en TCP :10001
+npm run puente                                          # con BRIDGE_FUENTE=tcp en el .env
 ```
 
 ## Flujo de trabajo

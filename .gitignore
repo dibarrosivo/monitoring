@@ -6,3 +6,6 @@ keys.json
 infra/*/data/
 infra/caddy/certs/
 coverage/
+cola-pendiente.jsonl
+packages/pima-bridge/logs/
+packages/pima-bridge/empaquetado/.cache/

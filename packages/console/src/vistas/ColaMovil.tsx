@@ -86,11 +86,14 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
     <div className="border-t border-borde p-3 flex flex-col gap-3 text-sm">
       {contexto?.cliente ? (
         <div className="flex flex-col gap-1.5">
-          {contexto.cliente.instrucciones && (
+          {(contexto.sitio?.instrucciones || contexto.cliente.instrucciones) && (
             <div className="bg-prio2/10 border border-prio2/40 rounded p-2">
               <p className="text-prio2 text-xs uppercase tracking-wider mb-0.5">Plan de acción</p>
-              <p className="whitespace-pre-wrap">{contexto.cliente.instrucciones}</p>
+              <p className="whitespace-pre-wrap">{contexto.sitio?.instrucciones ?? contexto.cliente.instrucciones}</p>
             </div>
+          )}
+          {contexto.cliente.estado !== 'activo' && (
+            <p className="text-prio2 text-xs font-semibold uppercase">Cliente {contexto.cliente.estado}</p>
           )}
           <p className="font-semibold">{contexto.cliente.nombre}</p>
           <p className="text-tenue">
@@ -104,6 +107,7 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
                 {c.telefono}
               </a>
               {c.palabraClave && <span className="text-tenue"> · clave: {c.palabraClave}</span>}
+              {c.autorizadoCancelar && <span className="text-ok text-xs font-semibold"> · puede cancelar</span>}
             </p>
           ))}
         </div>

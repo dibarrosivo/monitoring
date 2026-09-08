@@ -14,5 +14,7 @@ export default defineConfig({
   },
   test: {
     include: ['packages/*/pruebas/**/*.test.ts', 'packages/*/src/**/*.test.ts'],
+    // Las de la API necesitan PostgreSQL: viven en vitest.integracion.config.ts
+    exclude: ['**/node_modules/**', 'packages/api/pruebas/**'],
   },
 });

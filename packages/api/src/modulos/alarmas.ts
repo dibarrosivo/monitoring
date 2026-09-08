@@ -65,9 +65,38 @@ export function registrarAlarmas(app: App) {
 
     const [contexto] = await db
       .select({
-        panel: { id: panel.id, numeroCuenta: panel.numeroCuenta, tipo: panel.tipo, modelo: panel.modelo },
-        sitio: { id: sitio.id, nombre: sitio.nombre, direccion: sitio.direccion },
-        cliente: { id: cliente.id, nombre: cliente.nombre, telefono: cliente.telefono, instrucciones: cliente.instrucciones },
+        panel: {
+          id: panel.id,
+          numeroCuenta: panel.numeroCuenta,
+          alias: panel.alias,
+          tipo: panel.tipo,
+          marca: panel.marca,
+          modelo: panel.modelo,
+          claveMaestra: panel.claveMaestra,
+        },
+        sitio: {
+          id: sitio.id,
+          nombre: sitio.nombre,
+          tipo: sitio.tipo,
+          direccion: sitio.direccion,
+          ciudad: sitio.ciudad,
+          referencia: sitio.referencia,
+          latitud: sitio.latitud,
+          longitud: sitio.longitud,
+          telefono: sitio.telefono,
+          llaves: sitio.llaves,
+          instruccionesAcceso: sitio.instruccionesAcceso,
+          // El plan de acción del sitio manda sobre el del cliente
+          instrucciones: sitio.instrucciones,
+        },
+        cliente: {
+          id: cliente.id,
+          nombre: cliente.nombre,
+          telefono: cliente.telefono,
+          instrucciones: cliente.instrucciones,
+          estado: cliente.estado,
+          motivoEstado: cliente.motivoEstado,
+        },
       })
       .from(panel)
       .innerJoin(sitio, eq(panel.sitioId, sitio.id))

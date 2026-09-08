@@ -10,5 +10,5 @@
     }
   },
   "include": ["packages/*/src/**/*.ts", "packages/*/pruebas/**/*.ts", "tools/*/src/**/*.ts"],
-  "exclude": ["packages/console"]
+  "exclude": ["packages/console", "packages/pima-bridge"]
 }

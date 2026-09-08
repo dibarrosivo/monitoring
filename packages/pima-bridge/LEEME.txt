@@ -1,0 +1,99 @@
+PUENTE PIMA -> CENTRAL DE MONITOREO
+===================================
+
+Que hace
+--------
+Lee las tramas del receptor de alarmas (por puerto COM o por red), les responde
+ACK, las guarda en disco y las envia al servidor de la central. Si el servidor
+o la red se caen, las tramas quedan guardadas y se envian solas al volver: no
+se pierde ninguna senal.
+
+Instalacion
+-----------
+1. Copiar esta carpeta completa a la PC de la central (por ejemplo
+   C:\PuenteMonitoreo).
+2. Renombrar .env.ejemplo a .env y abrirlo con el Bloc de notas.
+3. Completar como minimo:
+      BRIDGE_SERVIDOR   direccion del servidor      (ej. http://192.168.0.184:3000)
+      BRIDGE_TOKEN      el token que da la central
+      BRIDGE_FUENTE     serie
+      BRIDGE_PUERTO_SERIE   el puerto COM del receptor (COM1, COM3...)
+      BRIDGE_BAUDIOS    la velocidad que usa el receptor (normalmente 9600)
+4. Doble clic en puente.exe. Si todo esta bien, la ventana muestra
+   "Puente ... iniciando" y despues "Conectado" / "Lote entregado".
+   La central lo muestra en Dispositivos, arriba de todo, con luz verde.
+
+NO hace falta instalar Node ni nada mas: el ejecutable lo trae adentro.
+
+Que puerto COM es
+-----------------
+El programa lo dice solo. Abrir una ventana de comandos en esta carpeta y
+ejecutar:
+
+      puente.exe --puertos
+
+Lista los puertos con su descripcion, por ejemplo:
+
+      COM1       Puerto de comunicaciones (COM1)
+      COM3       Prolific USB-to-Serial Comm Port (COM3)
+
+El del receptor suele ser el del adaptador USB-serie. Ese numero va en
+BRIDGE_PUERTO_SERIE.
+
+Tambien figura en: Inicio -> Administrador de dispositivos -> Puertos (COM y LPT).
+
+Si el puerto configurado no abre, el programa muestra esta misma lista al
+arrancar, asi no hay que adivinar.
+
+Convivir con el software de monitoreo actual
+--------------------------------------------
+UN PUERTO COM LO USA UN SOLO PROGRAMA A LA VEZ. Windows no deja que dos
+programas abran el mismo COM: el segundo recibe "Acceso denegado". O sea que
+el puente NO puede leer el mismo puerto que ya esta usando el sistema viejo.
+
+Para recibir en los dos sistemas al mismo tiempo (recomendado durante la
+migracion, para comparar antes de cambiar) hay tres caminos:
+
+1) SEGUNDA SALIDA DEL RECEPTOR (lo mas limpio)
+   Muchos receptores traen dos puertos de automatizacion (o uno de impresora).
+   Si el PIMA tiene uno libre, el puente usa ese y los dos sistemas quedan
+   totalmente independientes. Revisar el panel trasero y el manual.
+
+2) DUPLICAR EL PUERTO POR SOFTWARE (gratis, sin tocar el hardware)
+   Con com0com + hub4com (https://sourceforge.net/projects/com0com/):
+     - com0com crea pares de puertos virtuales, por ejemplo COM10 <-> COM11
+       y COM12 <-> COM13.
+     - hub4com lee el puerto real y copia todo a los dos virtuales:
+         hub4com --route=0:1,0:2 --octs=off \\.\COM3 \\.\CNCB0 \\.\CNCB1
+     - El software viejo pasa a leer COM11 y el puente lee COM13.
+   IMPORTANTE: en este esquema el ACK lo tiene que mandar UN SOLO programa.
+   Dejar que lo siga mandando el sistema viejo y poner en el .env del puente:
+         BRIDGE_ACK=no
+   Asi el puente escucha sin interferir (modo pasivo).
+
+3) CABLE DERIVADOR (Y) DE RS-232
+   Un splitter serie que lleva la linea de datos a dos equipos. Solo uno debe
+   tener conectada la linea de transmision (la del ACK). Requiere un segundo
+   puerto serie, o una segunda PC.
+
+En los casos 2 y 3, el puente va SIEMPRE con BRIDGE_ACK=no.
+
+Dejarlo como servicio (arranca solo con Windows)
+------------------------------------------------
+Con NSSM (https://nssm.cc):
+      nssm install PuenteMonitoreo C:\PuenteMonitoreo\puente.exe
+      nssm set PuenteMonitoreo AppDirectory C:\PuenteMonitoreo
+      nssm start PuenteMonitoreo
+
+Archivos que genera
+-------------------
+   cola-pendiente.jsonl   tramas todavia no entregadas al servidor
+   logs\puente-AAAA-MM-DD.log   registro diario
+
+Si algo falla
+-------------
+- "Falta BRIDGE_TOKEN": el archivo .env no esta o esta incompleto.
+- "No se pudo abrir el puerto serie": el COM esta mal, o lo tiene tomado otro
+  programa (cerrar el software viejo de monitoreo antes de probar).
+- "No se pudo contactar al servidor": revisar BRIDGE_SERVIDOR y la red. Las
+  tramas NO se pierden: quedan en cola-pendiente.jsonl y salen al reconectar.

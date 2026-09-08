@@ -1,0 +1,22 @@
+{
+  "name": "@monitoring/pima-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Puente serie→central: lee el receptor PIMA y reenvía las tramas crudas al servidor",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "compilar": "tsc -p tsconfig.build.json",
+    "empaquetar": "node empaquetado/construir.mjs win",
+    "empaquetar:todo": "node empaquetado/construir.mjs win linux"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0",
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
+  }
+}

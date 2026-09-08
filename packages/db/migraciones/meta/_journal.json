@@ -50,6 +50,34 @@
       "when": 1787772499235,
       "tag": "0006_slimy_terrax",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787928053607,
+      "tag": "0007_mysterious_lady_ursula",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787930130682,
+      "tag": "0008_lethal_leopardon",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788618327962,
+      "tag": "0009_workable_ezekiel",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788638529281,
+      "tag": "0010_lowly_shadow_king",
+      "breakpoints": true
     }
   ]
 }

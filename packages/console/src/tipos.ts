@@ -131,8 +131,19 @@ export interface EstadoPanel {
   intervaloPruebaMin: number;
   ultimaSenalEn: string | null;
   activo: boolean;
+  cuentaSecundaria?: string | null;
+  prefijo?: string | null;
+  alias?: string | null;
   marca?: string | null;
   modelo?: string | null;
+  serial?: string | null;
+  claveMaestra?: string | null;
+  instalador?: string | null;
+  fechaInstalacion?: string | null;
+  propiedad?: PropiedadEquipo;
+  montoAbono?: string | null;
+  frecuenciaMeses?: number;
+  proximoVencimiento?: string | null;
   /** Presentes solo en /paneles/estado (la lista enriquecida) */
   sitioNombre?: string;
   clienteId?: number;
@@ -147,16 +158,68 @@ export interface ClienteResumen extends Cliente {
   dispositivos: number;
   silenciosos: number;
   alarmasAbiertas: number;
+  vencidos: number;
+  proximoVencimiento: string | null;
+  abonoTotal: string | null;
 }
+
+export interface Puente {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  fuente: string | null;
+  version: string | null;
+  ultimoLatidoEn: string | null;
+  tramasRecibidas: number;
+  supervisado: boolean;
+  intervaloLatidoSeg: number;
+  activo: boolean;
+  silencioso: boolean;
+}
+
+export interface Feriado {
+  id: number;
+  fecha: string;
+  descripcion: string | null;
+}
+
+export interface RegistroAuditoria {
+  id: number;
+  entidad: string;
+  entidadId: number | null;
+  accion: string;
+  cambios: Record<string, unknown> | null;
+  creadoEn: string;
+  usuarioNombre: string | null;
+}
+
+export type EstadoCliente = 'activo' | 'suspendido' | 'baja';
+export type TipoPersona = 'natural' | 'juridico' | 'gobierno' | 'otro';
+export type TipoSitio =
+  | 'residencial'
+  | 'comercial'
+  | 'industria'
+  | 'gobierno'
+  | 'apartamento'
+  | 'centro_comercial'
+  | 'otro';
+export type PropiedadEquipo = 'propio' | 'comodato' | 'prestamo';
 
 export interface Cliente {
   id: number;
   nombre: string;
+  documento: string | null;
+  tipoPersona: TipoPersona;
   telefono: string | null;
+  movil: string | null;
   email: string | null;
   direccion: string | null;
   notas: string | null;
   instrucciones: string | null;
+  estado: EstadoCliente;
+  motivoEstado: string | null;
+  estadoDesde: string | null;
+  fechaAlta: string | null;
   activo: boolean;
 }
 
@@ -164,7 +227,19 @@ export interface Sitio {
   id: number;
   clienteId: number;
   nombre: string;
+  tipo: TipoSitio;
   direccion: string | null;
+  ciudad: string | null;
+  referencia: string | null;
+  latitud: number | null;
+  longitud: number | null;
+  telefono: string | null;
+  zonaHoraria: string | null;
+  llaves: string | null;
+  puntoTag: string | null;
+  instruccionesAcceso: string | null;
+  instrucciones: string | null;
+  notas: string | null;
 }
 
 export interface Contacto {
@@ -172,9 +247,14 @@ export interface Contacto {
   clienteId: number;
   sitioId: number | null;
   nombre: string;
+  rol: string | null;
   telefono: string;
+  telefonoAlternativo: string | null;
+  email: string | null;
   orden: number;
   palabraClave: string | null;
+  autorizadoCancelar: boolean;
+  notas: string | null;
 }
 
 export interface ClienteDetalle extends Cliente {
@@ -184,9 +264,37 @@ export interface ClienteDetalle extends Cliente {
 
 /** Contexto de una alarma para el panel de detalle. */
 export interface ContextoAlarma {
-  cliente: { id: number; nombre: string; telefono: string | null; instrucciones: string | null } | null;
-  sitio: { id: number; nombre: string; direccion: string | null } | null;
-  panel: { id: number; numeroCuenta: string; tipo: string; modelo: string | null } | null;
+  cliente: {
+    id: number;
+    nombre: string;
+    telefono: string | null;
+    instrucciones: string | null;
+    estado: EstadoCliente;
+    motivoEstado: string | null;
+  } | null;
+  sitio: {
+    id: number;
+    nombre: string;
+    tipo: TipoSitio;
+    direccion: string | null;
+    ciudad: string | null;
+    referencia: string | null;
+    latitud: number | null;
+    longitud: number | null;
+    telefono: string | null;
+    llaves: string | null;
+    instruccionesAcceso: string | null;
+    instrucciones: string | null;
+  } | null;
+  panel: {
+    id: number;
+    numeroCuenta: string;
+    alias: string | null;
+    tipo: string;
+    marca: string | null;
+    modelo: string | null;
+    claveMaestra: string | null;
+  } | null;
   contactos: Contacto[];
   zonaDescripcion: string | null;
 }
@@ -279,6 +387,17 @@ export interface Tablero {
   paneles: { activos: number; silenciosos: number };
   clientes: { activos: number };
   hoy: { senales: number; eventos: number };
+  facturacion: {
+    vencidos: number;
+    porVencer: number;
+    cuentas: {
+      panelId: number;
+      numeroCuenta: string;
+      clienteNombre: string;
+      proximoVencimiento: string | null;
+      montoAbono: string | null;
+    }[];
+  };
   eventosHoyPorCategoria: { categoria: CategoriaEvento; cantidad: number }[];
   ultimasAlarmas: {
     id: number;
@@ -313,4 +432,10 @@ export interface MensajeTiempoReal {
     categoria?: CategoriaEvento;
     numeroCuenta?: string | null;
   };
+}
+
+/** Valor sugerido para un campo libre del equipo (marca, modelo, instalador). */
+export interface EntradaCatalogo {
+  tipo: string;
+  valor: string;
 }

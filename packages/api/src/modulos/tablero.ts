@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, isNotNull, lte, ne, sql } from 'drizzle-orm';
 import { alarma, cliente, db, evento, panel, senal, sitio } from '@monitoring/db';
 import type { App } from '../tipos.js';
 
@@ -21,6 +21,9 @@ export function registrarTablero(app: App) {
       [cerradasHoy],
       eventosHoyPorCategoria,
       ultimasAlarmas,
+      [vencidos],
+      [porVencer],
+      cuentasVencidas,
     ] = await Promise.all([
       db.select({ estado: alarma.estado, cantidad: count() }).from(alarma).where(ne(alarma.estado, 'cerrada')).groupBy(alarma.estado),
       db.select({ cantidad: count() }).from(panel).where(eq(panel.activo, true)),
@@ -62,6 +65,42 @@ export function registrarTablero(app: App) {
         .leftJoin(cliente, eq(sitio.clienteId, cliente.id))
         .orderBy(desc(alarma.creadoEn))
         .limit(8),
+      // Facturación: solo aviso administrativo, no corta el monitoreo
+      db
+        .select({ cantidad: count() })
+        .from(panel)
+        .where(and(eq(panel.activo, true), isNotNull(panel.proximoVencimiento), sql`${panel.proximoVencimiento} < current_date`)),
+      db
+        .select({ cantidad: count() })
+        .from(panel)
+        .where(
+          and(
+            eq(panel.activo, true),
+            isNotNull(panel.proximoVencimiento),
+            sql`${panel.proximoVencimiento} >= current_date`,
+            sql`${panel.proximoVencimiento} <= current_date + interval '7 days'`,
+          ),
+        ),
+      db
+        .select({
+          panelId: panel.id,
+          numeroCuenta: panel.numeroCuenta,
+          clienteNombre: cliente.nombre,
+          proximoVencimiento: panel.proximoVencimiento,
+          montoAbono: panel.montoAbono,
+        })
+        .from(panel)
+        .innerJoin(sitio, eq(panel.sitioId, sitio.id))
+        .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
+        .where(
+          and(
+            eq(panel.activo, true),
+            isNotNull(panel.proximoVencimiento),
+            sql`${panel.proximoVencimiento} <= current_date + interval '7 days'`,
+          ),
+        )
+        .orderBy(asc(panel.proximoVencimiento))
+        .limit(10),
     ]);
 
     return {
@@ -73,6 +112,11 @@ export function registrarTablero(app: App) {
       paneles: { activos: panelesActivos?.cantidad ?? 0, silenciosos: panelesSilenciosos?.cantidad ?? 0 },
       clientes: { activos: clientesActivos?.cantidad ?? 0 },
       hoy: { senales: senalesHoy?.cantidad ?? 0, eventos: eventosHoy?.cantidad ?? 0 },
+      facturacion: {
+        vencidos: vencidos?.cantidad ?? 0,
+        porVencer: porVencer?.cantidad ?? 0,
+        cuentas: cuentasVencidas,
+      },
       eventosHoyPorCategoria,
       ultimasAlarmas,
     };

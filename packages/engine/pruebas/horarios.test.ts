@@ -4,6 +4,7 @@ import {
   evaluarPendientesDia,
   horarioDelDia,
   type DefinicionHorario,
+  ahoraEnZona,
 } from '../src/horarios.js';
 
 // Lunes 24/08/2026 (getDay=1). Horario comercial L-V 09:00-18:00, tolerancia 30.
@@ -74,5 +75,32 @@ describe('evaluarPendientesDia', () => {
   it('día libre no genera pendientes', () => {
     const r = evaluarPendientesDia([comercial], [], [], sabado('12:00'));
     expect(r).toEqual({ aperturaTarde: false, sinCierre: false });
+  });
+});
+
+describe('ahoraEnZona', () => {
+  // 15:00 UTC = 11:00 en Caracas (-4) y 07:00 en Los Ángeles (-7, horario de verano)
+  const referencia = new Date(Date.UTC(2026, 8, 5, 15, 0, 0));
+
+  it('traduce la hora a la del sitio', () => {
+    expect(ahoraEnZona('America/Caracas', referencia).getHours()).toBe(11);
+    expect(ahoraEnZona('America/Los_Angeles', referencia).getHours()).toBe(8);
+    expect(ahoraEnZona('Europe/Madrid', referencia).getHours()).toBe(17);
+  });
+
+  it('sin zona devuelve la hora del servidor', () => {
+    expect(ahoraEnZona(null, referencia)).toBe(referencia);
+    expect(ahoraEnZona(undefined, referencia)).toBe(referencia);
+  });
+
+  it('con un huso inválido no falla: sigue con la del servidor', () => {
+    expect(ahoraEnZona('Marte/Olympus', referencia)).toBe(referencia);
+  });
+
+  it('respeta el día de la semana del lugar, no el del servidor', () => {
+    // 03:00 UTC del sábado ya es viernes por la noche en Caracas
+    const madrugadaSabado = new Date(Date.UTC(2026, 8, 5, 3, 0, 0));
+    expect(madrugadaSabado.getUTCDay()).toBe(6);
+    expect(ahoraEnZona('America/Caracas', madrugadaSabado).getDay()).toBe(5);
   });
 });

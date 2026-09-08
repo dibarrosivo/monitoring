@@ -18,18 +18,24 @@ export async function manejarTramaDc09(
   fuente: FuenteSenal,
   remoto: string,
   log: Logger,
+  claveAes?: Buffer,
 ): Promise<Buffer> {
   const recibidaEn = new Date();
   const cruda = datos.toString('latin1');
-  const resultado = parsearTramaDc09(datos);
+  const resultado = parsearTramaDc09(datos, { claveAes });
 
   try {
     if (!resultado.ok) {
-      if (resultado.error === 'trama-cifrada') {
-        // Persistimos y NAK: el panel reintenta y el instalador ve que debe desactivar el cifrado
-        // (o cargaremos la clave AES cuando se implemente el descifrado).
+      if (resultado.error === 'trama-cifrada' || resultado.error === 'descifrado-fallido') {
+        // Se persiste y se responde NAK: el panel reintenta y queda el rastro para
+        // corregir la clave AES (o el cifrado del panel) con la trama real a la vista.
         await registrarSenal({ fuente, remoto, cruda, estadoParse: 'cifrada', detalleError: resultado.detalle });
-        log.warn({ remoto }, 'Trama DC-09 cifrada: configurar el panel sin cifrado por ahora');
+        log.warn(
+          { remoto, error: resultado.error, detalle: resultado.detalle },
+          resultado.error === 'trama-cifrada'
+            ? 'Trama DC-09 cifrada sin clave configurada (DC09_CLAVE_AES)'
+            : 'No se pudo descifrar la trama DC-09: revisar la clave AES',
+        );
       } else {
         await registrarSenal({ fuente, remoto, cruda, estadoParse: 'error', detalleError: `${resultado.error}: ${resultado.detalle ?? ''}` });
         log.warn({ remoto, error: resultado.error, detalle: resultado.detalle }, 'Trama DC-09 inválida');
@@ -44,7 +50,7 @@ export async function manejarTramaDc09(
       const panelEncontrado = await buscarPanelPorCuenta(trama.numeroCuenta);
       await registrarSenal({ fuente, remoto, cruda, estadoParse: 'ignorada', detalleError: 'latido NULL', panelId: panelEncontrado?.id });
       if (panelEncontrado) await registrarVida(panelEncontrado.id, recibidaEn);
-      return construirAck(trama);
+      return construirAck(trama, trama.cifrada ? claveAes : undefined);
     }
 
     if (trama.id === 'ADM-CID') {
@@ -68,14 +74,14 @@ export async function manejarTramaDc09(
         { remoto, cuenta: trama.numeroCuenta, codigo: normalizado.codigo, eventoId: res.eventoId, alarmaId: res.alarmaId },
         normalizado.descripcion,
       );
-      return construirAck(trama);
+      return construirAck(trama, trama.cifrada ? claveAes : undefined);
     }
 
     // Otros identificadores (SIA-DCS, etc.): se guarda crudo y se confirma para que el
     // panel no reintente en bucle; configurar los paneles Hikvision en ADM-CID.
     await registrarSenal({ fuente, remoto, cruda, estadoParse: 'ignorada', detalleError: `id no soportado: ${trama.id}` });
     log.warn({ remoto, id: trama.id }, 'Identificador DC-09 no soportado (usar ADM-CID)');
-    return construirAck(trama);
+    return construirAck(trama, trama.cifrada ? claveAes : undefined);
   } catch (err) {
     log.error({ err, remoto }, 'Error procesando trama DC-09; se responde NAK');
     return construirNak();

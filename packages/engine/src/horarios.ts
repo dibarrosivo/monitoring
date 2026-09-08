@@ -84,3 +84,32 @@ export function evaluarPendientesDia(
 
   return { aperturaTarde, sinCierre };
 }
+
+/**
+ * "Ahora" visto desde otro huso horario: devuelve una fecha cuyos getters
+ * locales (getHours, getDay…) reflejan la hora del lugar, para poder evaluar
+ * los horarios de un sitio que está en otra franja. Sin zona, devuelve la
+ * hora del servidor tal cual.
+ */
+export function ahoraEnZona(zonaHoraria: string | null | undefined, referencia: Date = new Date()): Date {
+  if (!zonaHoraria) return referencia;
+  try {
+    const partes = new Intl.DateTimeFormat('en-CA', {
+      timeZone: zonaHoraria,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(referencia);
+    const valor = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value ?? 0);
+    // La hora 24 aparece en algunos husos como medianoche del día siguiente
+    const hora = valor('hour') % 24;
+    return new Date(valor('year'), valor('month') - 1, valor('day'), hora, valor('minute'), valor('second'));
+  } catch {
+    // Huso inválido: se sigue con la hora del servidor en vez de fallar
+    return referencia;
+  }
+}

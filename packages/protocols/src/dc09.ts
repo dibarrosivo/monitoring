@@ -1,4 +1,5 @@
 import { crc16Hex } from './crc.js';
+import { cifrarCampo, descifrarHex, separarRelleno } from './cifrado.js';
 
 /**
  * SIA DC-09: transporte de eventos de alarma sobre TCP/UDP.
@@ -22,13 +23,22 @@ export interface TramaDc09 {
 
 export type ResultadoParseDc09 =
   | { ok: true; trama: TramaDc09 }
-  | { ok: false; error: 'trama-invalida' | 'crc-invalido' | 'longitud-invalida' | 'trama-cifrada'; detalle?: string };
+  | {
+      ok: false;
+      error: 'trama-invalida' | 'crc-invalido' | 'longitud-invalida' | 'trama-cifrada' | 'descifrado-fallido';
+      detalle?: string;
+    };
+
+export interface OpcionesParseDc09 {
+  /** Clave AES ya normalizada (16, 24 o 32 bytes). Sin clave, las tramas cifradas se rechazan. */
+  claveAes?: Buffer;
+}
 
 // El número de cuenta es opcional: las respuestas NAK no lo llevan.
 const RE_MENSAJE = /^"(\*?[A-Za-z0-9-]+)"(\d{4})(R[0-9A-Fa-f]{1,6})?(L[0-9A-Fa-f]{1,6})(?:#([0-9A-Fa-f]+))?\[([^\]]*)\](.*)$/s;
 const RE_MARCA = /_(\d{2}):(\d{2}):(\d{2}),(\d{2})-(\d{2})-(\d{4})/;
 
-export function parsearTramaDc09(entrada: Buffer | string): ResultadoParseDc09 {
+export function parsearTramaDc09(entrada: Buffer | string, opciones: OpcionesParseDc09 = {}): ResultadoParseDc09 {
   let cuerpo = typeof entrada === 'string' ? entrada : entrada.toString('latin1');
   cuerpo = cuerpo.replace(/^\n/, '').replace(/\r$/, '');
   if (cuerpo.length < 9) return { ok: false, error: 'trama-invalida', detalle: 'muy corta' };
@@ -48,11 +58,28 @@ export function parsearTramaDc09(entrada: Buffer | string): ResultadoParseDc09 {
   const m = RE_MENSAJE.exec(mensaje);
   if (!m) return { ok: false, error: 'trama-invalida', detalle: 'cuerpo no reconocido' };
 
-  const [, id, secuencia, receptor, linea, numeroCuenta, datos, resto] = m;
-  const cifrada = id!.startsWith('*');
+  const [, idCrudo, secuencia, receptor, linea, numeroCuenta] = m;
+  let datos = m[6] ?? '';
+  let resto = m[7] ?? '';
+  const cifrada = idCrudo!.startsWith('*');
+  // Tras descifrar, el identificador se normaliza sin '*': el resto del sistema
+  // trata la trama como cualquier ADM-CID y `cifrada` deja constancia del origen.
+  const id = cifrada ? idCrudo!.slice(1) : idCrudo!;
+
   if (cifrada) {
-    // TODO: descifrado AES-CBC (DC-09 cifrado). Por ahora configurar los paneles sin cifrar.
-    return { ok: false, error: 'trama-cifrada', detalle: id };
+    if (!opciones.claveAes) {
+      return { ok: false, error: 'trama-cifrada', detalle: `${idCrudo} (sin clave AES configurada)` };
+    }
+    const textoPlano = descifrarHex(datos, opciones.claveAes);
+    if (textoPlano === null) {
+      return { ok: false, error: 'descifrado-fallido', detalle: 'el campo cifrado no es un bloque AES válido' };
+    }
+    const separado = separarRelleno(textoPlano);
+    if (!separado) {
+      return { ok: false, error: 'descifrado-fallido', detalle: 'clave incorrecta o relleno no reconocido' };
+    }
+    datos = separado.datos;
+    resto = separado.resto;
   }
 
   let marcaTiempo: Date | undefined;
@@ -66,7 +93,7 @@ export function parsearTramaDc09(entrada: Buffer | string): ResultadoParseDc09 {
   return {
     ok: true,
     trama: {
-      id: id!,
+      id,
       cifrada,
       secuencia: secuencia!,
       receptor: receptor ?? '',
@@ -112,9 +139,19 @@ function marcaGmt(fecha: Date): string {
   return `_${p(fecha.getUTCHours())}:${p(fecha.getUTCMinutes())}:${p(fecha.getUTCSeconds())},${p(fecha.getUTCMonth() + 1)}-${p(fecha.getUTCDate())}-${fecha.getUTCFullYear()}`;
 }
 
-/** Respuesta positiva: el panel da el evento por entregado. */
-export function construirAck(trama: Pick<TramaDc09, 'secuencia' | 'receptor' | 'linea' | 'numeroCuenta'>): Buffer {
-  const mensaje = `"ACK"${trama.secuencia}${trama.receptor}${trama.linea}#${trama.numeroCuenta}[]`;
+/**
+ * Respuesta positiva: el panel da el evento por entregado. Si la trama llegó
+ * cifrada, el estándar pide responder también cifrada ("*ACK"), así que se
+ * pasa la clave usada para descifrarla.
+ */
+export function construirAck(
+  trama: Pick<TramaDc09, 'secuencia' | 'receptor' | 'linea' | 'numeroCuenta'>,
+  claveAes?: Buffer,
+): Buffer {
+  const cabecera = `${trama.secuencia}${trama.receptor}${trama.linea}#${trama.numeroCuenta}`;
+  const mensaje = claveAes
+    ? `"*ACK"${cabecera}[${cifrarCampo('', marcaGmt(new Date()), claveAes)}]`
+    : `"ACK"${cabecera}[]`;
   return Buffer.from(envolver(mensaje), 'latin1');
 }
 
@@ -150,6 +187,41 @@ export function construirTramaAdmCid(opciones: {
   const datos = `#${cuenta}|${calificador}${codigoCid} ${particion} ${zona}`;
   const sufijo = marcaTiempo ? marcaGmt(marcaTiempo) : '';
   const mensaje = `"ADM-CID"${secuencia}${receptor}${linea}#${cuenta}[${datos}]${sufijo}`;
+  return Buffer.from(envolver(mensaje), 'latin1');
+}
+
+/**
+ * Igual que construirTramaAdmCid pero con el campo de datos cifrado (AES-CBC)
+ * y el identificador prefijado con '*', como transmite un panel con cifrado
+ * activado. La marca de tiempo viaja dentro del bloque cifrado.
+ */
+export function construirTramaAdmCidCifrada(opciones: {
+  cuenta: string;
+  calificador: 1 | 3 | 6;
+  codigoCid: string;
+  claveAes: Buffer;
+  particion?: string;
+  zona?: string;
+  secuencia?: string;
+  receptor?: string;
+  linea?: string;
+  marcaTiempo?: Date;
+}): Buffer {
+  const {
+    cuenta,
+    calificador,
+    codigoCid,
+    claveAes,
+    particion = '01',
+    zona = '000',
+    secuencia = '0001',
+    receptor = 'R0',
+    linea = 'L0',
+    marcaTiempo,
+  } = opciones;
+  const datos = `#${cuenta}|${calificador}${codigoCid} ${particion} ${zona}`;
+  const cifrado = cifrarCampo(datos, marcaTiempo ? marcaGmt(marcaTiempo) : '', claveAes);
+  const mensaje = `"*ADM-CID"${secuencia}${receptor}${linea}#${cuenta}[${cifrado}]`;
   return Buffer.from(envolver(mensaje), 'latin1');
 }
 
