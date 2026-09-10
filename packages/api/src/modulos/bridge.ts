@@ -1,8 +1,8 @@
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { bridge, db } from '@monitoring/db';
-import { parsearLineaSurgard } from '@monitoring/protocols';
-import { interpretarCid } from '@monitoring/shared';
+import { parsearLineaPima, parsearLineaSurgard } from '@monitoring/protocols';
+import { interpretarCid, interpretarPima } from '@monitoring/shared';
 import { buscarPanelPorCuenta, procesarEvento, registrarSenal, registrarVida } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
@@ -95,6 +95,33 @@ export function registrarBridge(app: App) {
 
     for (const trama of datos.data.tramas) {
       const recibidaEn = new Date();
+
+      /*
+       * El receptor PIMA de la central entrega su propio formato de dos
+       * caracteres ("1061      7002    TH"), no el Sur-Gard clásico. Se prueba
+       * primero porque es el que llega de verdad; el Sur-Gard queda como
+       * respaldo para receptores de otras marcas.
+       */
+      const pima = parsearLineaPima(trama.cruda);
+      if (pima) {
+        const panelPima = await buscarPanelPorCuenta(pima.numeroCuenta);
+        const senalIdPima = await registrarSenal({
+          fuente: 'pima-bridge',
+          remoto: datos.data.bridge,
+          cruda: trama.cruda,
+          estadoParse: 'ok',
+          panelId: panelPima?.id,
+        });
+        await procesarEvento({
+          senalId: senalIdPima,
+          normalizado: interpretarPima({ numeroCuenta: pima.numeroCuenta, codigo: pima.codigo }),
+          recibidaEn,
+        });
+        if (panelPima) await registrarVida(panelPima.id, recibidaEn);
+        procesadas++;
+        continue;
+      }
+
       const resultado = parsearLineaSurgard(trama.cruda);
 
       if (resultado.tipo === 'latido') {

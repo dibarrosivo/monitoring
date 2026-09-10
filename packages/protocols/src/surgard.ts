@@ -73,3 +73,39 @@ export function parsearLineaSurgard(entrada: Buffer | string): ResultadoSurgard 
 
   return { tipo: 'desconocido', cruda };
 }
+
+/**
+ * Formato real que entrega el receptor PIMA a través del puente serie, verificado
+ * el 10 de septiembre de 2026 contra el tráfico en vivo de la central:
+ *
+ *   "1061      7002    TH" + DC4      (prefijo, cuenta, código de 2 caracteres)
+ *    PPPP······AAAA····CC
+ *
+ * Cuatro caracteres de prefijo (identifica receptor y línea), seis espacios,
+ * cuatro de número de cuenta, cuatro espacios y dos de código de evento.
+ * A diferencia del Sur-Gard clásico no lleva el separador '18' ni un código
+ * Contact ID de tres dígitos: usa una tabla propia de dos caracteres.
+ */
+export interface LineaPima {
+  /** Identificador de receptor y línea, p. ej. '1061' */
+  prefijo: string;
+  numeroCuenta: string;
+  /** Código de evento de dos caracteres, p. ej. 'TH', 'QS', 'SW' */
+  codigo: string;
+}
+
+const RE_PIMA = /^(\S{2,6})\s+(\d{3,6})\s+([A-Z0-9]{2})$/;
+
+/**
+ * Reconoce el formato de dos caracteres del receptor PIMA. Devuelve null si la
+ * línea no encaja, para que quien llame pruebe con el Sur-Gard clásico.
+ */
+export function parsearLineaPima(entrada: Buffer | string): LineaPima | null {
+  const cruda = (typeof entrada === 'string' ? entrada : entrada.toString('latin1'))
+    .replace(/[\r\n\x14]/g, '')
+    .trim();
+
+  const m = RE_PIMA.exec(cruda);
+  if (!m) return null;
+  return { prefijo: m[1]!, numeroCuenta: m[2]!, codigo: m[3]! };
+}
