@@ -24,6 +24,10 @@ export interface EntradaSenal {
   estadoParse: 'ok' | 'error' | 'cifrada' | 'ignorada';
   detalleError?: string;
   panelId?: number;
+  /** 'texto' o 'base64'; las tramas binarias del tap se guardan en base64 */
+  codificacion?: 'texto' | 'base64';
+  /** Puerto del servidor al que llegó: dice qué receptor la esperaba */
+  puertoLocal?: number;
 }
 
 /** Persiste la trama cruda. Se llama SIEMPRE antes de responder ACK al emisor. */
@@ -37,6 +41,8 @@ export async function registrarSenal(entrada: EntradaSenal): Promise<number> {
       estadoParse: entrada.estadoParse,
       detalleError: entrada.detalleError,
       panelId: entrada.panelId,
+      codificacion: entrada.codificacion ?? 'texto',
+      puertoLocal: entrada.puertoLocal,
     })
     .returning({ id: senal.id });
   return fila!.id;

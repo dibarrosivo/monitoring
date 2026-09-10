@@ -19,12 +19,22 @@ import type { App } from '../tipos.js';
  * máquina, no una persona.
  */
 
-const esquemaTrama = z.object({
-  /** Línea cruda tal como salió del receptor */
-  cruda: z.string().min(1).max(2048),
-  /** Momento en que el puente la leyó (ISO); el servidor conserva su hora de recepción */
-  leidaEn: z.string().datetime().optional(),
-});
+const esquemaTrama = z
+  .object({
+    /** Línea cruda de texto, tal como salió del receptor */
+    cruda: z.string().min(1).max(2048).optional(),
+    /** Trama binaria en base64: la usa el tap pasivo, que también copia protocolos que no son texto */
+    crudaB64: z.string().min(1).max(8192).optional(),
+    /** ip:puerto del equipo que transmitió, cuando el origen lo conoce */
+    origen: z.string().max(64).optional(),
+    /** Puerto del servidor al que llegó: dice qué receptor la esperaba */
+    puerto: z.number().int().min(1).max(65535).optional(),
+    /** Momento en que el puente la leyó (ISO); el servidor conserva su hora de recepción */
+    leidaEn: z.string().datetime().optional(),
+  })
+  .refine((t) => Boolean(t.cruda) !== Boolean(t.crudaB64), {
+    message: 'Cada trama lleva cruda o crudaB64, no ambas ni ninguna',
+  });
 
 const esquemaLote = z.object({
   bridge: z.string().min(1).max(64),
@@ -69,6 +79,28 @@ async function registrarPuente(datos: {
   return fila!.id;
 }
 
+/**
+ * Una trama binaria se guarda en base64 para no perder un solo byte, pero si en
+ * realidad era texto imprimible conviene guardarla legible: el diario crudo se
+ * lee a ojo cuando hay que diagnosticar algo.
+ */
+function normalizarTrama(trama: { cruda?: string; crudaB64?: string }): {
+  texto: string;
+  codificacion: 'texto' | 'base64';
+  bytes: Buffer;
+} {
+  if (trama.cruda !== undefined) {
+    return { texto: trama.cruda, codificacion: 'texto', bytes: Buffer.from(trama.cruda, 'latin1') };
+  }
+  const bytes = Buffer.from(trama.crudaB64!, 'base64');
+  const comoTexto = bytes.toString('latin1');
+  // Imprimible = ASCII visible más los separadores que usan estos protocolos
+  const esImprimible = /^[\x20-\x7E\r\n\x06\x14]*$/.test(comoTexto);
+  return esImprimible
+    ? { texto: comoTexto, codificacion: 'texto', bytes }
+    : { texto: trama.crudaB64!, codificacion: 'base64', bytes };
+}
+
 export function registrarBridge(app: App) {
   const token = (process.env.BRIDGE_TOKEN ?? '').trim();
 
@@ -95,6 +127,26 @@ export function registrarBridge(app: App) {
 
     for (const trama of datos.data.tramas) {
       const recibidaEn = new Date();
+      const { texto, codificacion } = normalizarTrama(trama);
+      const comun = {
+        fuente: 'pima-bridge' as const,
+        remoto: trama.origen ?? datos.data.bridge,
+        cruda: texto,
+        codificacion,
+        puertoLocal: trama.puerto,
+      };
+
+      /*
+       * Una trama que no es texto imprimible no la entiende ninguno de nuestros
+       * decodificadores: los protocolos propietarios (EBS y similares) viajan en
+       * binario. Se guarda íntegra para poder estudiarla y NO abre alarma: si
+       * abriera, un latido cada cinco segundos por equipo inundaría la cola.
+       */
+      if (codificacion === 'base64') {
+        await registrarSenal({ ...comun, estadoParse: 'error', detalleError: 'trama binaria sin decodificador' });
+        errores++;
+        continue;
+      }
 
       /*
        * El receptor PIMA de la central entrega su propio formato de dos
@@ -102,16 +154,10 @@ export function registrarBridge(app: App) {
        * primero porque es el que llega de verdad; el Sur-Gard queda como
        * respaldo para receptores de otras marcas.
        */
-      const pima = parsearLineaPima(trama.cruda);
+      const pima = parsearLineaPima(texto);
       if (pima) {
         const panelPima = await buscarPanelPorCuenta(pima.numeroCuenta);
-        const senalIdPima = await registrarSenal({
-          fuente: 'pima-bridge',
-          remoto: datos.data.bridge,
-          cruda: trama.cruda,
-          estadoParse: 'ok',
-          panelId: panelPima?.id,
-        });
+        const senalIdPima = await registrarSenal({ ...comun, estadoParse: 'ok', panelId: panelPima?.id });
         await procesarEvento({
           senalId: senalIdPima,
           normalizado: interpretarPima({ numeroCuenta: pima.numeroCuenta, codigo: pima.codigo }),
@@ -122,38 +168,24 @@ export function registrarBridge(app: App) {
         continue;
       }
 
-      const resultado = parsearLineaSurgard(trama.cruda);
+      const resultado = parsearLineaSurgard(texto);
 
       if (resultado.tipo === 'latido') {
         // Latido del receptor: no es un evento, pero deja rastro de que la línea vive
-        await registrarSenal({
-          fuente: 'pima-bridge',
-          remoto: datos.data.bridge,
-          cruda: trama.cruda,
-          estadoParse: 'ignorada',
-          detalleError: 'latido del receptor',
-        });
+        await registrarSenal({ ...comun, estadoParse: 'ignorada', detalleError: 'latido del receptor' });
         ignoradas++;
         continue;
       }
 
       if (resultado.tipo === 'desconocido') {
-        await registrarSenal({
-          fuente: 'pima-bridge',
-          remoto: datos.data.bridge,
-          cruda: trama.cruda,
-          estadoParse: 'error',
-          detalleError: 'línea Sur-Gard no reconocida',
-        });
+        await registrarSenal({ ...comun, estadoParse: 'error', detalleError: 'línea no reconocida' });
         errores++;
         continue;
       }
 
       const panelEncontrado = await buscarPanelPorCuenta(resultado.numeroCuenta);
       const senalId = await registrarSenal({
-        fuente: 'pima-bridge',
-        remoto: datos.data.bridge,
-        cruda: trama.cruda,
+        ...comun,
         estadoParse: 'ok',
         detalleError: resultado.parseLaxo ? 'reconocida con el patrón de reserva: verificar formato' : undefined,
         panelId: panelEncontrado?.id,

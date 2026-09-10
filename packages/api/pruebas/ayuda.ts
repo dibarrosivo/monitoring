@@ -42,7 +42,8 @@ export async function limpiarBase(): Promise<void> {
   await pool.query(`
     TRUNCATE TABLE
       auditoria, accion_alarma, alarma, evento, senal, acceso, usuario_panel,
-      contacto, horario, zona, panel, sitio, cliente, usuario, configuracion, feriado, catalogo
+      contacto, horario, zona, panel, sitio, cliente, usuario, configuracion, feriado, catalogo,
+      bridge
     RESTART IDENTITY CASCADE
   `);
 }

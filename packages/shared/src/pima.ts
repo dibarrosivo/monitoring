@@ -33,24 +33,46 @@ export const TABLA_PIMA: Record<string, DefinicionPima> = {
 };
 
 /**
- * Las aperturas por usuario forman un contador en base 26 sobre los dos
- * caracteres: QS es el maestro, QT el usuario 1, QU el 2, y así hasta que el
- * arrastre cambia la primera letra (RA es el usuario 8). Verificado con seis
- * puntos reales: QS, QT, QU, QV, QW, QY y RA.
+ * Aperturas y cierres forman cada uno un contador en base 26 sobre los dos
+ * caracteres, con el código maestro como cero:
+ *
+ *   aperturas: QS maestro, QT usuario 1, QU el 2 … RA el 8 (el arrastre cambia
+ *              la primera letra). Verificado con siete puntos reales.
+ *   cierres:   OU maestro, OV usuario 1. Verificado con dos puntos reales; el
+ *              sistema en uso tradujo OV de la cuenta 7028 como "Cierre 1".
  */
 const BASE_APERTURA = valorBase26('QS');
+const BASE_CIERRE = valorBase26('OU');
 
 function valorBase26(codigo: string): number {
   return (codigo.charCodeAt(0) - 65) * 26 + (codigo.charCodeAt(1) - 65);
 }
 
+/**
+ * Tope de usuarios que se aceptan por aritmética. No es un número redondo
+ * elegido al azar: las dos series y los códigos de otros eventos conviven en el
+ * mismo espacio de dos letras, y un rango más ancho los pisaría. QS (apertura
+ * maestro) caería como "cierre 50", y RW y RX, que son batería, caerían como
+ * aperturas 30 y 31. El máximo observado en el tráfico real es 8, así que 16
+ * deja margen de sobra sin invadir códigos que significan otra cosa.
+ */
+const MAX_USUARIO = 16;
+
+/** 0 = código maestro; null si el código no pertenece a esta serie. */
+function usuarioDeSerie(codigo: string, base: number): number | null {
+  if (!/^[A-Z]{2}$/.test(codigo)) return null;
+  const n = valorBase26(codigo) - base;
+  return n >= 0 && n <= MAX_USUARIO ? n : null;
+}
+
 /** Número de usuario de una apertura, o null si el código no es una apertura. */
 export function usuarioDeApertura(codigo: string): number | null {
-  if (!/^[A-Z]{2}$/.test(codigo)) return null;
-  const n = valorBase26(codigo) - BASE_APERTURA;
-  // 0 = código maestro. Se acota a 64 usuarios: más allá el patrón no se verificó
-  // y es preferible marcarlo sin traducir antes que inventar un número.
-  return n >= 0 && n <= 64 ? n : null;
+  return usuarioDeSerie(codigo, BASE_APERTURA);
+}
+
+/** Número de usuario de un cierre, o null si el código no es un cierre. */
+export function usuarioDeCierre(codigo: string): number | null {
+  return usuarioDeSerie(codigo, BASE_CIERRE);
 }
 
 /**
@@ -103,16 +125,22 @@ export function interpretarPima(entrada: {
     });
   }
 
-  const usuario = usuarioDeApertura(codigo);
-  if (usuario !== null && usuario > 0) {
-    return interpretarCid({
-      numeroCuenta: entrada.numeroCuenta,
-      calificador: 1,
-      codigoCid: '401',
-      particion,
-      zona: String(usuario).padStart(3, '0'),
-      ocurridoEn: entrada.ocurridoEn,
-    });
+  // Apertura o cierre por número de usuario
+  for (const [buscar, calificador] of [
+    [usuarioDeApertura, 1],
+    [usuarioDeCierre, 3],
+  ] as const) {
+    const usuario = buscar(codigo);
+    if (usuario !== null && usuario > 0) {
+      return interpretarCid({
+        numeroCuenta: entrada.numeroCuenta,
+        calificador,
+        codigoCid: '401',
+        particion,
+        zona: String(usuario).padStart(3, '0'),
+        ocurridoEn: entrada.ocurridoEn,
+      });
+    }
   }
 
   return {

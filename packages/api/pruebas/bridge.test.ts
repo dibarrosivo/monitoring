@@ -157,3 +157,60 @@ describe('registro y supervisión del puente', () => {
     expect(caido.evento.descripcion).toContain('PUENTE CAÍDO');
   });
 });
+
+describe('tap pasivo: tramas binarias y metadatos', () => {
+  it('guarda una trama binaria íntegra y no abre alarma', async () => {
+    // Carga real capturada en la central: 59 bytes de un protocolo propietario
+    const bytes = Buffer.from('81b5b8e3cd17c3c1ac74dbc1f735d086ac65cc81a876ccc1', 'hex');
+    const res = await ctx.pedir('POST', '/bridge/senales', {
+      token: TOKEN_PUENTE,
+      cuerpo: {
+        bridge: 'tap-central',
+        tramas: [{ crudaB64: bytes.toString('base64'), origen: '45.190.168.48:53828', puerto: 2023 }],
+      },
+    });
+    expect(res.estado).toBe(200);
+    expect(res.cuerpo.errores).toBe(1);
+
+    const { db, senal } = await import('@monitoring/db');
+    const { desc } = await import('drizzle-orm');
+    const [fila] = await db.select().from(senal).orderBy(desc(senal.id)).limit(1);
+    expect(fila!.codificacion).toBe('base64');
+    expect(fila!.puertoLocal).toBe(2023);
+    expect(fila!.remoto).toBe('45.190.168.48:53828');
+    // Sin perder un byte
+    expect(Buffer.from(fila!.cruda, 'base64').toString('hex')).toBe(bytes.toString('hex'));
+
+    // Lo importante: una trama que no entendemos no genera trabajo al operador
+    const alarmas = await ctx.pedir('GET', '/alarmas', { token: tokenAdmin });
+    expect(alarmas.cuerpo).toEqual([]);
+  });
+
+  it('una trama de texto enviada en base64 se guarda legible', async () => {
+    const linea = '1061      7002    TH';
+    const res = await ctx.pedir('POST', '/bridge/senales', {
+      token: TOKEN_PUENTE,
+      cuerpo: {
+        bridge: 'tap-central',
+        tramas: [{ crudaB64: Buffer.from(linea, 'latin1').toString('base64'), puerto: 1050 }],
+      },
+    });
+    expect(res.estado).toBe(200);
+    expect(res.cuerpo.procesadas).toBe(1);
+
+    const { db, senal } = await import('@monitoring/db');
+    const { desc } = await import('drizzle-orm');
+    const [fila] = await db.select().from(senal).orderBy(desc(senal.id)).limit(1);
+    expect(fila!.codificacion).toBe('texto');
+    expect(fila!.cruda).toBe(linea);
+    expect(fila!.puertoLocal).toBe(1050);
+  });
+
+  it('rechaza una trama que no trae ni texto ni binario', async () => {
+    const res = await ctx.pedir('POST', '/bridge/senales', {
+      token: TOKEN_PUENTE,
+      cuerpo: { bridge: 'tap-central', tramas: [{ puerto: 2023 }] },
+    });
+    expect(res.estado).toBe(400);
+  });
+});

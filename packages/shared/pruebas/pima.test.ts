@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { interpretarPima, usuarioDeApertura } from '../src/pima.js';
+import { interpretarPima, usuarioDeApertura, usuarioDeCierre } from '../src/pima.js';
 
 /**
  * Casos tomados del tráfico real de la central el 10 de septiembre de 2026.
@@ -67,6 +67,29 @@ describe('aperturas por número de usuario', () => {
   });
 });
 
+describe('cierres por número de usuario', () => {
+  // Trama real capturada: "1061      7028    OV" a las 11:43:54, que el sistema
+  // en uso tradujo como "OV - Cierre 1" nombrando al usuario 1.
+  it.each([
+    ['OU', 0],
+    ['OV', 1],
+  ])('%s corresponde al usuario %i', (codigo, esperado) => {
+    expect(usuarioDeCierre(codigo)).toBe(esperado);
+  });
+
+  it('OV es un cierre del usuario 1, no una apertura', () => {
+    const e = interpretarPima({ numeroCuenta: '7028', codigo: 'OV' });
+    expect(e.categoria).toBe('cierre');
+    expect(e.zona).toBe('001');
+  });
+
+  it('las dos series no se pisan', () => {
+    // QS es apertura maestro y OU es cierre maestro: cada una tiene su base
+    expect(usuarioDeApertura('OU')).toBeNull();
+    expect(usuarioDeCierre('QS')).toBeNull();
+  });
+});
+
 describe('códigos que no conocemos', () => {
   it('el estado interno del receptor no abre alarma', () => {
     // Cuenta 8000, códigos 01 y 02: la cuenta propia del receptor, en pares,
@@ -85,5 +108,27 @@ describe('códigos que no conocemos', () => {
     expect(e.categoria).toBe('sistema');
     expect(e.descripcion).toMatch(/sin traducir/i);
     expect(e.codigo).toBe('PIMA-ZZ');
+  });
+});
+
+describe('las series no invaden códigos de otros eventos', () => {
+  // Las dos series y el resto de los códigos comparten el espacio de dos
+  // letras. Si el rango de usuarios fuera más ancho, estos se traducirían mal.
+  it.each([
+    ['RW', 'batería baja'],
+    ['RX', 'batería restaurada'],
+    ['SW', 'atraco'],
+    ['TH', 'prueba'],
+  ])('%s (%s) no se confunde con una apertura', (codigo) => {
+    expect(usuarioDeApertura(codigo)).toBeNull();
+  });
+
+  it('el maestro de una serie no cae dentro de la otra', () => {
+    expect(usuarioDeCierre('QS')).toBeNull();
+    expect(usuarioDeApertura('OU')).toBeNull();
+  });
+
+  it('RW sigue siendo avería y no apertura del usuario 30', () => {
+    expect(interpretarPima({ numeroCuenta: '7063', codigo: 'RW' }).categoria).toBe('averia');
   });
 });

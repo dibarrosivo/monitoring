@@ -220,6 +220,14 @@ export const senal = pgTable(
     fuente: text('fuente').notNull(),
     remoto: text('remoto'),
     cruda: text('cruda').notNull(),
+    /**
+     * Cómo está guardado el campo anterior. Los receptores de texto (PIMA,
+     * DC-09) llegan legibles; el tap pasivo de la central también copia tramas
+     * binarias, que se guardan en base64 para no perder un solo byte.
+     */
+    codificacion: varchar('codificacion', { length: 8 }).notNull().default('texto'),
+    /** Puerto del servidor al que llegó la trama: dice qué receptor la esperaba */
+    puertoLocal: integer('puerto_local'),
     estadoParse: estadoParseEnum('estado_parse').notNull(),
     detalleError: text('detalle_error'),
     panelId: integer('id_panel').references(() => panel.id),
