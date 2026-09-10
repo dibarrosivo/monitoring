@@ -9,6 +9,7 @@ import type {
   ConfigHombreMuerto,
   Contacto,
   ContextoAlarma,
+  DesenlaceAlarma,
   EntradaCatalogo,
   EstadoCliente,
   EstadoPanel,
@@ -129,8 +130,10 @@ export const verContexto = (alarmaId: number) => pedir<ContextoAlarma>(`/alarmas
 export const tomarAlarma = (id: number) => pedir<Alarma>(`/alarmas/${id}/tomar`, { method: 'POST' });
 export const anotarAlarma = (id: number, detalle: string) =>
   pedir<AccionAlarma>(`/alarmas/${id}/notas`, { method: 'POST', body: JSON.stringify({ detalle }) });
-export const cerrarAlarma = (id: number, resolucion: string) =>
-  pedir<Alarma>(`/alarmas/${id}/cerrar`, { method: 'POST', body: JSON.stringify({ resolucion }) });
+export const cerrarAlarma = (id: number, resolucion: string, desenlace: DesenlaceAlarma = 'resuelta') =>
+  pedir<Alarma>(`/alarmas/${id}/cerrar`, { method: 'POST', body: JSON.stringify({ resolucion, desenlace }) });
+export const marcarPaso = (id: number, paso: string) =>
+  pedir<{ ok: true }>(`/alarmas/${id}/paso`, { method: 'POST', body: JSON.stringify({ paso }) });
 
 export const listarEventos = (limite = 200) => pedir<Evento[]>(`/eventos?limite=${limite}`);
 export const listarPaneles = () => pedir<EstadoPanel[]>('/paneles/estado');

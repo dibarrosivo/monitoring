@@ -3,13 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   anotarAlarma,
   cerrarAlarma,
+  marcarPaso,
   listarAcciones,
   listarAlarmas,
   tomarAlarma,
   verContexto,
 } from '../api.js';
-import type { Alarma } from '../tipos.js';
-import { fechaHora, transcurrido } from '../tiempo.js';
+import type { Alarma, DesenlaceAlarma } from '../tipos.js';
+import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
 import { clasesPrioridad } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 
@@ -185,7 +186,15 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
   });
   const [nota, setNota] = useState('');
   const [resolucion, setResolucion] = useState('');
+  const [desenlace, setDesenlace] = useState<DesenlaceAlarma>('resuelta');
   const [senalVisible, setSenalVisible] = useState(false);
+
+  // Reloj propio para que los tiempos de la cabecera corran a la vista
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   function refrescar() {
     void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
@@ -200,15 +209,30 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
       refrescar();
     },
   });
+  const paso = useMutation({
+    mutationFn: (texto: string) => marcarPaso(alarma.id, texto),
+    onSuccess: () => {
+      void clienteConsultas.invalidateQueries({ queryKey: ['contexto', alarma.id] });
+      void clienteConsultas.invalidateQueries({ queryKey: ['acciones', alarma.id] });
+    },
+  });
   const cerrar = useMutation({
-    mutationFn: () => cerrarAlarma(alarma.id, resolucion),
+    mutationFn: () => cerrarAlarma(alarma.id, resolucion, desenlace),
     onSuccess: () => {
       refrescar();
       alCerrarPanel();
     },
   });
 
-  const NOMBRE_ACCION = { toma: 'Tomada', nota: 'Nota', cierre: 'Cerrada', sistema: 'Sistema' } as const;
+  const NOMBRE_ACCION = { toma: 'Tomada', nota: 'Nota', cierre: 'Cerrada', sistema: 'Sistema', paso: 'Paso' } as const;
+
+  // Dos tiempos distintos: cuánto tardó en tomarse, y cuánto lleva en atención.
+  // El segundo corre en vivo mientras la alarma sigue abierta.
+  const msCreada = new Date(alarma.creadoEn).getTime();
+  const msTomada = alarma.tomadaEn ? new Date(alarma.tomadaEn).getTime() : null;
+  const msCerrada = alarma.cerradaEn ? new Date(alarma.cerradaEn).getTime() : null;
+  const espera = (msTomada ?? ahora) - msCreada;
+  const atencion = msTomada === null ? null : (msCerrada ?? ahora) - msTomada;
   const prio = clasesPrioridad(alarma.prioridad);
 
   return (
@@ -218,6 +242,14 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
         <span className="font-semibold">{alarma.evento.descripcion}</span>
         <span className="font-datos text-xs text-tenue">
           {fechaHora(alarma.evento.ocurridoEn)} · {NOMBRE_ESTADO[alarma.estado]}
+        </span>
+        <span className="font-datos text-xs flex items-center gap-2" title="Tiempo hasta tomarla y tiempo en atención">
+          <span className={msTomada === null && espera > 60_000 ? 'text-prio1 font-semibold' : 'text-tenue'}>
+            espera {duracionCorta(espera)}
+          </span>
+          {atencion !== null && (
+            <span className={msCerrada === null ? 'text-acento' : 'text-tenue'}>atención {duracionCorta(atencion)}</span>
+          )}
         </span>
         {alarma.estado === 'nueva' && (
           <button
@@ -344,7 +376,42 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
         </div>
 
         {/* Gestión */}
-        <div className="p-3 flex flex-col gap-2 text-sm">
+        <div className="p-3 flex flex-col gap-2 text-sm overflow-y-auto">
+          {/*
+            Protocolo del tipo de evento. Es una guía, no una obligación: se
+            puede cerrar sin marcar todo. Lo marcado se deduce de la bitácora,
+            así que la casilla y el historial nunca pueden contradecirse.
+          */}
+          {(contexto?.pasos.length ?? 0) > 0 && (
+            <>
+              <h3 className="text-tenue text-xs uppercase tracking-wider">Protocolo</h3>
+              <ul className="flex flex-col gap-0.5 -mt-1">
+                {contexto!.pasos.map((texto) => {
+                  const hecho = contexto!.pasosCumplidos.includes(texto);
+                  return (
+                    <li key={texto}>
+                      <button
+                        onClick={() => paso.mutate(texto)}
+                        disabled={hecho || paso.isPending || alarma.estado === 'cerrada'}
+                        className={`flex items-start gap-2 text-left w-full py-0.5 ${
+                          hecho ? 'text-tenue' : 'hover:text-acento'
+                        } disabled:cursor-default`}
+                      >
+                        <span
+                          className={`mt-0.5 w-3.5 h-3.5 shrink-0 rounded-sm border flex items-center justify-center text-[10px] ${
+                            hecho ? 'bg-ok border-ok text-fondo' : 'border-borde'
+                          }`}
+                        >
+                          {hecho ? '✓' : ''}
+                        </span>
+                        <span className={hecho ? 'line-through' : ''}>{texto}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
           <h3 className="text-tenue text-xs uppercase tracking-wider">Gestión</h3>
           <textarea
             value={nota}
@@ -367,6 +434,32 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
             rows={2}
             className="bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none mt-auto"
           />
+          {/*
+            El desenlace se guarda como dato y no dentro del texto: la tasa de
+            falsas alarmas es de los indicadores que más dicen sobre la salud de
+            una instalación, y en texto libre no se puede medir.
+          */}
+          <div className="flex gap-1">
+            {(
+              [
+                ['resuelta', 'Resuelta'],
+                ['falsa_alarma', 'Falsa alarma'],
+                ['escalada', 'Escalada'],
+              ] as const
+            ).map(([valor, etiqueta]) => (
+              <button
+                key={valor}
+                onClick={() => setDesenlace(valor)}
+                className={`flex-1 rounded-sm border px-2 py-1 text-xs ${
+                  desenlace === valor
+                    ? 'border-acento bg-acento/15 text-acento font-semibold'
+                    : 'border-borde text-tenue hover:text-texto'
+                }`}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => cerrar.mutate()}
             disabled={!resolucion.trim() || cerrar.isPending}

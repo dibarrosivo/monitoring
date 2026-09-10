@@ -1,11 +1,24 @@
 import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
+import { protocoloPara } from '@monitoring/shared';
+
+const ETIQUETA_DESENLACE: Record<string, string> = {
+  resuelta: 'Resuelta',
+  falsa_alarma: 'Falsa alarma',
+  escalada: 'Escalada',
+};
 import { accionAlarma, alarma, cliente, contacto, db, evento, panel, sitio, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
 const esquemaNota = z.object({ detalle: z.string().min(1) });
-const esquemaCierre = z.object({ resolucion: z.string().min(1) });
+const esquemaCierre = z.object({
+  resolucion: z.string().min(1),
+  /** Cómo terminó: separarlo del texto libre permite medir las falsas alarmas */
+  desenlace: z.enum(['resuelta', 'falsa_alarma', 'escalada']).default('resuelta'),
+});
+
+const esquemaPaso = z.object({ paso: z.string().min(1).max(200) });
 
 export function registrarAlarmas(app: App) {
   app.addHook('onRequest', app.autenticar);
@@ -55,13 +68,23 @@ export function registrarAlarmas(app: App) {
   app.get('/alarmas/:id/contexto', async (request, reply) => {
     const id = Number((request.params as { id: string }).id);
     const [fila] = await db
-      .select({ panelId: alarma.panelId, zona: evento.zona, particion: evento.particion })
+      .select({
+        panelId: alarma.panelId,
+        zona: evento.zona,
+        particion: evento.particion,
+        codigo: evento.codigo,
+        categoria: evento.categoria,
+      })
       .from(alarma)
       .innerJoin(evento, eq(alarma.eventoId, evento.id))
       .where(eq(alarma.id, id))
       .limit(1);
     if (!fila) return reply.code(404).send({ error: 'Alarma no encontrada' });
-    if (!fila.panelId) return { cliente: null, sitio: null, panel: null, contactos: [], zonaDescripcion: null };
+    if (!fila.panelId) {
+      // Cuenta desconocida: no hay ficha que mostrar, pero el protocolo igual aplica
+      const pasos = protocoloPara({ codigo: fila.codigo, codigoCid: fila.codigo.replace(/^[ER]/, ''), categoria: fila.categoria });
+      return { cliente: null, sitio: null, panel: null, contactos: [], zonaDescripcion: null, pasos, pasosCumplidos: [] };
+    }
 
     const [contexto] = await db
       .select({
@@ -123,7 +146,24 @@ export function registrarAlarmas(app: App) {
       zonaDescripcion = filaZona?.descripcion ?? null;
     }
 
-    return { ...contexto, contactos, zonaDescripcion };
+    /*
+     * Protocolo del evento y pasos ya cumplidos. Los cumplidos se deducen de la
+     * bitácora en vez de guardarse aparte: una sola fuente de verdad, imposible
+     * que la casilla diga una cosa y el historial otra.
+     */
+    const pasos = protocoloPara({ codigo: fila.codigo, codigoCid: fila.codigo.replace(/^[ER]/, ''), categoria: fila.categoria });
+    const cumplidos = pasos.length
+      ? (
+          await db
+            .select({ detalle: accionAlarma.detalle })
+            .from(accionAlarma)
+            .where(and(eq(accionAlarma.alarmaId, id), eq(accionAlarma.tipo, 'paso')))
+        )
+          .map((a) => a.detalle)
+          .filter((x): x is string => Boolean(x))
+      : [];
+
+    return { ...contexto, contactos, zonaDescripcion, pasos, pasosCumplidos: cumplidos };
   });
 
   app.get('/alarmas/:id/acciones', async (request) => {
@@ -160,12 +200,39 @@ export function registrarAlarmas(app: App) {
     if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
     const [fila] = await db
       .update(alarma)
-      .set({ estado: 'cerrada', cerradaEn: new Date(), resolucion: datos.data.resolucion })
+      .set({
+        estado: 'cerrada',
+        cerradaEn: new Date(),
+        desenlace: datos.data.desenlace,
+        resolucion: datos.data.resolucion,
+      })
       .where(eq(alarma.id, id))
       .returning();
     if (!fila) return reply.code(404).send({ error: 'Alarma no encontrada' });
-    await db.insert(accionAlarma).values({ alarmaId: id, operadorId: request.user.id, tipo: 'cierre', detalle: datos.data.resolucion });
+    await db.insert(accionAlarma).values({
+      alarmaId: id,
+      operadorId: request.user.id,
+      tipo: 'cierre',
+      detalle: `${ETIQUETA_DESENLACE[datos.data.desenlace]}: ${datos.data.resolucion}`,
+    });
     return fila;
+  });
+
+  /**
+   * Marca un paso del protocolo como cumplido. No se guarda un estado aparte:
+   * queda como entrada en la bitácora y de ahí se deduce qué está hecho, así
+   * que no hay dos fuentes de verdad que puedan contradecirse.
+   */
+  app.post('/alarmas/:id/paso', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const datos = esquemaPaso.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    const [fila] = await db.select({ id: alarma.id }).from(alarma).where(eq(alarma.id, id)).limit(1);
+    if (!fila) return reply.code(404).send({ error: 'Alarma no encontrada' });
+    await db
+      .insert(accionAlarma)
+      .values({ alarmaId: id, operadorId: request.user.id, tipo: 'paso', detalle: datos.data.paso });
+    return { ok: true };
   });
 
   /**

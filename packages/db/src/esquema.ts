@@ -32,7 +32,15 @@ export const categoriaEventoEnum = pgEnum('categoria_evento', [
   'desconocido',
 ]);
 export const estadoAlarmaEnum = pgEnum('estado_alarma', ['nueva', 'en_atencion', 'cerrada']);
-export const tipoAccionEnum = pgEnum('tipo_accion', ['toma', 'nota', 'cierre', 'sistema']);
+export const tipoAccionEnum = pgEnum('tipo_accion', ['toma', 'nota', 'cierre', 'sistema', 'paso']);
+
+/**
+ * Cómo terminó una alarma. Se separa del estado a propósito: el estado dice si
+ * sigue abierta, el desenlace dice qué pasó. Tenerlo como dato y no como texto
+ * libre permite medir la tasa de falsas alarmas, que es de los indicadores que
+ * más dicen sobre la salud de una instalación.
+ */
+export const desenlaceAlarmaEnum = pgEnum('desenlace_alarma', ['resuelta', 'falsa_alarma', 'escalada']);
 export const rolUsuarioEnum = pgEnum('rol_usuario', ['admin', 'operador', 'cliente']);
 export const estadoClienteEnum = pgEnum('estado_cliente', ['activo', 'suspendido', 'baja']);
 export const tipoPersonaEnum = pgEnum('tipo_persona', ['natural', 'juridico', 'gobierno', 'otro']);
@@ -323,6 +331,7 @@ export const alarma = pgTable(
     operadorId: integer('id_operador').references(() => usuario.id),
     tomadaEn: timestamp('tomada_en', { withTimezone: true }),
     cerradaEn: timestamp('cerrada_en', { withTimezone: true }),
+    desenlace: desenlaceAlarmaEnum('desenlace'),
     resolucion: text('resolucion'),
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
   },

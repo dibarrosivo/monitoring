@@ -11,7 +11,7 @@ import {
   senal,
   usuarioPanel,
 } from '@monitoring/db';
-import { interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
+import { abreAlarma, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
 import { esAperturaFueraDeHorario } from './horarios.js';
 
 /** Categorías que abren una alarma para el operador. Las averías quedan en el registro de eventos. */
@@ -124,8 +124,15 @@ export async function procesarEvento(entrada: {
   }
 
   let alarmaId: number | undefined;
-  // Una cuenta desconocida también requiere atención del operador.
-  if (CATEGORIAS_CON_ALARMA.has(normalizado.categoria) || !panelEncontrado) {
+  /*
+   * Abre alarma si la categoría lo amerita y el catálogo de protocolos no lo
+   * excluye. Una cuenta desconocida abre siempre: alguien transmite y nadie lo
+   * mira, que es de las cosas que no se pueden dejar pasar.
+   */
+  const correspondeAlarma =
+    CATEGORIAS_CON_ALARMA.has(normalizado.categoria) &&
+    abreAlarma({ codigo: normalizado.codigo, codigoCid: normalizado.codigoCid });
+  if (correspondeAlarma || !panelEncontrado) {
     alarmaId = await abrirAlarma({
       eventoId: filaEvento!.id,
       panelId: panelEncontrado?.id,

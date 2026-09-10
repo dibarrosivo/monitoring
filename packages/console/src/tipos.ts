@@ -297,7 +297,14 @@ export interface ContextoAlarma {
   } | null;
   contactos: Contacto[];
   zonaDescripcion: string | null;
+  /** Pasos sugeridos para este tipo de evento */
+  pasos: string[];
+  /** Cuáles ya se marcaron; se deducen de la bitácora, no se guardan aparte */
+  pasosCumplidos: string[];
 }
+
+/** Cómo terminó una alarma. Separado del texto libre para poder medirlo. */
+export type DesenlaceAlarma = 'resuelta' | 'falsa_alarma' | 'escalada';
 
 /** Resumen para la vista de clientes (rol 'cliente'). */
 export interface PanelResumenCliente {

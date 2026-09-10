@@ -205,3 +205,93 @@ describe('diario de señales', () => {
     expect(puntual.cuerpo.cruda).toContain('ADM-CID');
   });
 });
+
+describe('desenlace y protocolo', () => {
+  it('el cierre distingue una falsa alarma de una resuelta', async () => {
+    const alarmaId = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${alarmaId}/tomar`, { token: tokenOperador });
+    const res = await ctx.pedir('POST', `/alarmas/${alarmaId}/cerrar`, {
+      token: tokenOperador,
+      cuerpo: { resolucion: 'El cliente confirmó que disparó sin querer', desenlace: 'falsa_alarma' },
+    });
+    expect(res.estado).toBe(200);
+    expect(res.cuerpo.desenlace).toBe('falsa_alarma');
+
+    // Queda en la bitácora con su etiqueta, no solo en el campo
+    const acciones = await ctx.pedir('GET', `/alarmas/${alarmaId}/acciones`, { token: tokenOperador });
+    const cierre = acciones.cuerpo.find((a: { tipo: string }) => a.tipo === 'cierre');
+    expect(cierre.detalle).toMatch(/Falsa alarma/);
+  });
+
+  it('sin desenlace explícito se asume resuelta', async () => {
+    const alarmaId = await dispararAlarma();
+    const res = await ctx.pedir('POST', `/alarmas/${alarmaId}/cerrar`, {
+      token: tokenOperador,
+      cuerpo: { resolucion: 'Verificado con el cliente' },
+    });
+    expect(res.cuerpo.desenlace).toBe('resuelta');
+  });
+
+  it('el contexto trae el protocolo del tipo de evento', async () => {
+    const alarmaId = await dispararAlarma('E130');
+    const res = await ctx.pedir('GET', `/alarmas/${alarmaId}/contexto`, { token: tokenOperador });
+    expect(res.cuerpo.pasos.length).toBeGreaterThan(0);
+    expect(res.cuerpo.pasos.join(' ')).toMatch(/palabra clave/i);
+    expect(res.cuerpo.pasosCumplidos).toEqual([]);
+  });
+
+  it('marcar un paso lo refleja en el contexto y en la bitácora', async () => {
+    const alarmaId = await dispararAlarma('E130');
+    const { cuerpo: antes } = await ctx.pedir('GET', `/alarmas/${alarmaId}/contexto`, { token: tokenOperador });
+    const paso = antes.pasos[0];
+
+    await ctx.pedir('POST', `/alarmas/${alarmaId}/paso`, { token: tokenOperador, cuerpo: { paso } });
+
+    const { cuerpo: despues } = await ctx.pedir('GET', `/alarmas/${alarmaId}/contexto`, { token: tokenOperador });
+    expect(despues.pasosCumplidos).toContain(paso);
+
+    // Lo cumplido se deduce de la bitácora: no hay un estado aparte que pueda contradecirla
+    const acciones = await ctx.pedir('GET', `/alarmas/${alarmaId}/acciones`, { token: tokenOperador });
+    expect(acciones.cuerpo.some((a: { tipo: string; detalle: string }) => a.tipo === 'paso' && a.detalle === paso)).toBe(true);
+  });
+
+  it('una prueba periódica no abre alarma', async () => {
+    // El catálogo la excluye: si abriera, cada equipo inundaría la cola con
+    // una alarma por prueba, varias veces al día y por cuenta.
+    const { procesarEvento, registrarSenal } = await import('@monitoring/engine');
+    const { interpretarCid } = await import('@monitoring/shared');
+
+    const antes = (await ctx.pedir('GET', '/alarmas', { token: tokenOperador })).cuerpo.length;
+    const senalId = await registrarSenal({
+      fuente: 'simulador',
+      remoto: 'prueba',
+      cruda: '5011CCC118160200000',
+      estadoParse: 'ok',
+    });
+    const resultado = await procesarEvento({
+      senalId,
+      normalizado: interpretarCid({ numeroCuenta: 'CCC1', calificador: 1, codigoCid: '602', particion: '01', zona: '000' }),
+      recibidaEn: new Date(),
+    });
+
+    // El evento se registra igual: lo que no ocurre es la alarma
+    expect(resultado.eventoId).toBeGreaterThan(0);
+    expect(resultado.alarmaId).toBeUndefined();
+    const despues = (await ctx.pedir('GET', '/alarmas', { token: tokenOperador })).cuerpo.length;
+    expect(despues).toBe(antes);
+  });
+
+  it('en cambio un robo sí abre alarma', async () => {
+    // Contraste deliberado: confirma que el caso anterior no pasa porque el
+    // motor esté roto, sino porque el catálogo excluye ese código.
+    const { procesarEvento, registrarSenal } = await import('@monitoring/engine');
+    const { interpretarCid } = await import('@monitoring/shared');
+    const senalId = await registrarSenal({ fuente: 'simulador', remoto: 'prueba', cruda: 'x', estadoParse: 'ok' });
+    const resultado = await procesarEvento({
+      senalId,
+      normalizado: interpretarCid({ numeroCuenta: 'CCC1', calificador: 1, codigoCid: '130', particion: '01', zona: '015' }),
+      recibidaEn: new Date(),
+    });
+    expect(resultado.alarmaId).toBeGreaterThan(0);
+  });
+});

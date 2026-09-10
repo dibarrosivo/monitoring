@@ -20,3 +20,15 @@ export function transcurrido(iso: string, ahora: number = Date.now()): string {
   const dias = Math.floor(horas / 24);
   return `hace ${dias} d ${horas % 24} h`;
 }
+
+/**
+ * Duración compacta para los cronómetros de la cola: "42s", "3m12s", "1h04m".
+ * Se prioriza que se lea de un vistazo por encima de la precisión.
+ */
+export function duracionCorta(ms: number): string {
+  const seg = Math.max(0, Math.floor(ms / 1000));
+  if (seg < 60) return `${seg}s`;
+  const min = Math.floor(seg / 60);
+  if (min < 60) return `${min}m${String(seg % 60).padStart(2, '0')}s`;
+  return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}m`;
+}
