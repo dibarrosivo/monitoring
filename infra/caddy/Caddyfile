@@ -1,0 +1,34 @@
+# Consola y API de la central. El certificado lo emite y renueva Caddy solo.
+#
+# El receptor DC-09 NO pasa por aquí: los paneles hablan TCP y UDP crudo contra
+# el puerto 9999, sin HTTP, así que no puede haber proxy en el medio.
+
+{$DOMINIO_CONSOLA} {
+	encode gzip
+
+	# La API y el WebSocket de alarmas en vivo. Caddy negocia el upgrade solo.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# La consola es una aplicación de una sola página: cualquier ruta que no
+	# sea un archivo real devuelve index.html para que el enrutador la resuelva.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	log {
+		output file /var/log/caddy/acceso.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}

@@ -1,5 +1,8 @@
-# Compuerta de calidad: nada llega a producción sin pasar por acá.
-# El job de despliegue (git archive → VPS + desplegar.sh) se agrega al configurar el servidor.
+# Compuerta de calidad y despliegue.
+#
+# Cualquier rama pasa por las pruebas. Solo un push a `main` despliega, y solo
+# si las pruebas pasaron: el job de despliegue depende del de pruebas, así que
+# una prueba en rojo detiene la publicación antes de tocar el servidor.
 name: CI
 
 on:
@@ -44,3 +47,35 @@ jobs:
         run: npm run test:integracion
       - name: Build de la consola
         run: npm run build -w @monitoring/console
+
+  desplegar:
+    # Solo desde main, y solo si las pruebas pasaron
+    needs: pruebas
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # Un despliegue a la vez: dos simultáneos podrían dejar el servidor a medias
+    concurrency:
+      group: despliegue-produccion
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar la clave de acceso al servidor
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/despliegue
+          chmod 600 ~/.ssh/despliegue
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Subir el código
+        run: |
+          git archive HEAD | ssh -i ~/.ssh/despliegue -o BatchMode=yes \
+            root@${{ secrets.VPS_HOST }} \
+            "mkdir -p /opt/monitoring && tar -x -C /opt/monitoring"
+
+      - name: Desplegar
+        run: |
+          ssh -i ~/.ssh/despliegue -o BatchMode=yes \
+            root@${{ secrets.VPS_HOST }} \
+            "cd /opt/monitoring && chmod +x desplegar.sh && DOMINIO_CONSOLA='${{ secrets.DOMINIO_CONSOLA }}' ./desplegar.sh"

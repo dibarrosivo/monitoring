@@ -1,0 +1,94 @@
+# Producción. Se levanta con:
+#   docker compose -f docker-compose.produccion.yml up -d
+#
+# Las variables vienen de /opt/monitoring/.env, que genera desplegar.sh.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: monitoring
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: monitoring
+    volumes:
+      - datos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U monitoring']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Sin puertos publicados: la base solo se alcanza desde la red interna
+
+  # Aplica las migraciones antes de que arranquen la API y el receptor.
+  # Corre una vez y termina; los demás servicios esperan a que salga bien.
+  migraciones:
+    build:
+      context: .
+      target: app
+    image: monitoring-app
+    command: npm run db:migrar
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://monitoring:${POSTGRES_PASSWORD}@postgres:5432/monitoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      target: app
+    image: monitoring-app
+    command: npm run api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://monitoring:${POSTGRES_PASSWORD}@postgres:5432/monitoring
+    depends_on:
+      migraciones:
+        condition: service_completed_successfully
+    # Solo la alcanza Caddy por la red interna
+
+  receptor:
+    build:
+      context: .
+      target: app
+    image: monitoring-app
+    command: npm run receiver
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://monitoring:${POSTGRES_PASSWORD}@postgres:5432/monitoring
+    # Expuesto directo: los paneles hablan TCP y UDP crudo, no HTTP
+    ports:
+      - '9999:9999/tcp'
+      - '9999:9999/udp'
+    depends_on:
+      migraciones:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      target: web
+    image: monitoring-web
+    restart: unless-stopped
+    environment:
+      DOMINIO_CONSOLA: ${DOMINIO_CONSOLA}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - datos-caddy:/data
+      - config-caddy:/config
+      - registros-caddy:/var/log/caddy
+    depends_on:
+      - api
+
+volumes:
+  datos-postgres:
+  datos-caddy:
+  config-caddy:
+  registros-caddy:

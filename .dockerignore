@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+**/dist
+infra/postgres/data
+packages/pima-bridge/dist
+packages/pima-bridge/empaquetado/.cache
+.git
+*.log
+.env
