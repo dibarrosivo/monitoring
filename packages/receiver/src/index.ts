@@ -4,6 +4,7 @@ import { iniciarDepuracionPeriodica, pool } from '@monitoring/db';
 import { iniciarVigilante } from '@monitoring/engine';
 import { iniciarDc09Tcp } from './dc09Tcp.js';
 import { iniciarDc09Udp } from './dc09Udp.js';
+import { iniciarPimaTcp } from './pimaTcp.js';
 
 try {
   process.loadEnvFile();
@@ -31,6 +32,11 @@ if (claveConfigurada) {
 
 const servidorTcp = iniciarDc09Tcp(puertoTcp, log, claveAes);
 const servidorUdp = iniciarDc09Udp(puertoUdp, log, claveAes);
+
+// Escucha del receptor PIMA. Vacío = deshabilitado, para no abrir un puerto
+// que nadie va a usar en instalaciones sin receptor serie.
+const puertoPima = (process.env.PUERTO_PIMA_TCP ?? '').trim();
+const servidorPima = puertoPima ? iniciarPimaTcp(puertoPima, log) : null;
 const detenerVigilante = iniciarVigilante({
   alError: (err) => log.error({ err }, 'Error del vigilante de paneles'),
 });
@@ -51,6 +57,7 @@ async function apagar(senalSo: string) {
   detenerVigilante();
   detenerDepuracion();
   servidorTcp.close();
+  servidorPima?.close();
   servidorUdp.close();
   await pool.end();
   process.exit(0);

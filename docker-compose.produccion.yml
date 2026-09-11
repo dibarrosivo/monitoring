@@ -65,6 +65,8 @@ services:
     ports:
       - '9999:9999/tcp'
       - '9999:9999/udp'
+      # Escucha del receptor PIMA: el programa de la central entrega por TCP crudo
+      - '10050:10050/tcp'
     depends_on:
       migraciones:
         condition: service_completed_successfully
