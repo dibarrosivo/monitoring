@@ -7,6 +7,7 @@ import { pool } from '@monitoring/db';
 import { registrarAuth } from './modulos/auth.js';
 import { registrarClientes } from './modulos/clientes.js';
 import { registrarAlarmas } from './modulos/alarmas.js';
+import { registrarComandos } from './modulos/comandos.js';
 import { registrarEventos } from './modulos/eventos.js';
 import { registrarUsuarios } from './modulos/usuarios.js';
 import { registrarClienteApp } from './modulos/clienteApp.js';
@@ -64,6 +65,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       registrarAuth(api);
       await api.register(async (sub) => registrarClientes(sub));
       await api.register(async (sub) => registrarAlarmas(sub));
+      await api.register(async (sub) => registrarComandos(sub));
       await api.register(async (sub) => registrarEventos(sub));
       await api.register(async (sub) => registrarUsuarios(sub));
       await api.register(async (sub) => registrarClienteApp(sub));

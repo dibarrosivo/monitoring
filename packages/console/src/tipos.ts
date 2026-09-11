@@ -446,3 +446,18 @@ export interface EntradaCatalogo {
   tipo: string;
   valor: string;
 }
+
+export type AccionComando = 'armar' | 'armar_casa' | 'desarmar';
+export type EstadoComando = 'pendiente' | 'enviado' | 'confirmado' | 'fallido';
+
+/** Un comando enviado a un panel, con lo que pasó después. */
+export interface Comando {
+  id: number;
+  accion: AccionComando;
+  particion: string;
+  estado: EstadoComando;
+  detalle: string | null;
+  creadoEn: string;
+  resueltoEn: string | null;
+  usuarioId: number | null;
+}

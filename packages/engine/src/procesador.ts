@@ -13,6 +13,7 @@ import {
 } from '@monitoring/db';
 import { abreAlarma, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
 import { esAperturaFueraDeHorario } from './horarios.js';
+import { confirmarPorEvento } from './control/comandos.js';
 
 /** Categorías que abren una alarma para el operador. Las averías quedan en el registro de eventos. */
 const CATEGORIAS_CON_ALARMA = new Set(['alarma', 'cancelacion', 'sistema']);
@@ -174,6 +175,20 @@ export async function procesarEvento(entrada: {
         numeroCuenta: normalizado.numeroCuenta,
       });
     }
+  }
+
+  /*
+   * Si este evento prueba que el panel cambió de estado, confirma el comando
+   * que lo pidió. Que el fabricante acepte la orden no significa que el panel
+   * haya obedecido: la única confirmación que vale es la que transmite el panel.
+   */
+  if (panelEncontrado && ['apertura', 'cierre'].includes(normalizado.categoria)) {
+    await confirmarPorEvento({
+      panelId: panelEncontrado.id,
+      codigo: normalizado.codigo,
+      eventoId: filaEvento!.id,
+      ocurridoEn: recibidaEn,
+    });
   }
 
   await notificar(CANAL_EVENTOS, {

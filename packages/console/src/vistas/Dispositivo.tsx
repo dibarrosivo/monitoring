@@ -22,6 +22,7 @@ import type { EstadoPanel } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { Modal } from '../Modal.js';
 import { CampoSugerido } from '../CampoSugerido.js';
+import { ControlPanel } from '../ControlPanel.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
 const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
@@ -120,6 +121,8 @@ export function DetalleDispositivo({
           <span className="text-tenue"> · {panel.sitioNombre}</span>
         </p>
       </header>
+
+      <ControlPanel panel={panel} />
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         <section className="bg-superficie border border-borde rounded-sm p-4">

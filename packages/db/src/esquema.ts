@@ -220,6 +220,42 @@ export const catalogo = pgTable(
   (t) => [uniqueIndex('catalogo_unico').on(t.tipo, t.valor)],
 );
 
+export const accionComandoEnum = pgEnum('accion_comando', ['armar', 'armar_casa', 'desarmar']);
+export const estadoComandoEnum = pgEnum('estado_comando', ['pendiente', 'enviado', 'confirmado', 'fallido']);
+
+/**
+ * Comandos enviados a un panel (armar, desarmar).
+ *
+ * Se registran como hecho y no como una llamada que se pierde: quién lo pidió,
+ * cuándo, y qué pasó. En un sistema donde una app puede dejar un local sin
+ * protección, el registro no es opcional.
+ *
+ * El estado 'confirmado' NO lo da la respuesta del fabricante, sino la llegada
+ * del evento de apertura o cierre por la vía de reporte. Esa es la única
+ * confirmación que vale: dice que el panel efectivamente cambió de estado, no
+ * que alguien aceptó la orden.
+ */
+export const comando = pgTable(
+  'comando',
+  {
+    id: serial('id').primaryKey(),
+    panelId: integer('id_panel')
+      .notNull()
+      .references(() => panel.id),
+    usuarioId: integer('id_usuario').references(() => usuario.id),
+    accion: accionComandoEnum('accion').notNull(),
+    particion: varchar('particion', { length: 4 }).notNull().default('01'),
+    estado: estadoComandoEnum('estado').notNull().default('pendiente'),
+    /** Mensaje del fabricante cuando falla, para poder diagnosticar */
+    detalle: text('detalle'),
+    /** Evento que confirmó el cambio de estado real del panel */
+    eventoConfirmaId: integer('id_evento_confirma').references(() => evento.id),
+    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+    resueltoEn: timestamp('resuelto_en', { withTimezone: true }),
+  },
+  (t) => [index('comando_panel').on(t.panelId, t.creadoEn)],
+);
+
 /** Diario crudo: toda trama recibida queda registrada antes de cualquier parseo. */
 export const senal = pgTable(
   'senal',

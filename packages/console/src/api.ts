@@ -10,6 +10,8 @@ import type {
   Contacto,
   ContextoAlarma,
   DesenlaceAlarma,
+  AccionComando,
+  Comando,
   EntradaCatalogo,
   EstadoCliente,
   EstadoPanel,
@@ -185,6 +187,13 @@ export const editarPuente = (id: number, datos: { descripcion?: string; supervis
 
 export const listarCatalogo = (tipo: string) =>
   pedir<EntradaCatalogo[]>(`/catalogos?tipo=${encodeURIComponent(tipo)}`);
+
+export const enviarComando = (panelId: number, accion: AccionComando) =>
+  pedir<{ comandoId: number; aceptado: boolean; detalle?: string }>(`/paneles/${panelId}/comando`, {
+    method: 'POST',
+    body: JSON.stringify({ accion }),
+  });
+export const listarComandos = (panelId: number) => pedir<Comando[]>(`/paneles/${panelId}/comandos`);
 
 export const listarFeriados = () => pedir<Feriado[]>('/feriados');
 export const crearFeriado = (datos: { fecha: string; descripcion?: string }) =>
