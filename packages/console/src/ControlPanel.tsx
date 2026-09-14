@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { enviarComando, listarComandos } from './api.js';
+import { enviarComando, estadoArmado, listarComandos } from './api.js';
 import { fechaHora } from './tiempo.js';
 import type { AccionComando, EstadoPanel } from './tipos.js';
 
@@ -19,6 +19,13 @@ const ACCIONES: { valor: AccionComando; etiqueta: string; peligrosa?: boolean }[
   { valor: 'armar_casa', etiqueta: 'Armar en casa' },
   { valor: 'desarmar', etiqueta: 'Desarmar', peligrosa: true },
 ];
+
+const NOMBRE_PARTICION: Record<string, string> = {
+  desarmado: 'desarmado',
+  armado: 'armado',
+  armado_casa: 'armado en casa',
+  armando: 'armando…',
+};
 
 const NOMBRE_ESTADO: Record<string, string> = {
   pendiente: 'enviando',
@@ -43,12 +50,23 @@ export function ControlPanel({ panel }: { panel: EstadoPanel }) {
     refetchInterval: 15_000,
   });
 
+  // Lo que el panel dice de sí mismo, no lo que nosotros pedimos
+  const { data: estado, isError: sinEstado } = useQuery({
+    queryKey: ['estado-armado', panel.id],
+    queryFn: () => estadoArmado(panel.id),
+    enabled: TIPOS_CON_CONTROL.has(panel.tipo) && panel.activo,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+
   const enviar = useMutation({
     mutationFn: (accion: AccionComando) => enviarComando(panel.id, accion),
     onSuccess: (r) => {
       setAviso(r.aceptado ? 'Orden enviada. Falta que el panel la confirme.' : (r.detalle ?? 'No se pudo enviar.'));
       setConfirmando(null);
       void clienteConsultas.invalidateQueries({ queryKey: ['comandos', panel.id] });
+      // El panel tarda unos segundos en cambiar; se vuelve a preguntar enseguida y el sondeo hace el resto
+      setTimeout(() => void clienteConsultas.invalidateQueries({ queryKey: ['estado-armado', panel.id] }), 4000);
     },
     onError: (e: Error) => {
       setAviso(e.message);
@@ -70,6 +88,25 @@ export function ControlPanel({ panel }: { panel: EstadoPanel }) {
           </span>
         )}
       </div>
+
+      {estado && (
+        <ul className="flex gap-3 flex-wrap text-sm">
+          {estado.particiones
+            .filter((p) => p.habilitada)
+            .map((p) => (
+              <li key={p.particion} className="flex items-center gap-2">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${
+                    p.enAlarma ? 'bg-prio1' : p.estado === 'desarmado' ? 'bg-tenue' : 'bg-ok'
+                  }`}
+                />
+                <span className="font-semibold">{p.nombre ?? `Partición ${p.particion}`}</span>
+                <span className="text-tenue">{p.enAlarma ? 'EN ALARMA' : NOMBRE_PARTICION[p.estado]}</span>
+              </li>
+            ))}
+        </ul>
+      )}
+      {sinEstado && <p className="text-xs text-tenue">El panel no responde la consulta de estado.</p>}
 
       <div className="flex gap-2 flex-wrap">
         {ACCIONES.map((a) => (

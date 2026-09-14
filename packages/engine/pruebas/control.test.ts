@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { interpretarRespuestaToken, sesionVigente } from '../src/control/hikvision.js';
+import {
+  interpretarEstado,
+  interpretarRespuestaControl,
+  interpretarRespuestaToken,
+  sesionVigente,
+  uriControl,
+} from '../src/control/hikvision.js';
 import { admiteControl, proveedorPara, registrarProveedor, SIN_CONTROL } from '../src/control/proveedor.js';
 
 /**
- * Lo que se puede probar sin credenciales del fabricante: la selección de
- * proveedor, el comportamiento ante equipos sin control, y la firma.
- * El diálogo con la nube se ejercita cuando tengamos acceso.
+ * Lo que se puede probar sin red: la selección de proveedor, el armado de las
+ * URI, y la lectura de las respuestas, cuyas formas salen de la guía oficial
+ * y de respuestas reales capturadas el 13 de septiembre de 2026.
  */
 
 describe('qué equipos admiten control', () => {
@@ -72,5 +78,109 @@ describe('sesión contra la nube de Hikvision', () => {
     // Margen: una que vence en 30 segundos podría expirar durante la llamada
     expect(sesionVigente({ base: 'x', token: 't', vence: ahora + 30_000 }, ahora)).toBe(false);
     expect(sesionVigente(null, ahora)).toBe(false);
+  });
+});
+
+describe('URI de control por el paso transparente a ISAPI', () => {
+  // Salen textualmente del apéndice A.4 de la guía del fabricante
+  it('armado total', () => {
+    expect(uriControl('armar', 1)).toBe('/ISAPI/SecurityCP/control/arm/1?ways=away&format=json');
+  });
+  it('armado en casa', () => {
+    expect(uriControl('armar_casa', 2)).toBe('/ISAPI/SecurityCP/control/arm/2?ways=stay&format=json');
+  });
+  it('desarmado no lleva modo', () => {
+    expect(uriControl('desarmar', 1)).toBe('/ISAPI/SecurityCP/control/disarm/1?format=json');
+  });
+});
+
+describe('lectura de la respuesta a una orden', () => {
+  it('statusCode 1 del panel es "hecho"', () => {
+    const r = interpretarRespuestaControl({
+      status: 200,
+      cuerpo: '{"requestURL":"/ISAPI/SecurityCP/control/arm/1","statusCode":1,"statusString":"OK","subStatusCode":"ok"}',
+    });
+    expect(r.aceptado).toBe(true);
+  });
+
+  it('el panel puede rechazar con 200 de la pasarela: statusCode distinto de 1', () => {
+    // Por ejemplo una zona abierta que impide armar
+    const r = interpretarRespuestaControl({
+      status: 200,
+      cuerpo: '{"statusCode":4,"statusString":"Invalid Operation","subStatusCode":"armingFailed","errorCode":1073774592,"errorMsg":"Arming failed."}',
+    });
+    expect(r.aceptado).toBe(false);
+    expect(r.detalle).toMatch(/Arming failed/);
+  });
+
+  it('el rechazo de la pasarela viene con errorCode de letras', () => {
+    // Capturado en vivo: token vacío
+    const r = interpretarRespuestaControl({
+      status: 200,
+      cuerpo: '{"message":"Token is Empty.{LAP500002}","errorCode":"LAP500002"}',
+    });
+    expect(r.aceptado).toBe(false);
+    expect(r.detalle).toMatch(/Token is Empty/);
+  });
+
+  it('el errorCode numérico del panel no se confunde con un rechazo de la pasarela', () => {
+    // JSON_ResponseStatus trae errorCode numérico junto a statusCode 1 en algunos equipos
+    const r = interpretarRespuestaControl({ status: 200, cuerpo: '{"statusCode":1,"errorCode":1}' });
+    expect(r.aceptado).toBe(true);
+  });
+
+  it('un 404 de la pasarela se informa con su motivo', () => {
+    // Capturado en vivo al probar rutas inexistentes
+    const r = interpretarRespuestaControl({
+      status: 404,
+      cuerpo: '{"timestamp":1789354352905,"status":404,"error":"Not Found","path":"/open/alarm/v1/alarm/arm"}',
+    });
+    expect(r.aceptado).toBe(false);
+    expect(r.detalle).toMatch(/Not Found/);
+  });
+
+  it('un cuerpo ilegible no revienta', () => {
+    const r = interpretarRespuestaControl({ status: 502, cuerpo: '<html>Bad Gateway</html>' });
+    expect(r.aceptado).toBe(false);
+    expect(r.detalle).toMatch(/ilegible/);
+  });
+});
+
+describe('lectura del estado de particiones', () => {
+  // Respuesta real del panel 7037, capturada el 13 de septiembre de 2026
+  const real = {
+    SubSysList: [
+      { SubSys: { id: 1, arming: 'disarm', alarm: false, enabled: true, name: 'Bella Nova' } },
+      { SubSys: { id: 2, arming: 'disarm', alarm: false, enabled: false, name: 'Area2' } },
+    ],
+  };
+
+  it('traduce la respuesta real del panel', () => {
+    const e = interpretarEstado(real);
+    expect(e).toHaveLength(2);
+    expect(e[0]).toEqual({ particion: 1, nombre: 'Bella Nova', habilitada: true, estado: 'desarmado', enAlarma: false });
+    expect(e[1]!.habilitada).toBe(false);
+  });
+
+  it('distingue armado total, en casa y en proceso', () => {
+    const e = interpretarEstado({
+      SubSysList: [
+        { SubSys: { id: 1, arming: 'away' } },
+        { SubSys: { id: 2, arming: 'stay' } },
+        { SubSys: { id: 3, arming: 'arming' } },
+      ],
+    });
+    expect(e.map((p) => p.estado)).toEqual(['armado', 'armado_casa', 'armando']);
+  });
+
+  it('una alarma activa se ve aunque la partición esté armada', () => {
+    const e = interpretarEstado({ SubSysList: [{ SubSys: { id: 1, arming: 'away', alarm: true } }] });
+    expect(e[0]!.enAlarma).toBe(true);
+  });
+
+  it('con una respuesta vacía o rara devuelve lista vacía', () => {
+    expect(interpretarEstado({})).toEqual([]);
+    expect(interpretarEstado(null)).toEqual([]);
+    expect(interpretarEstado({ SubSysList: [{ SubSys: { id: 'x' } }] })).toEqual([]);
   });
 });

@@ -461,3 +461,12 @@ export interface Comando {
   resueltoEn: string | null;
   usuarioId: number | null;
 }
+
+/** Estado de una partición según el propio panel. */
+export interface EstadoParticion {
+  particion: number;
+  nombre?: string;
+  habilitada: boolean;
+  estado: 'desarmado' | 'armado' | 'armado_casa' | 'armando';
+  enAlarma: boolean;
+}

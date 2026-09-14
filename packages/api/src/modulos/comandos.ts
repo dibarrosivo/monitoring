@@ -1,7 +1,7 @@
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { acceso, cliente, db, panel, sitio } from '@monitoring/db';
-import { admiteControl, enviarComando, historialComandos } from '@monitoring/engine';
+import { admiteControl, enviarComando, estadoArmado, historialComandos } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 import type { FastifyRequest } from 'fastify';
 
@@ -95,6 +95,26 @@ export function registrarComandos(app: App) {
     // Un comando rechazado por el fabricante no es un error nuestro: se informa
     // con el detalle y el registro queda igual, para poder diagnosticarlo.
     return reply.code(resultado.aceptado ? 202 : 502).send(resultado);
+  });
+
+  /**
+   * Estado real de las particiones según el panel. Es lo único que dice si el
+   * sitio está protegido ahora; nuestro historial solo dice qué se pidió.
+   */
+  app.get('/paneles/:id/estado-armado', async (request, reply) => {
+    const panelId = idDe(request);
+    if (request.user.rol === 'cliente') {
+      const alcanza = await usuarioAlcanzaPanel(request.user.id, panelId);
+      if (!alcanza) return reply.code(403).send({ error: 'Sin acceso a este equipo' });
+    }
+    try {
+      const particiones = await estadoArmado(panelId);
+      if (!particiones) return reply.code(409).send({ error: 'Este equipo no informa su estado' });
+      return { particiones };
+    } catch (err) {
+      // El fabricante no respondió: no es un error nuestro, se informa tal cual
+      return reply.code(502).send({ error: err instanceof Error ? err.message : 'Sin respuesta del proveedor' });
+    }
   });
 
   app.get('/paneles/:id/comandos', async (request, reply) => {

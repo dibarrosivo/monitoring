@@ -1,43 +1,45 @@
-import type { AccionComando, ProveedorControl, ResultadoComando } from './proveedor.js';
+import type { AccionComando, EstadoParticion, ProveedorControl, ResultadoComando } from './proveedor.js';
 
 /**
  * Control de paneles Hikvision por la OpenAPI de Hik-Partner Pro.
  *
- * Lo VERIFICADO contra el servicio real el 13 de septiembre de 2026:
+ * Todo lo de abajo está VERIFICADO contra el servicio real el 13 de septiembre
+ * de 2026, con la guía oficial (UD36994B, V2.0) a la vista:
  *
  *  - El token se pide a `api.hik-partner.com` y se envía como
- *    `authorization: Bearer <token>`. NO hace falta firmar nada: la
- *    documentación menciona una cabecera X-CA-Signature con HMAC, pero el
- *    servicio acepta el token puro y rechaza las demás variantes.
- *  - La respuesta del token trae `areaDomain`, y **las llamadas siguientes van
- *    a ese dominio regional**, no al de origen. Usar el de origen da 404.
- *  - El vencimiento viene como `expireTime`, una marca de tiempo absoluta en
- *    milisegundos, no como una duración.
+ *    `authorization: Bearer <token>`. No hace falta firmar nada.
+ *  - La respuesta del token trae `areaDomain`, y las llamadas siguientes van a
+ *    ese dominio regional. Usar el de origen da 404.
+ *  - El vencimiento es `expireTime`, una marca absoluta en milisegundos; el
+ *    token dura 7 días.
+ *  - NO existe un endpoint propio de armado en la OpenAPI. El control pasa por
+ *    el "paso transparente" a ISAPI: la nube reenvía al panel la misma URI que
+ *    se le mandaría en la red local, con el serial en la cabecera X-Devserial.
+ *    Por eso cualquier ruta inventada bajo /alarm o /device daba 404.
  *
- * Lo NO verificado: las rutas de armado y desarmado. Las de abajo devuelven
- * 404, así que son un marcador de posición hasta tener la guía del fabricante,
- * que se descarga desde el portal de Hik-Partner Pro. Mientras tanto el
- * proveedor informa el fallo con su motivo y todo queda registrado.
+ * Con la ruta transparente, la respuesta tiene dos capas: la de la pasarela
+ * (cabeceras X-EZO-Code, X-ErrorCode, X-DeviceCode) y la del panel (un
+ * JSON_ResponseStatus con statusCode 1 cuando salió bien).
  */
 
 const BASE_TOKEN = process.env.HIK_OPENAPI_BASE ?? 'https://api.hik-partner.com';
 const RUTA_TOKEN = '/api/hpcgw/v1/token/get';
+/** Prefijo del paso transparente: lo que sigue es una URI ISAPI tal cual */
+const TRANSPARENTE = '/api/hpcgw/v1/device/transparent';
 
-/**
- * Rutas de control. SIN CONFIRMAR: el servicio responde 404 a todas.
- * Al corregirlas con la guía oficial no hay que tocar nada más de este archivo.
- */
-const RUTAS = {
-  armar: process.env.HIK_RUTA_ARMAR ?? '/api/hpcgw/v1/alarm/arm',
-  desarmar: process.env.HIK_RUTA_DESARMAR ?? '/api/hpcgw/v1/alarm/disarm',
-} as const;
-
-/** Modo de armado que espera el fabricante para cada acción nuestra. */
-const MODO: Record<AccionComando, string> = {
+/** Modo de armado que espera el panel para cada acción nuestra. */
+const MODO: Record<Exclude<AccionComando, 'desarmar'>, string> = {
   armar: 'away',
   armar_casa: 'stay',
-  desarmar: '',
 };
+
+/** URI ISAPI de cada acción. La partición empieza en 1. */
+export function uriControl(accion: AccionComando, particion: number): string {
+  if (accion === 'desarmar') return `/ISAPI/SecurityCP/control/disarm/${particion}?format=json`;
+  return `/ISAPI/SecurityCP/control/arm/${particion}?ways=${MODO[accion]}&format=json`;
+}
+
+const URI_ESTADO = '/ISAPI/SecurityCP/status/subSystems?format=json';
 
 export interface Sesion {
   /** Dominio regional que indicó el servicio; NO es el de la petición del token */
@@ -70,6 +72,68 @@ export function sesionVigente(s: Sesion | null, ahora = Date.now()): boolean {
   return Boolean(s && s.vence > ahora + 60_000);
 }
 
+/**
+ * Interpreta la respuesta de una orden por el paso transparente.
+ *
+ * Hay tres formas de fallar y una de acertar:
+ *  - la pasarela rechaza (JSON con errorCode "LAPxxxxxx", o HTTP no 2xx),
+ *  - el panel rechaza (JSON_ResponseStatus con statusCode distinto de 1),
+ *  - el cuerpo no es JSON,
+ *  - o el panel contesta statusCode 1 (a veces 0), que es "hecho".
+ */
+export function interpretarRespuestaControl(entrada: {
+  status: number;
+  cuerpo: string;
+  codigoDispositivo?: string | null;
+}): ResultadoComando {
+  let json: {
+    errorCode?: string | number;
+    message?: string;
+    statusCode?: number;
+    statusString?: string;
+    subStatusCode?: string;
+    errorMsg?: string;
+    error?: string;
+  };
+  try {
+    json = JSON.parse(entrada.cuerpo);
+  } catch {
+    return { aceptado: false, detalle: `Respuesta ilegible del proveedor (${entrada.status})` };
+  }
+  // Rechazo de la pasarela: sus códigos son cadenas "LAP..." o "EVZ..."
+  if (typeof json.errorCode === 'string' && json.errorCode !== '0') {
+    return { aceptado: false, detalle: json.message ?? `Error ${json.errorCode}` };
+  }
+  // Respuesta del panel
+  if (typeof json.statusCode === 'number') {
+    if (json.statusCode === 1 || json.statusCode === 0) return { aceptado: true };
+    const motivo = json.errorMsg ?? json.subStatusCode ?? json.statusString ?? `código ${json.statusCode}`;
+    return { aceptado: false, detalle: `El panel rechazó la orden: ${motivo}` };
+  }
+  if (entrada.status < 200 || entrada.status >= 300) {
+    return { aceptado: false, detalle: json.error ?? `El proveedor respondió ${entrada.status}` };
+  }
+  return { aceptado: true };
+}
+
+/** Traduce la lista de particiones del panel a nuestro modelo. */
+export function interpretarEstado(cuerpo: unknown): EstadoParticion[] {
+  const lista = (cuerpo as { SubSysList?: { SubSys?: Record<string, unknown> }[] })?.SubSysList ?? [];
+  const estados: EstadoParticion[] = [];
+  for (const { SubSys: s } of lista) {
+    if (!s || typeof s.id !== 'number') continue;
+    const arming = String(s.arming ?? '');
+    estados.push({
+      particion: s.id,
+      nombre: typeof s.name === 'string' ? s.name : undefined,
+      habilitada: s.enabled !== false,
+      estado: arming === 'away' ? 'armado' : arming === 'stay' ? 'armado_casa' : arming === 'arming' ? 'armando' : 'desarmado',
+      enAlarma: s.alarm === true,
+    });
+  }
+  return estados;
+}
+
 let sesion: Sesion | null = null;
 
 /** Solo para las pruebas: olvida la sesión guardada. */
@@ -92,6 +156,7 @@ async function obtenerSesion(cred: { clave: string; secreto: string }): Promise<
 export function crearProveedorHikvision(): ProveedorControl {
   return {
     nombre: 'hik-partner-pro',
+
     async enviar({ serial, accion, particion }): Promise<ResultadoComando> {
       const cred = leerCredenciales();
       if (!cred) {
@@ -99,35 +164,45 @@ export function crearProveedorHikvision(): ProveedorControl {
       }
       try {
         const s = await obtenerSesion(cred);
-        const ruta = accion === 'desarmar' ? RUTAS.desarmar : RUTAS.armar;
-        const respuesta = await fetch(s.base + ruta, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${s.token}` },
-          body: JSON.stringify({
-            deviceSerial: serial,
-            subSystemNo: Number(particion) || 1,
-            ...(accion === 'desarmar' ? {} : { armMode: MODO[accion] }),
-          }),
+        const respuesta = await fetch(s.base + TRANSPARENTE + uriControl(accion, Number(particion) || 1), {
+          method: 'PUT',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${s.token}`,
+            'X-Devserial': serial,
+          },
+          // JSON_Operate: todo opcional, se manda vacío
+          body: '{}',
         });
-        const texto = await respuesta.text();
-        let cuerpo: { errorCode?: string; message?: string; error?: string } = {};
-        try {
-          cuerpo = JSON.parse(texto);
-        } catch {
-          return { aceptado: false, detalle: `Respuesta ilegible del proveedor (${respuesta.status})` };
-        }
-        // El servicio devuelve 200 con errorCode incluso cuando falla
-        if (cuerpo.errorCode && cuerpo.errorCode !== '0') {
-          return { aceptado: false, detalle: cuerpo.message ?? `Error ${cuerpo.errorCode}` };
-        }
-        if (!respuesta.ok) {
-          return { aceptado: false, detalle: cuerpo.error ?? `El proveedor respondió ${respuesta.status}` };
-        }
-        return { aceptado: true };
+        return interpretarRespuestaControl({
+          status: respuesta.status,
+          cuerpo: await respuesta.text(),
+          codigoDispositivo: respuesta.headers.get('x-devicecode'),
+        });
       } catch (err) {
         // Una nube caída no puede tumbar nuestra API: se informa y queda registrado
         return { aceptado: false, detalle: err instanceof Error ? err.message : 'Error desconocido' };
       }
+    },
+
+    async consultarEstado(serial): Promise<EstadoParticion[]> {
+      const cred = leerCredenciales();
+      if (!cred) throw new Error('Falta configurar las credenciales de la OpenAPI de Hikvision');
+      const s = await obtenerSesion(cred);
+      const respuesta = await fetch(s.base + TRANSPARENTE + URI_ESTADO, {
+        method: 'GET',
+        headers: { authorization: `Bearer ${s.token}`, 'X-Devserial': serial },
+      });
+      const texto = await respuesta.text();
+      let json: unknown;
+      try {
+        json = JSON.parse(texto);
+      } catch {
+        throw new Error(`Respuesta ilegible del proveedor (${respuesta.status})`);
+      }
+      const e = json as { errorCode?: string; message?: string };
+      if (typeof e.errorCode === 'string' && e.errorCode !== '0') throw new Error(e.message ?? `Error ${e.errorCode}`);
+      return interpretarEstado(json);
     },
   };
 }

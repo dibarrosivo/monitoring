@@ -26,6 +26,15 @@ export interface ResultadoComando {
   detalle?: string;
 }
 
+/** Estado de una partición según el propio panel, no según nuestros registros. */
+export interface EstadoParticion {
+  particion: number;
+  nombre?: string;
+  habilitada: boolean;
+  estado: 'desarmado' | 'armado' | 'armado_casa' | 'armando';
+  enAlarma: boolean;
+}
+
 export interface ProveedorControl {
   /** Nombre para los registros */
   readonly nombre: string;
@@ -35,6 +44,8 @@ export interface ProveedorControl {
     accion: AccionComando;
     particion: string;
   }): Promise<ResultadoComando>;
+  /** Estado actual de las particiones. Opcional: no todo proveedor sabe leerlo. */
+  consultarEstado?(serial: string): Promise<EstadoParticion[]>;
 }
 
 /**

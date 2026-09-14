@@ -13,6 +13,7 @@ import type {
   AccionComando,
   Comando,
   EntradaCatalogo,
+  EstadoParticion,
   EstadoCliente,
   EstadoPanel,
   Evento,
@@ -194,6 +195,8 @@ export const enviarComando = (panelId: number, accion: AccionComando) =>
     body: JSON.stringify({ accion }),
   });
 export const listarComandos = (panelId: number) => pedir<Comando[]>(`/paneles/${panelId}/comandos`);
+export const estadoArmado = (panelId: number) =>
+  pedir<{ particiones: EstadoParticion[] }>(`/paneles/${panelId}/estado-armado`);
 
 export const listarFeriados = () => pedir<Feriado[]>('/feriados');
 export const crearFeriado = (datos: { fecha: string; descripcion?: string }) =>
