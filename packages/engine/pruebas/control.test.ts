@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { firmar } from '../src/control/hikvision.js';
+import { interpretarRespuestaToken, sesionVigente } from '../src/control/hikvision.js';
 import { admiteControl, proveedorPara, registrarProveedor, SIN_CONTROL } from '../src/control/proveedor.js';
 
 /**
@@ -39,29 +39,38 @@ describe('qué equipos admiten control', () => {
   });
 });
 
-describe('firma de las peticiones a Hikvision', () => {
-  it('es estable para la misma entrada', () => {
-    const a = firmar({ metodo: 'POST', ruta: '/api/hpcgw/v1/alarm/arm', secreto: 'secreto' });
-    const b = firmar({ metodo: 'POST', ruta: '/api/hpcgw/v1/alarm/arm', secreto: 'secreto' });
-    expect(a).toBe(b);
+describe('sesión contra la nube de Hikvision', () => {
+  it('usa el dominio regional que devuelve el servicio, no el de origen', () => {
+    // Verificado contra el servicio real: pedir el token a api.hik-partner.com
+    // devuelve areaDomain, y llamar al de origen da 404.
+    const s = interpretarRespuestaToken({
+      data: { accessToken: 'hpc.abc', expireTime: 1789653897003, areaDomain: 'https://apiisa.hik-partner.com' },
+    });
+    expect(s.base).toBe('https://apiisa.hik-partner.com');
+    expect(s.token).toBe('hpc.abc');
   });
 
-  it('cambia si cambia la ruta, el método o el secreto', () => {
-    const base = firmar({ metodo: 'POST', ruta: '/a', secreto: 's' });
-    expect(firmar({ metodo: 'POST', ruta: '/b', secreto: 's' })).not.toBe(base);
-    expect(firmar({ metodo: 'GET', ruta: '/a', secreto: 's' })).not.toBe(base);
-    expect(firmar({ metodo: 'POST', ruta: '/a', secreto: 'otro' })).not.toBe(base);
+  it('el vencimiento es una marca absoluta, no una duración', () => {
+    const s = interpretarRespuestaToken({ data: { accessToken: 'x', expireTime: 1789653897003 } });
+    expect(s.vence).toBe(1789653897003);
   });
 
-  it('el método no distingue mayúsculas', () => {
-    expect(firmar({ metodo: 'post', ruta: '/a', secreto: 's' })).toBe(
-      firmar({ metodo: 'POST', ruta: '/a', secreto: 's' }),
-    );
+  it('sin token, falla con un motivo claro', () => {
+    expect(() => interpretarRespuestaToken({ data: {} })).toThrow(/no devolvió un token/i);
+    expect(() => interpretarRespuestaToken({})).toThrow();
   });
 
-  it('produce base64, no hexadecimal', () => {
-    const f = firmar({ metodo: 'POST', ruta: '/a', secreto: 's' });
-    expect(f).toMatch(/^[A-Za-z0-9+/]+=*$/);
-    expect(f).not.toMatch(/^[0-9a-f]{64}$/);
+  it('quita la barra final del dominio para no armar rutas con doble barra', () => {
+    const s = interpretarRespuestaToken({ data: { accessToken: 'x', areaDomain: 'https://a.com/' } });
+    expect(s.base).toBe('https://a.com');
+  });
+
+  it('una sesión vencida o por vencer no se reutiliza', () => {
+    const ahora = 1_000_000;
+    expect(sesionVigente({ base: 'x', token: 't', vence: ahora + 300_000 }, ahora)).toBe(true);
+    expect(sesionVigente({ base: 'x', token: 't', vence: ahora - 1 }, ahora)).toBe(false);
+    // Margen: una que vence en 30 segundos podría expirar durante la llamada
+    expect(sesionVigente({ base: 'x', token: 't', vence: ahora + 30_000 }, ahora)).toBe(false);
+    expect(sesionVigente(null, ahora)).toBe(false);
   });
 });

@@ -1,28 +1,35 @@
-import { createHmac } from 'node:crypto';
 import type { AccionComando, ProveedorControl, ResultadoComando } from './proveedor.js';
 
 /**
- * Control de paneles Hikvision a través de la nube del fabricante
- * (OpenAPI de Hik-Partner Pro).
+ * Control de paneles Hikvision por la OpenAPI de Hik-Partner Pro.
  *
- * ATENCIÓN: esta es la única pieza del control que NO está verificada contra el
- * servicio real, porque a la fecha no tenemos credenciales. Las rutas y el
- * armado de la firma salen de la documentación pública. Todo lo demás del
- * sistema de comandos sí está probado, y se apoya en la interfaz
- * ProveedorControl, así que corregir lo de aquí abajo no toca nada más.
+ * Lo VERIFICADO contra el servicio real el 13 de septiembre de 2026:
  *
- * Requisitos conocidos:
- *  - El panel debe estar dado de alta en la cuenta de Hik-Partner Pro.
- *  - Los permisos de operación exigen AX Pro V1.2.7 o superior.
+ *  - El token se pide a `api.hik-partner.com` y se envía como
+ *    `authorization: Bearer <token>`. NO hace falta firmar nada: la
+ *    documentación menciona una cabecera X-CA-Signature con HMAC, pero el
+ *    servicio acepta el token puro y rechaza las demás variantes.
+ *  - La respuesta del token trae `areaDomain`, y **las llamadas siguientes van
+ *    a ese dominio regional**, no al de origen. Usar el de origen da 404.
+ *  - El vencimiento viene como `expireTime`, una marca de tiempo absoluta en
+ *    milisegundos, no como una duración.
+ *
+ * Lo NO verificado: las rutas de armado y desarmado. Las de abajo devuelven
+ * 404, así que son un marcador de posición hasta tener la guía del fabricante,
+ * que se descarga desde el portal de Hik-Partner Pro. Mientras tanto el
+ * proveedor informa el fallo con su motivo y todo queda registrado.
  */
 
-const BASE = process.env.HIK_OPENAPI_BASE ?? 'https://api.hik-partner.com';
+const BASE_TOKEN = process.env.HIK_OPENAPI_BASE ?? 'https://api.hik-partner.com';
+const RUTA_TOKEN = '/api/hpcgw/v1/token/get';
 
-/** Rutas del fabricante, agrupadas para que corregirlas sea un solo lugar. */
+/**
+ * Rutas de control. SIN CONFIRMAR: el servicio responde 404 a todas.
+ * Al corregirlas con la guía oficial no hay que tocar nada más de este archivo.
+ */
 const RUTAS = {
-  token: '/api/hpcgw/v1/token/get',
-  armar: '/api/hpcgw/v1/alarm/arm',
-  desarmar: '/api/hpcgw/v1/alarm/disarm',
+  armar: process.env.HIK_RUTA_ARMAR ?? '/api/hpcgw/v1/alarm/arm',
+  desarmar: process.env.HIK_RUTA_DESARMAR ?? '/api/hpcgw/v1/alarm/disarm',
 } as const;
 
 /** Modo de armado que espera el fabricante para cada acción nuestra. */
@@ -32,48 +39,54 @@ const MODO: Record<AccionComando, string> = {
   desarmar: '',
 };
 
-interface Credenciales {
-  clave: string;
-  secreto: string;
+export interface Sesion {
+  /** Dominio regional que indicó el servicio; NO es el de la petición del token */
+  base: string;
+  token: string;
+  /** Marca de tiempo absoluta en milisegundos */
+  vence: number;
 }
 
-export function leerCredenciales(): Credenciales | null {
+export function leerCredenciales(): { clave: string; secreto: string } | null {
   const clave = (process.env.HIK_OPENAPI_CLAVE ?? '').trim();
   const secreto = (process.env.HIK_OPENAPI_SECRETO ?? '').trim();
   return clave && secreto ? { clave, secreto } : null;
 }
 
-/**
- * Firma de la petición: HMAC-SHA256 sobre el método y la ruta, en base64.
- * Se expone aparte para poder probarla sin llamar a la nube.
- */
-export function firmar(entrada: { metodo: string; ruta: string; secreto: string }): string {
-  const cadena = `${entrada.metodo.toUpperCase()}\n${entrada.ruta}`;
-  return createHmac('sha256', entrada.secreto).update(cadena, 'utf8').digest('base64');
+/** Interpreta la respuesta del token. Aparte para poder probarla sin red. */
+export function interpretarRespuestaToken(cuerpo: unknown): Sesion {
+  const d = (cuerpo as { data?: { accessToken?: string; expireTime?: number; areaDomain?: string } })?.data;
+  if (!d?.accessToken) throw new Error('El proveedor no devolvió un token');
+  return {
+    token: d.accessToken,
+    // Sin areaDomain se cae al dominio de origen, aunque en la práctica siempre viene
+    base: (d.areaDomain ?? BASE_TOKEN).replace(/\/+$/, ''),
+    vence: d.expireTime ?? Date.now() + 3_600_000,
+  };
 }
 
-/** Token con caché: pedir uno por comando sería lento y abusivo con el servicio. */
-let tokenCache: { valor: string; vence: number } | null = null;
+/** ¿Sigue sirviendo? Se descuenta un margen para no usar una que venza entre medio. */
+export function sesionVigente(s: Sesion | null, ahora = Date.now()): boolean {
+  return Boolean(s && s.vence > ahora + 60_000);
+}
 
-async function obtenerToken(cred: Credenciales, ahora = Date.now()): Promise<string> {
-  if (tokenCache && tokenCache.vence > ahora + 30_000) return tokenCache.valor;
-  const respuesta = await fetch(BASE + RUTAS.token, {
+let sesion: Sesion | null = null;
+
+/** Solo para las pruebas: olvida la sesión guardada. */
+export function olvidarSesion(): void {
+  sesion = null;
+}
+
+async function obtenerSesion(cred: { clave: string; secreto: string }): Promise<Sesion> {
+  if (sesionVigente(sesion)) return sesion!;
+  const respuesta = await fetch(BASE_TOKEN + RUTA_TOKEN, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ appKey: cred.clave, secretKey: cred.secreto }),
   });
   if (!respuesta.ok) throw new Error(`El proveedor rechazó la solicitud de token (${respuesta.status})`);
-  const cuerpo = (await respuesta.json()) as { data?: { accessToken?: string; expiresIn?: number } };
-  const valor = cuerpo.data?.accessToken;
-  if (!valor) throw new Error('El proveedor no devolvió un token');
-  // Se descuenta un margen para no usar un token que vence entre medio
-  tokenCache = { valor, vence: ahora + (cuerpo.data?.expiresIn ?? 3600) * 1000 };
-  return valor;
-}
-
-/** Solo para las pruebas: vacía el token guardado. */
-export function olvidarToken(): void {
-  tokenCache = null;
+  sesion = interpretarRespuestaToken(await respuesta.json());
+  return sesion;
 }
 
 export function crearProveedorHikvision(): ProveedorControl {
@@ -84,29 +97,31 @@ export function crearProveedorHikvision(): ProveedorControl {
       if (!cred) {
         return { aceptado: false, detalle: 'Falta configurar las credenciales de la OpenAPI de Hikvision' };
       }
-      const ruta = accion === 'desarmar' ? RUTAS.desarmar : RUTAS.armar;
       try {
-        const token = await obtenerToken(cred);
-        const respuesta = await fetch(BASE + ruta, {
+        const s = await obtenerSesion(cred);
+        const ruta = accion === 'desarmar' ? RUTAS.desarmar : RUTAS.armar;
+        const respuesta = await fetch(s.base + ruta, {
           method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            'X-CA-Key': cred.clave,
-            'X-CA-Signature': firmar({ metodo: 'POST', ruta, secreto: cred.secreto }),
-            authorization: `Bearer ${token}`,
-          },
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${s.token}` },
           body: JSON.stringify({
             deviceSerial: serial,
             subSystemNo: Number(particion) || 1,
             ...(accion === 'desarmar' ? {} : { armMode: MODO[accion] }),
           }),
         });
-        if (!respuesta.ok) {
-          return { aceptado: false, detalle: `El proveedor respondió ${respuesta.status}` };
+        const texto = await respuesta.text();
+        let cuerpo: { errorCode?: string; message?: string; error?: string } = {};
+        try {
+          cuerpo = JSON.parse(texto);
+        } catch {
+          return { aceptado: false, detalle: `Respuesta ilegible del proveedor (${respuesta.status})` };
         }
-        const cuerpo = (await respuesta.json()) as { errorCode?: string; errorMsg?: string };
+        // El servicio devuelve 200 con errorCode incluso cuando falla
         if (cuerpo.errorCode && cuerpo.errorCode !== '0') {
-          return { aceptado: false, detalle: cuerpo.errorMsg ?? `Error ${cuerpo.errorCode}` };
+          return { aceptado: false, detalle: cuerpo.message ?? `Error ${cuerpo.errorCode}` };
+        }
+        if (!respuesta.ok) {
+          return { aceptado: false, detalle: cuerpo.error ?? `El proveedor respondió ${respuesta.status}` };
         }
         return { aceptado: true };
       } catch (err) {
