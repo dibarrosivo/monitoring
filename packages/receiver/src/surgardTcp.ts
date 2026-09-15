@@ -79,7 +79,7 @@ async function procesarTrama(trama: string, remoto: string, log: Logger): Promis
     const surgard = parsearLineaSurgard(trama);
 
     if (surgard.tipo === 'cid') {
-      const panel = await buscarPanelPorCuenta(surgard.numeroCuenta);
+      const panel = await buscarPanelPorCuenta(surgard.numeroCuenta, 'surgard-tcp');
       const senalId = await registrarSenal({
         fuente: 'surgard-tcp',
         remoto,
@@ -97,6 +97,7 @@ async function procesarTrama(trama: string, remoto: string, log: Logger): Promis
           zona: surgard.zona,
         }),
         recibidaEn,
+        fuente: 'surgard-tcp',
       });
       if (panel) await registrarVida(panel.id, recibidaEn);
       log.info(

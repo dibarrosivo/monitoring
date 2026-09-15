@@ -353,7 +353,7 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
               className={CAMPO}
             >
               <option value="hikvision">Hikvision</option>
-              <option value="ebm">EBM</option>
+              <option value="ebm">EBS</option>
               <option value="pima">PIMA</option>
               <option value="otro">Otro</option>
             </select>
@@ -1127,7 +1127,7 @@ function FormularioPanel({ sitioId, alCrear }: { sitioId: number; alCrear: () =>
       />
       <select value={tipo} onChange={(e) => setTipo(e.target.value as EstadoPanel['tipo'])} className={CAMPO}>
         <option value="hikvision">Hikvision</option>
-        <option value="ebm">EBM</option>
+        <option value="ebm">EBS</option>
         <option value="pima">PIMA</option>
         <option value="otro">Otro</option>
       </select>

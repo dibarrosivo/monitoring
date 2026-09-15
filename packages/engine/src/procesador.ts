@@ -56,13 +56,41 @@ export async function registrarSenal(entrada: EntradaSenal): Promise<number> {
  * un mismo panel puede reportar con otro número según la vía que use, y sin
  * esto esas señales entrarían como cuenta desconocida.
  */
-export async function buscarPanelPorCuenta(numeroCuenta: string) {
-  const [fila] = await db
+/**
+ * Qué tipos de equipo puede traer cada vía de entrada. Es lo que desempata
+ * cuando dos clientes comparten número de cuenta: en la central pasa (la
+ * 7037 es a la vez un panel Hikvision de prueba y un transmisor EBS de un
+ * cliente real), y el sistema anterior los distingue por el receptor que los
+ * trae. Acá la vía cumple ese papel.
+ */
+const TIPOS_POR_VIA: Partial<Record<FuenteSenal, string[]>> = {
+  'dc09-tcp': ['hikvision', 'otro'],
+  'dc09-udp': ['hikvision', 'otro'],
+  'pima-bridge': ['pima', 'otro'],
+  'surgard-tcp': ['ebm', 'otro'],
+};
+
+/**
+ * Busca el equipo por número de cuenta (principal o secundario).
+ *
+ * Si un solo equipo tiene ese número, es ese, venga por donde venga. Si hay
+ * varios, se elige por la vía por la que llegó la señal. Si aun así no se
+ * puede decidir, se devuelve null: la señal entra como cuenta desconocida y
+ * un operador la mira, que es mejor que adjudicársela al cliente equivocado.
+ */
+export async function buscarPanelPorCuenta(numeroCuenta: string, fuente?: FuenteSenal) {
+  const filas = await db
     .select()
     .from(panel)
-    .where(or(eq(panel.numeroCuenta, numeroCuenta), eq(panel.cuentaSecundaria, numeroCuenta)))
-    .limit(1);
-  return fila ?? null;
+    .where(or(eq(panel.numeroCuenta, numeroCuenta), eq(panel.cuentaSecundaria, numeroCuenta)));
+  if (filas.length <= 1) return filas[0] ?? null;
+
+  const preferidos = fuente ? (TIPOS_POR_VIA[fuente] ?? []) : [];
+  for (const tipo of preferidos) {
+    const candidato = filas.find((f) => f.tipo === tipo);
+    if (candidato) return candidato;
+  }
+  return null;
 }
 
 /** Actualiza la última señal de vida del panel (latidos NULL, pruebas, cualquier evento). */
@@ -104,9 +132,11 @@ export async function procesarEvento(entrada: {
   senalId: number;
   normalizado: EventoNormalizado;
   recibidaEn: Date;
+  /** Vía por la que llegó: desempata cuando dos equipos comparten número de cuenta */
+  fuente?: FuenteSenal;
 }): Promise<ResultadoEvento> {
   const { senalId, normalizado, recibidaEn } = entrada;
-  const panelEncontrado = await buscarPanelPorCuenta(normalizado.numeroCuenta);
+  const panelEncontrado = await buscarPanelPorCuenta(normalizado.numeroCuenta, entrada.fuente);
 
   let descripcion = panelEncontrado
     ? normalizado.descripcion

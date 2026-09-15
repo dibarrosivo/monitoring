@@ -163,7 +163,9 @@ export const panel = pgTable(
     activo: boolean('activo').notNull().default(true),
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('panel_numero_cuenta_unico').on(t.numeroCuenta)],
+  // Un número de cuenta puede repetirse entre vías distintas (la 7037 es a la
+  // vez un Hikvision y un transmisor EBS de otro cliente), nunca dentro de una
+  (t) => [uniqueIndex('panel_cuenta_por_via_unica').on(t.numeroCuenta, t.tipo)],
 );
 
 export const zona = pgTable(

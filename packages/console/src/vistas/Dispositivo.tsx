@@ -246,7 +246,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
             <span className="text-tenue">Tipo</span>
             <select value={datos.tipo} onChange={(e) => setDatos({ ...datos, tipo: e.target.value as typeof datos.tipo })} className={CAMPO}>
               <option value="hikvision">Hikvision</option>
-              <option value="ebm">EBM</option>
+              <option value="ebm">EBS</option>
               <option value="pima">PIMA</option>
               <option value="otro">Otro</option>
             </select>

@@ -156,12 +156,13 @@ export function registrarBridge(app: App) {
        */
       const pima = parsearLineaPima(texto);
       if (pima) {
-        const panelPima = await buscarPanelPorCuenta(pima.numeroCuenta);
+        const panelPima = await buscarPanelPorCuenta(pima.numeroCuenta, 'pima-bridge');
         const senalIdPima = await registrarSenal({ ...comun, estadoParse: 'ok', panelId: panelPima?.id });
         await procesarEvento({
           senalId: senalIdPima,
           normalizado: interpretarPima({ numeroCuenta: pima.numeroCuenta, codigo: pima.codigo }),
           recibidaEn,
+          fuente: 'pima-bridge',
         });
         if (panelPima) await registrarVida(panelPima.id, recibidaEn);
         procesadas++;
@@ -183,7 +184,7 @@ export function registrarBridge(app: App) {
         continue;
       }
 
-      const panelEncontrado = await buscarPanelPorCuenta(resultado.numeroCuenta);
+      const panelEncontrado = await buscarPanelPorCuenta(resultado.numeroCuenta, 'pima-bridge');
       const senalId = await registrarSenal({
         ...comun,
         estadoParse: 'ok',
@@ -198,7 +199,7 @@ export function registrarBridge(app: App) {
         particion: resultado.particion,
         zona: resultado.zona,
       });
-      await procesarEvento({ senalId, normalizado, recibidaEn });
+      await procesarEvento({ senalId, normalizado, recibidaEn, fuente: 'pima-bridge' });
       if (panelEncontrado) await registrarVida(panelEncontrado.id, recibidaEn);
       procesadas++;
     }

@@ -169,27 +169,45 @@ async function recordarCatalogo(datos: { marca?: string | null; modelo?: string 
 }
 
 /**
- * Ni la cuenta principal ni la secundaria pueden repetirse en otro equipo: si
- * se repitieran, una señal entrante no tendría dueño único y el operador vería
- * el sitio equivocado.
+ * Ni la cuenta principal ni la secundaria pueden repetirse en otro equipo DEL
+ * MISMO TIPO: dos señales con ese número por la misma vía no tendrían dueño
+ * único y el operador vería el sitio equivocado. Entre tipos distintos sí se
+ * admite, porque llegan por vías distintas y la vía desempata (la 7037 es a
+ * la vez un Hikvision de prueba y un transmisor EBS de otro cliente).
  */
 async function cuentasEnConflicto(
-  datos: { numeroCuenta?: string; cuentaSecundaria?: string | null },
+  datos: { numeroCuenta?: string; cuentaSecundaria?: string | null; tipo?: string },
   excluirPanelId?: number,
 ): Promise<string | null> {
-  const buscadas = [datos.numeroCuenta, datos.cuentaSecundaria].filter((c): c is string => Boolean(c));
+  // Al editar, lo que no viene en el pedido se toma del equipo tal como está:
+  // cambiar solo el tipo también puede chocar con otro equipo del mismo número
+  let { numeroCuenta, cuentaSecundaria, tipo: tipoPropio } = datos;
+  if (excluirPanelId && (numeroCuenta === undefined || tipoPropio === undefined)) {
+    const [actual] = await db
+      .select({ numeroCuenta: panel.numeroCuenta, cuentaSecundaria: panel.cuentaSecundaria, tipo: panel.tipo })
+      .from(panel)
+      .where(eq(panel.id, excluirPanelId))
+      .limit(1);
+    numeroCuenta ??= actual?.numeroCuenta;
+    if (cuentaSecundaria === undefined) cuentaSecundaria = actual?.cuentaSecundaria;
+    tipoPropio ??= actual?.tipo;
+  }
+  const buscadas = [numeroCuenta, cuentaSecundaria].filter((c): c is string => Boolean(c));
   if (buscadas.length === 0) return null;
   if (buscadas.length === 2 && buscadas[0] === buscadas[1]) {
     return 'La cuenta secundaria no puede ser igual a la principal';
   }
+  tipoPropio ??= 'otro';
   const filas = await db
-    .select({ id: panel.id, numeroCuenta: panel.numeroCuenta, cuentaSecundaria: panel.cuentaSecundaria })
+    .select({ id: panel.id, numeroCuenta: panel.numeroCuenta, cuentaSecundaria: panel.cuentaSecundaria, tipo: panel.tipo })
     .from(panel)
     .where(or(inArray(panel.numeroCuenta, buscadas), inArray(panel.cuentaSecundaria, buscadas)));
-  const choque = filas.find((f) => f.id !== excluirPanelId);
+  const choque = filas.find((f) => f.id !== excluirPanelId && f.tipo === tipoPropio);
   if (!choque) return null;
-  return `La cuenta ya está asignada al equipo ${choque.numeroCuenta}`;
+  return `La cuenta ya está asignada a otro equipo ${NOMBRE_TIPO[choque.tipo] ?? choque.tipo} (${choque.numeroCuenta})`;
 }
+
+const NOMBRE_TIPO: Record<string, string> = { hikvision: 'Hikvision', pima: 'PIMA', ebm: 'EBS', otro: 'de otro tipo' };
 
 export function registrarClientes(app: App) {
   app.addHook('onRequest', app.autenticar);
@@ -310,7 +328,7 @@ export function registrarClientes(app: App) {
   app.delete('/sitios/:id', (req, res) => borrar(req, res, sitio, 'sitio'));
   app.put('/paneles/:id', async (req, res) => {
     const id = Number((req.params as { id: string }).id);
-    const cuerpo = req.body as { numeroCuenta?: string; cuentaSecundaria?: string | null };
+    const cuerpo = req.body as { numeroCuenta?: string; cuentaSecundaria?: string | null; tipo?: string };
     const conflicto = await cuentasEnConflicto(cuerpo ?? {}, id);
     if (conflicto) return res.code(409).send({ error: conflicto });
     const resultado = await actualizar(

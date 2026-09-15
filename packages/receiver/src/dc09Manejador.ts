@@ -47,7 +47,7 @@ export async function manejarTramaDc09(
 
     if (trama.id === 'NULL') {
       // Latido de supervisión: registra vida del panel, no genera evento.
-      const panelEncontrado = await buscarPanelPorCuenta(trama.numeroCuenta);
+      const panelEncontrado = await buscarPanelPorCuenta(trama.numeroCuenta, fuente);
       await registrarSenal({ fuente, remoto, cruda, estadoParse: 'ignorada', detalleError: 'latido NULL', panelId: panelEncontrado?.id });
       if (panelEncontrado) await registrarVida(panelEncontrado.id, recibidaEn);
       return construirAck(trama, trama.cifrada ? claveAes : undefined);
@@ -69,7 +69,7 @@ export async function manejarTramaDc09(
         zona: cid.zona,
         ocurridoEn: trama.marcaTiempo,
       });
-      const res = await procesarEvento({ senalId, normalizado, recibidaEn });
+      const res = await procesarEvento({ senalId, normalizado, recibidaEn, fuente });
       log.info(
         { remoto, cuenta: trama.numeroCuenta, codigo: normalizado.codigo, eventoId: res.eventoId, alarmaId: res.alarmaId },
         normalizado.descripcion,

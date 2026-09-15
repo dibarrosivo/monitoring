@@ -55,7 +55,7 @@ async function procesarLinea(linea: string, remoto: string, log: Logger): Promis
   try {
     const pima = parsearLineaPima(linea);
     if (pima) {
-      const panel = await buscarPanelPorCuenta(pima.numeroCuenta);
+      const panel = await buscarPanelPorCuenta(pima.numeroCuenta, 'pima-bridge');
       const senalId = await registrarSenal({
         fuente: 'pima-bridge',
         remoto,
@@ -67,6 +67,7 @@ async function procesarLinea(linea: string, remoto: string, log: Logger): Promis
         senalId,
         normalizado: interpretarPima({ numeroCuenta: pima.numeroCuenta, codigo: pima.codigo }),
         recibidaEn,
+        fuente: 'pima-bridge',
       });
       if (panel) await registrarVida(panel.id, recibidaEn);
       log.info(
@@ -79,7 +80,7 @@ async function procesarLinea(linea: string, remoto: string, log: Logger): Promis
     // Respaldo: un receptor de otra marca podría entregar Sur-Gard clásico
     const surgard = parsearLineaSurgard(linea);
     if (surgard.tipo === 'cid') {
-      const panel = await buscarPanelPorCuenta(surgard.numeroCuenta);
+      const panel = await buscarPanelPorCuenta(surgard.numeroCuenta, 'pima-bridge');
       const senalId = await registrarSenal({
         fuente: 'pima-bridge',
         remoto,
@@ -97,6 +98,7 @@ async function procesarLinea(linea: string, remoto: string, log: Logger): Promis
           zona: surgard.zona,
         }),
         recibidaEn,
+        fuente: 'pima-bridge',
       });
       if (panel) await registrarVida(panel.id, recibidaEn);
       return;
