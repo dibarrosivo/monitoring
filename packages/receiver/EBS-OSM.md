@@ -1,8 +1,8 @@
 # EBS: cómo recibirlo y cómo dejar de depender del servidor de 365
 
-Investigación hecha el 15 de septiembre de 2026. Estado: **todo resuelto en
-nuestro lado, nada tocado en el lado de EBS todavía**. Este documento es el plan
-para cuando se decida hacerlo.
+Investigación hecha el 15 de septiembre de 2026. Estado: **paso A hecho el
+mismo día** (el OSM de la central nos manda una copia de cada evento y Matarile
+está dado de alta); **paso B pendiente** (receptor propio en el VPS).
 
 ## 1. Cómo llega EBS hoy
 
@@ -63,6 +63,16 @@ la misma trama pegadas en una línea por eso.
 - Fuente en el diario: `surgard-tcp`.
 
 ## 5. Paso A (reversible): que el OSM actual nos mande una copia
+
+**Hecho el 15-sep-2026 a las 19:17 (hora del servidor).** Respaldo en
+`C:\EBS\OSM\config.xml.antes-monitoreo-20260915-191739`. El reinicio del
+servicio cortó 25 s. OSM conectó al instante ("Network connection to
+MONITOREO analyser successful"), entregó los 2 eventos que tenía en cola y
+manda latidos cada 10 s. La primera trama (`5011 187037E60201000`, prueba
+periódica) quedó adjudicada al equipo EBS de Matarile (panel 92), no al
+Hikvision 7037. Los tres analizadores de 365 siguieron activos. Matarile
+quedó cargado como cliente 92 / sitio 92 / panel 92 con sus 7 zonas y su
+contacto.
 
 En `C:\EBS\OSM\config.xml`, dentro de `<Analysers>`:
 
