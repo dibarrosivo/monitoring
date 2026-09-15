@@ -458,6 +458,10 @@ export interface MensajeTiempoReal {
     codigo?: string;
     categoria?: CategoriaEvento;
     numeroCuenta?: string | null;
+    /** Para decirlo en voz alta: zona física, su nombre y el sitio */
+    zona?: string | null;
+    zonaDescripcion?: string | null;
+    sitioNombre?: string | null;
   };
 }
 

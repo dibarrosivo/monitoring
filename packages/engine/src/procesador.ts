@@ -1,15 +1,17 @@
 import { and, eq, ne, or } from 'drizzle-orm';
 import {
+  alarma,
   CANAL_ALARMAS,
   CANAL_EVENTOS,
-  alarma,
   db,
   evento,
   horario,
   notificar,
   panel,
   senal,
+  sitio,
   usuarioPanel,
+  zona,
 } from '@monitoring/db';
 import { abreAlarma, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
 import { esAperturaFueraDeHorario } from './horarios.js';
@@ -66,6 +68,29 @@ export async function buscarPanelPorCuenta(numeroCuenta: string) {
 /** Actualiza la última señal de vida del panel (latidos NULL, pruebas, cualquier evento). */
 export async function registrarVida(panelId: number, fecha: Date): Promise<void> {
   await db.update(panel).set({ ultimaSenalEn: fecha }).where(eq(panel.id, panelId));
+}
+
+/** Nombre del sitio y descripción de la zona (si el evento es por zona), para el aviso hablado. */
+async function contextoParaAviso(
+  panelId: number,
+  sitioId: number | null,
+  normalizado: EventoNormalizado,
+): Promise<{ sitioNombre?: string | null; zonaDescripcion?: string | null }> {
+  const contexto: { sitioNombre?: string | null; zonaDescripcion?: string | null } = {};
+  if (sitioId) {
+    const [s] = await db.select({ nombre: sitio.nombre }).from(sitio).where(eq(sitio.id, sitioId)).limit(1);
+    contexto.sitioNombre = s?.nombre ?? null;
+  }
+  // En aperturas y cierres el campo zona es el usuario, no una zona física
+  if (normalizado.zona && !['apertura', 'cierre', 'cancelacion'].includes(normalizado.categoria)) {
+    const [z] = await db
+      .select({ descripcion: zona.descripcion })
+      .from(zona)
+      .where(and(eq(zona.panelId, panelId), eq(zona.numero, normalizado.zona)))
+      .limit(1);
+    contexto.zonaDescripcion = z?.descripcion ?? null;
+  }
+  return contexto;
 }
 
 export interface ResultadoEvento {
@@ -191,6 +216,13 @@ export async function procesarEvento(entrada: {
     });
   }
 
+  /*
+   * El aviso en tiempo real lleva lo que hace falta para DECIRLO, no solo para
+   * mostrarlo: la app del cliente lo lee en voz alta ("alarma en zona 3,
+   * cocina, en Panadería K3"). Nombrar la zona y el sitio evita que la app
+   * tenga que volver a preguntar antes de hablar.
+   */
+  const contexto = panelEncontrado ? await contextoParaAviso(panelEncontrado.id, panelEncontrado.sitioId, normalizado) : {};
   await notificar(CANAL_EVENTOS, {
     eventoId: filaEvento!.id,
     panelId: panelEncontrado?.id ?? null,
@@ -199,6 +231,8 @@ export async function procesarEvento(entrada: {
     descripcion,
     prioridad: normalizado.prioridad,
     numeroCuenta: normalizado.numeroCuenta,
+    zona: normalizado.zona || null,
+    ...contexto,
   });
 
   return { eventoId: filaEvento!.id, alarmaId, panelId: panelEncontrado?.id };

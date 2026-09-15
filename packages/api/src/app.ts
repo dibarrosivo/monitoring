@@ -3,6 +3,8 @@ import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import websocket from '@fastify/websocket';
 import type { WebSocket } from 'ws';
+import { crearSuscriptor, type Suscriptor } from './tiempoReal.js';
+import type { CargaJwt } from './tipos.js';
 import { pool } from '@monitoring/db';
 import { registrarAuth } from './modulos/auth.js';
 import { registrarClientes } from './modulos/clientes.js';
@@ -30,7 +32,7 @@ export interface OpcionesApp {
  */
 export async function crearApp(opciones: OpcionesApp = {}): Promise<{
   app: FastifyInstance;
-  conexiones: Set<WebSocket>;
+  conexiones: Map<WebSocket, Suscriptor>;
 }> {
   const app = Fastify({ logger: { level: opciones.nivelLog ?? process.env.NIVEL_LOG ?? 'info' } });
 
@@ -50,8 +52,11 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
     if (request.user.rol === 'cliente') return reply.code(403).send({ error: 'Solo personal de la central' });
   });
 
-  /** Tiempo real: puente entre NOTIFY de Postgres y los WebSockets de la consola. */
-  const conexiones = new Set<WebSocket>();
+  /**
+   * Tiempo real: puente entre NOTIFY de Postgres y los WebSockets. Cada
+   * conexión lleva su suscriptor, que dice qué puede ver (ver tiempoReal.ts).
+   */
+  const conexiones = new Map<WebSocket, Suscriptor>();
 
   // Todas las rutas viven bajo /api: simplifica el proxy de Vite en desarrollo
   // y el enrutamiento de Caddy en producción.
@@ -78,13 +83,19 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       await api.register(async (sub) => {
         sub.get('/ws', { websocket: true }, (socket, request) => {
           const { token } = request.query as { token?: string };
+          let usuario: CargaJwt;
           try {
-            app.jwt.verify(token ?? '');
+            usuario = app.jwt.verify<CargaJwt>(token ?? '');
           } catch {
             socket.close(4401, 'No autorizado');
             return;
           }
-          conexiones.add(socket);
+          // El alcance se calcula antes de aceptar mensajes: un cliente no
+          // debe ver ni un evento ajeno mientras se resuelve.
+          void crearSuscriptor(usuario).then((suscriptor) => {
+            if (socket.readyState !== socket.OPEN) return;
+            conexiones.set(socket, suscriptor);
+          });
           socket.on('close', () => conexiones.delete(socket));
         });
       });

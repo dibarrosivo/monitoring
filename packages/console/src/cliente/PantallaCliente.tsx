@@ -4,6 +4,7 @@ import { cerrarSesion, salirImpersonacion, verAlarmasCliente, verEventosCliente,
 import type { AlarmaCliente, PanelResumenCliente, Usuario } from '../tipos.js';
 import { ModalClave } from '../ModalClave.js';
 import { PanicoCliente } from './PanicoCliente.js';
+import { AvisosCliente, ControlesAviso, useAvisosCliente } from './Avisos.js';
 
 type Pestana = 'inicio' | 'eventos' | 'panico';
 
@@ -23,6 +24,9 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
   const [claveVisible, setClaveVisible] = useState(false);
   const { data: resumen } = useQuery({ queryKey: ['resumen-cli'], queryFn: verResumenCliente, refetchInterval: 30_000 });
   const { data: alarmas } = useQuery({ queryKey: ['alarmas-cli'], queryFn: verAlarmasCliente, refetchInterval: 20_000 });
+  // Con más de un sitio, los avisos nombran dónde pasó
+  const sitios = new Set((resumen?.paneles ?? []).map((p) => p.sitioId)).size;
+  const avisos = useAvisosCliente({ nombrarSitio: sitios > 1 });
 
   return (
     <div className="min-h-screen bg-fondo flex flex-col">
@@ -56,6 +60,17 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
           ))}
         </nav>
         <span className="text-tenue text-sm truncate ml-auto">{usuario.nombre}</span>
+        <ControlesAviso
+          voz={avisos.voz}
+          alternarVoz={avisos.alternarVoz}
+          notificaciones={avisos.notificaciones}
+          pedirNotificaciones={avisos.pedirNotificaciones}
+        />
+        <span
+          className={`led ${avisos.enlace === 'conectado' ? 'led-verde' : 'led-rojo'}`}
+          title={avisos.enlace === 'conectado' ? 'En línea con la central' : 'Sin enlace en tiempo real'}
+          aria-hidden
+        />
         {!impersonado && (
           <>
             <button onClick={() => setClaveVisible(true)} className="hidden md:block text-tenue hover:text-texto text-sm">
@@ -101,6 +116,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
         ))}
       </nav>
 
+      <AvisosCliente avisos={avisos.avisos} alDescartar={avisos.descartar} />
       {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
     </div>
   );

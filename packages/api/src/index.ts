@@ -1,5 +1,6 @@
 import { CANAL_ALARMAS, CANAL_EVENTOS, escucharCanal, pool } from '@monitoring/db';
 import { crearApp } from './app.js';
+import { debeRecibir, refrescarAlcance } from './tiempoReal.js';
 
 try {
   process.loadEnvFile();
@@ -10,9 +11,13 @@ try {
 const { app, conexiones } = await crearApp();
 
 const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (canal, carga) => {
-  const mensaje = JSON.stringify({ canal, carga: carga ? JSON.parse(carga) : null });
-  for (const socket of conexiones) {
-    if (socket.readyState === socket.OPEN) socket.send(mensaje);
+  const datos = carga ? (JSON.parse(carga) as { panelId?: number | null }) : null;
+  const mensaje = JSON.stringify({ canal, carga: datos });
+  for (const [socket, suscriptor] of conexiones) {
+    if (socket.readyState !== socket.OPEN) continue;
+    void refrescarAlcance(suscriptor).then(() => {
+      if (socket.readyState === socket.OPEN && debeRecibir(suscriptor, datos)) socket.send(mensaje);
+    });
   }
 });
 
