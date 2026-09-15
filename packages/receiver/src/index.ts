@@ -5,6 +5,7 @@ import { iniciarVigilante } from '@monitoring/engine';
 import { iniciarDc09Tcp } from './dc09Tcp.js';
 import { iniciarDc09Udp } from './dc09Udp.js';
 import { iniciarPimaTcp } from './pimaTcp.js';
+import { iniciarSurgardTcp } from './surgardTcp.js';
 
 try {
   process.loadEnvFile();
@@ -37,6 +38,11 @@ const servidorUdp = iniciarDc09Udp(puertoUdp, log, claveAes);
 // que nadie va a usar en instalaciones sin receptor serie.
 const puertoPima = (process.env.PUERTO_PIMA_TCP ?? '').trim();
 const servidorPima = puertoPima ? iniciarPimaTcp(puertoPima, log) : null;
+
+// Escucha Sur-Gard MLR2 por TCP con ACK: receptores por IP como el EBS OSM.
+// Vacío = deshabilitado.
+const puertoSurgard = (process.env.PUERTO_SURGARD_TCP ?? '').trim();
+const servidorSurgard = puertoSurgard ? iniciarSurgardTcp(puertoSurgard, log) : null;
 const detenerVigilante = iniciarVigilante({
   alError: (err) => log.error({ err }, 'Error del vigilante de paneles'),
 });
@@ -58,6 +64,7 @@ async function apagar(senalSo: string) {
   detenerDepuracion();
   servidorTcp.close();
   servidorPima?.close();
+  servidorSurgard?.close();
   servidorUdp.close();
   await pool.end();
   process.exit(0);

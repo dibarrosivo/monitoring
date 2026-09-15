@@ -1,4 +1,4 @@
-export type FuenteSenal = 'dc09-tcp' | 'dc09-udp' | 'pima-bridge' | 'simulador';
+export type FuenteSenal = 'dc09-tcp' | 'dc09-udp' | 'pima-bridge' | 'surgard-tcp' | 'simulador';
 
 export type CategoriaEvento =
   | 'alarma'

@@ -67,6 +67,8 @@ services:
       - '9999:9999/udp'
       # Escucha del receptor PIMA: el programa de la central entrega por TCP crudo
       - '10050:10050/tcp'
+      # Escucha Sur-Gard MLR2 con ACK: el receptor EBS OSM entrega acá
+      - '10060:10060/tcp'
     depends_on:
       migraciones:
         condition: service_completed_successfully
