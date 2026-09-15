@@ -8,6 +8,7 @@ import { Cola, type FiltroCola } from './vistas/Cola.js';
 import { Tablero } from './vistas/Tablero.js';
 import { Eventos } from './vistas/Eventos.js';
 import { Paneles } from './vistas/Paneles.js';
+import { Puentes } from './vistas/Puentes.js';
 import { Clientes } from './vistas/Clientes.js';
 import { Usuarios } from './vistas/Usuarios.js';
 import { Reportes } from './vistas/Reportes.js';
@@ -17,13 +18,14 @@ import { HombreMuerto } from './HombreMuerto.js';
 import { usePantallaChica } from './pantalla.js';
 import { Buscador } from './Buscador.js';
 
-type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'clientes' | 'reportes' | 'usuarios';
+type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'usuarios';
 
 const VISTAS: { clave: Vista; nombre: string; soloAdmin?: boolean }[] = [
   { clave: 'tablero', nombre: 'Dashboard', soloAdmin: true },
   { clave: 'cola', nombre: 'Central de monitoreo' },
   { clave: 'eventos', nombre: 'Señales' },
   { clave: 'paneles', nombre: 'Dispositivos' },
+  { clave: 'puentes', nombre: 'Puentes' },
   { clave: 'clientes', nombre: 'Clientes' },
   { clave: 'reportes', nombre: 'Reportes' },
   { clave: 'usuarios', nombre: 'Usuarios', soloAdmin: true },
@@ -190,6 +192,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'cola' && <ColaMovil />}
           {vista === 'eventos' && <Eventos solapaInicial={solapaEventos} />}
           {vista === 'paneles' && <Paneles alIrACliente={irACliente} dispositivoInicial={dispositivoObjetivo} />}
+          {vista === 'puentes' && <Puentes />}
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
@@ -293,6 +296,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'cola' && <Cola alarmaReciente={alarmaReciente} filtro={filtroCola} />}
           {vista === 'eventos' && <Eventos solapaInicial={solapaEventos} />}
           {vista === 'paneles' && <Paneles alIrACliente={irACliente} dispositivoInicial={dispositivoObjetivo} />}
+          {vista === 'puentes' && <Puentes />}
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}

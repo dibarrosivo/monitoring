@@ -21,6 +21,7 @@ import type {
   Feriado,
   Horario,
   Puente,
+  DiarioPuente,
   RegistroAuditoria,
   Reporte,
   ResultadoBusqueda,
@@ -185,6 +186,7 @@ export const registrarPago = (panelId: number) =>
 export const listarPuentes = () => pedir<Puente[]>('/bridges');
 export const editarPuente = (id: number, datos: { descripcion?: string; supervisado?: boolean; intervaloLatidoSeg?: number; activo?: boolean }) =>
   editar<Puente>(`/bridges/${id}`, datos);
+export const diarioPuente = (id: number, limite = 150) => pedir<DiarioPuente>(`/bridges/${id}/diario?limite=${limite}`);
 
 export const listarCatalogo = (tipo: string) =>
   pedir<EntradaCatalogo[]>(`/catalogos?tipo=${encodeURIComponent(tipo)}`);

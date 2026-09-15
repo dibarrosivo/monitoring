@@ -111,6 +111,12 @@ for (const objetivo of objetivos) {
 
   copyFileSync(join(raiz, '.env.ejemplo'), join(carpeta, '.env.ejemplo'));
   copyFileSync(join(raiz, 'LEEME.txt'), join(carpeta, 'LEEME.txt'));
+  // El monitor de ventana: muestra en vivo lo que entra y lo que sale (solo Windows)
+  if (objetivo === 'win') {
+    for (const archivo of ['monitor.ps1', 'monitor.cmd']) {
+      copyFileSync(join(raiz, 'empaquetado', archivo), join(carpeta, archivo));
+    }
+  }
 
   const mb = (statSync(ejecutable).size / 1024 / 1024).toFixed(1);
   console.log(`✓ dist/${objetivo}/${plataforma.archivo} — ${mb} MB`);

@@ -177,6 +177,26 @@ export interface Puente {
   silencioso: boolean;
 }
 
+/** Una línea del diario de un puente: la trama cruda y, si se entendió, su evento. */
+export interface LineaDiarioPuente {
+  id: number;
+  recibidaEn: string;
+  cruda: string;
+  estadoParse: string;
+  detalleError: string | null;
+  panelId: number | null;
+  codigo: string | null;
+  descripcion: string | null;
+  categoria: CategoriaEvento | null;
+  numeroCuenta: string | null;
+  prioridad: number | null;
+}
+
+export interface DiarioPuente {
+  resumen: { ultimas24h: number; sinInterpretar24h: number; ultimaTramaEn: string | null };
+  senales: LineaDiarioPuente[];
+}
+
 export interface Feriado {
   id: number;
   fecha: string;

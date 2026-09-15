@@ -25,6 +25,13 @@ Instalacion
 
 NO hace falta instalar Node ni nada mas: el ejecutable lo trae adentro.
 
+Ver que esta pasando (monitor)
+------------------------------
+Doble clic en monitor.cmd abre una ventana que muestra en vivo cada trama que
+entra por el receptor y cada lote que sale al servidor, con hora, como en el
+software viejo. Sirve tanto si el puente corre como servicio como si corre
+con doble clic. Cerrar la ventana no afecta al puente.
+
 Que puerto COM es
 -----------------
 El programa lo dice solo. Abrir una ventana de comandos en esta carpeta y

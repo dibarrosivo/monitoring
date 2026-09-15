@@ -76,7 +76,8 @@ async function arrancar(): Promise<void> {
   function alRecibirLinea(linea: string): void {
     cola.agregar({ cruda: linea, leidaEn: new Date().toISOString() });
     if (config.responderAck) fuente.responder(ACK);
-    registrar('debug', 'Trama recibida', { cruda: linea });
+    // A nivel info a propósito: es la línea que el monitor de la PC muestra en vivo
+    registrar('info', 'Trama recibida', { cruda: linea, pendientes: cola.cantidad });
     enviador.despertar();
   }
 

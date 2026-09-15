@@ -1,6 +1,6 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, max, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { bridge, db } from '@monitoring/db';
+import { bridge, db, evento, senal } from '@monitoring/db';
 import { parsearLineaPima, parsearLineaSurgard } from '@monitoring/protocols';
 import { interpretarCid, interpretarPima } from '@monitoring/shared';
 import { buscarPanelPorCuenta, procesarEvento, registrarSenal, registrarVida } from '@monitoring/engine';
@@ -244,6 +244,60 @@ export function registrarBridgesConsulta(app: App) {
       .from(bridge)
       .orderBy(bridge.nombre),
   );
+
+  /**
+   * Diario de un puente: lo que entró por él, con su traducción al lado.
+   * Es la "ventana" del puente vista desde la consola: cada trama cruda, si se
+   * entendió, y qué evento produjo. Sirve para ver que el receptor está vivo y
+   * que lo que llega se interpreta, sin tener que sentarse frente a esa PC.
+   */
+  app.get('/bridges/:id/diario', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const { limite } = request.query as { limite?: string };
+    const max_ = Math.min(Number(limite ?? 150), 500);
+    const [puente] = await db.select({ nombre: bridge.nombre }).from(bridge).where(eq(bridge.id, id)).limit(1);
+    if (!puente) return reply.code(404).send({ error: 'Puente no encontrado' });
+
+    const propias = and(eq(senal.fuente, 'pima-bridge'), eq(senal.remoto, puente.nombre));
+    const [senales, [ultimas24h], [total]] = await Promise.all([
+      db
+        .select({
+          id: senal.id,
+          recibidaEn: senal.recibidaEn,
+          cruda: senal.cruda,
+          estadoParse: senal.estadoParse,
+          detalleError: senal.detalleError,
+          panelId: senal.panelId,
+          codigo: evento.codigo,
+          descripcion: evento.descripcion,
+          categoria: evento.categoria,
+          numeroCuenta: evento.numeroCuenta,
+          prioridad: evento.prioridad,
+        })
+        .from(senal)
+        .leftJoin(evento, eq(evento.senalId, senal.id))
+        .where(propias)
+        .orderBy(desc(senal.recibidaEn), desc(senal.id))
+        .limit(max_),
+      db
+        .select({
+          tramas: count(),
+          sinInterpretar: sql<number>`count(*) filter (where ${senal.estadoParse} <> 'ok')`.mapWith(Number),
+        })
+        .from(senal)
+        .where(and(propias, gte(senal.recibidaEn, sql`now() - interval '24 hours'`))),
+      db.select({ ultimaTramaEn: max(senal.recibidaEn) }).from(senal).where(propias),
+    ]);
+
+    return {
+      resumen: {
+        ultimas24h: ultimas24h?.tramas ?? 0,
+        sinInterpretar24h: ultimas24h?.sinInterpretar ?? 0,
+        ultimaTramaEn: total?.ultimaTramaEn ?? null,
+      },
+      senales,
+    };
+  });
 
   app.put('/bridges/:id', async (request, reply) => {
     const id = Number((request.params as { id: string }).id);

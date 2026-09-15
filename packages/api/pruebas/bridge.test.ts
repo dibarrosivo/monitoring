@@ -214,3 +214,23 @@ describe('tap pasivo: tramas binarias y metadatos', () => {
     expect(res.estado).toBe(400);
   });
 });
+
+describe('diario del puente', () => {
+  it('muestra cada trama con su traducción al lado, la más nueva primero', async () => {
+    await enviarTramas([lineaCid('7002', 1, '602', '000'), '%%% basura del puerto serie %%%']);
+    const puentes = await ctx.pedir('GET', '/bridges', { token: tokenAdmin });
+    const { estado, cuerpo } = await ctx.pedir('GET', `/bridges/${puentes.cuerpo[0].id}/diario`, { token: tokenAdmin });
+    expect(estado).toBe(200);
+    expect(cuerpo.senales).toHaveLength(2);
+    // La ilegible entró última, así que va primera; queda sin traducción
+    expect(cuerpo.senales[0]).toMatchObject({ estadoParse: 'error', codigo: null });
+    expect(cuerpo.senales[1]).toMatchObject({ estadoParse: 'ok', codigo: 'E602', numeroCuenta: '7002' });
+    expect(cuerpo.resumen).toMatchObject({ ultimas24h: 2, sinInterpretar24h: 1 });
+    expect(cuerpo.resumen.ultimaTramaEn).toBeTruthy();
+  });
+
+  it('un puente inexistente da 404', async () => {
+    const { estado } = await ctx.pedir('GET', '/bridges/9999/diario', { token: tokenAdmin });
+    expect(estado).toBe(404);
+  });
+});
