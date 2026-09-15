@@ -91,6 +91,27 @@ services:
     depends_on:
       - api
 
+  # Receptor EBS propio: OSM.Server, el programa de Windows de EBS, bajo Wine.
+  # Los transmisores EBS (LX) solo saben hablar con este programa, así que para
+  # dejar de depender del servidor de la central hay que correrlo acá. Los
+  # binarios son propietarios y no van en git: viven en ./osm en el servidor.
+  # Se activa con COMPOSE_PROFILES=ebs en .env. Ver packages/receiver/EBS-OSM.md.
+  osm:
+    image: scottyhardy/docker-wine:stable
+    profiles: ['ebs']
+    restart: unless-stopped
+    user: root
+    entrypoint: ['bash', '/osm/arrancar.sh']
+    volumes:
+      - ./osm:/osm
+    ports:
+      # Transmisores LX: entran desde la red móvil, así que público
+      - '5200:5200/tcp'
+      # Consola de administración (OSM Tools): solo local, se usa por túnel SSH
+      - '127.0.0.1:9000:9000/tcp'
+    depends_on:
+      - receptor
+
 volumes:
   datos-postgres:
   datos-caddy:

@@ -155,7 +155,23 @@ puerto 9999. Un solo cliente, una visita técnica, y EBS desaparece.
 > anual gratuita? Si solo existe para Windows, ¿está soportado bajo Wine?
 > Gracias.
 
-## 8. Prueba de Wine: funciona
+## 8. OSM propio en el VPS (paso B, parte 1): en marcha
+
+Servicio `osm` en `docker-compose.produccion.yml`, perfil `ebs`
+(`COMPOSE_PROFILES=ebs` en el `.env` del VPS). Carpeta `/opt/monitoring/osm`
+con los binarios copiados de la central, `arrancar.sh` y un `config.xml` con un
+solo analizador: `MONITOREO` → `receptor:10060` (red interna de Docker). Puerto
+5200 publicado para los LX; 9000 solo en `127.0.0.1`, para OSM Tools por túnel
+SSH: `ssh -L 9000:127.0.0.1:9000 monitoreo-vps` y en OSM Tools registrar el
+servidor `127.0.0.1:9000`.
+
+Pendiente para el corte del transmisor: 365 no acepta conexiones desde el VPS
+al puerto 8000 (firewall de Windows). Para que 365 siga recibiendo a Matarile
+después del corte hay que abrir ese puerto en el servidor de la central solo
+para 37.60.234.77 y agregar en nuestro `config.xml` un analizador CID
+`365CID` → `156.67.31.152:8000` con su `AnalyserRef`.
+
+## 9. Prueba de Wine: funciona
 
 Hecha el 15 de septiembre de 2026 en un contenedor local, con una copia de
 `C:\EBS\OSM` (sin logs ni búfer), imagen `scottyhardy/docker-wine:stable`,

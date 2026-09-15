@@ -9,3 +9,5 @@ coverage/
 cola-pendiente.jsonl
 packages/pima-bridge/logs/
 packages/pima-bridge/empaquetado/.cache/
+# Binarios propietarios de EBS OSM.Server (solo en el servidor)
+osm/
