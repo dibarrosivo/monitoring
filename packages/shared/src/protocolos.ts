@@ -82,6 +82,11 @@ export const CATALOGO_PROTOCOLOS: Record<string, Protocolo> = {
   '401': { pasos: ['Verificar que el horario sea el habitual del sitio'], autoAbre: false },
   '602': { pasos: [], autoAbre: false },
 
+  // ── Avisos del receptor PIMA que no ameritan operador (ver pima.ts) ───
+  'PIMA-SW': { pasos: [], autoAbre: false },
+  'PIMA-RQ': { pasos: [], autoAbre: false },
+  'PIMA-TG': { pasos: [], autoAbre: false },
+
   // ── Eventos que genera la central ─────────────────────────────────────
   'HOR-AT': { pasos: ['El sitio no abrió a la hora prevista', LLAMAR, CONTACTOS] },
   'HOR-SC': { pasos: ['El sitio no cerró a la hora prevista', LLAMAR, CONTACTOS, 'Verificar si quedó gente adentro'] },
