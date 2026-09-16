@@ -12,4 +12,4 @@ packages/pima-bridge/empaquetado/.cache/
 # Binarios propietarios de EBS OSM.Server (solo en el servidor)
 osm/
 # APK publicado de la app Android (solo en el servidor)
-app/
+/app/
