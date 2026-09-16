@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { anotarAlarma, cerrarAlarma, listarAlarmas, tomarAlarma, verContexto } from '../api.js';
+import { anotarAlarma, devolverAlarma, listarAcciones, listarAlarmas, tomarAlarma, verContexto } from '../api.js';
 import type { Alarma } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { clasesPrioridad } from '../ui.js';
+import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
 
@@ -62,7 +63,9 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
             </span>
           )}
           <span className={alarma.estado === 'nueva' ? prio.texto : 'text-acento'}>
-            {alarma.estado === 'nueva' ? `SIN ATENDER · ${transcurrido(alarma.creadoEn)}` : 'EN ATENCIÓN'}
+            {alarma.estado === 'nueva'
+              ? `SIN ATENDER · ${transcurrido(alarma.creadoEn)}`
+              : `EN ATENCIÓN${alarma.operadorNombre ? ` · ${alarma.operadorNombre}` : ''}`}
           </span>
         </span>
       </button>
@@ -74,13 +77,22 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
 function DetalleMovil({ alarma }: { alarma: Alarma }) {
   const clienteConsultas = useQueryClient();
   const { data: contexto } = useQuery({ queryKey: ['contexto', alarma.id], queryFn: () => verContexto(alarma.id) });
+  const { data: acciones } = useQuery({ queryKey: ['acciones', alarma.id], queryFn: () => listarAcciones(alarma.id) });
   const [nota, setNota] = useState('');
-  const [resolucion, setResolucion] = useState('');
 
-  const refrescar = () => void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
-  const tomar = useMutation({ mutationFn: () => tomarAlarma(alarma.id), onSuccess: refrescar });
-  const anotar = useMutation({ mutationFn: () => anotarAlarma(alarma.id, nota), onSuccess: () => setNota('') });
-  const cerrar = useMutation({ mutationFn: () => cerrarAlarma(alarma.id, resolucion), onSuccess: refrescar });
+  function refrescar() {
+    void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
+    void clienteConsultas.invalidateQueries({ queryKey: ['acciones', alarma.id] });
+  }
+  const tomar = useMutation({ mutationFn: () => tomarAlarma(alarma.id), onSuccess: refrescar, onError: refrescar });
+  const devolver = useMutation({ mutationFn: () => devolverAlarma(alarma.id), onSuccess: refrescar });
+  const anotar = useMutation({
+    mutationFn: () => anotarAlarma(alarma.id, nota),
+    onSuccess: () => {
+      setNota('');
+      refrescar();
+    },
+  });
 
   return (
     <div className="border-t border-borde p-3 flex flex-col gap-3 text-sm">
@@ -100,16 +112,12 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
             {contexto.sitio?.nombre}
             {contexto.sitio?.direccion && ` · ${contexto.sitio.direccion}`}
           </p>
-          {contexto.contactos.map((c) => (
-            <p key={c.id}>
-              <span className="font-datos text-tenue">{c.orden}.</span> {c.nombre}{' '}
-              <a href={`tel:${c.telefono}`} className="font-datos text-acento underline underline-offset-2">
-                {c.telefono}
-              </a>
-              {c.palabraClave && <span className="text-tenue"> · clave: {c.palabraClave}</span>}
-              {c.autorizadoCancelar && <span className="text-ok text-xs font-semibold"> · puede cancelar</span>}
+          {contexto.zonaDescripcion && (
+            <p>
+              <span className="text-tenue">Zona {alarma.evento.zona}:</span> <span className="font-semibold">{contexto.zonaDescripcion}</span>
             </p>
-          ))}
+          )}
+          <ListaLlamadas alarma={alarma} contactos={contexto.contactos} compacta />
         </div>
       ) : (
         <p className="text-prio2">Cuenta sin cliente asociado.</p>
@@ -124,12 +132,22 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
           Tomar alarma
         </button>
       )}
+      {tomar.isError && <p className="text-prio2 text-xs">{(tomar.error as Error).message}</p>}
+      {alarma.estado === 'en_atencion' && (
+        <button
+          onClick={() => devolver.mutate()}
+          disabled={devolver.isPending}
+          className="text-tenue text-xs underline underline-offset-2 self-start disabled:opacity-50"
+        >
+          Devolver a la cola
+        </button>
+      )}
 
       <div className="flex gap-2">
         <input
           value={nota}
           onChange={(e) => setNota(e.target.value)}
-          placeholder="Nota (llamada, verificación…)"
+          placeholder="Nota (verificación, observación…)"
           className="flex-1 min-w-0 bg-fondo border border-borde rounded px-3 py-2"
         />
         <button
@@ -141,21 +159,15 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
         </button>
       </div>
 
-      <div className="flex gap-2">
-        <input
-          value={resolucion}
-          onChange={(e) => setResolucion(e.target.value)}
-          placeholder="Resolución para cerrar"
-          className="flex-1 min-w-0 bg-fondo border border-borde rounded px-3 py-2"
-        />
-        <button
-          onClick={() => cerrar.mutate()}
-          disabled={!resolucion.trim() || cerrar.isPending}
-          className="bg-prio1/15 border border-prio1 text-prio1 rounded px-3 font-semibold disabled:opacity-40"
-        >
-          Cerrar
-        </button>
-      </div>
+      <details className="text-sm">
+        <summary className="text-tenue text-xs uppercase tracking-wider cursor-pointer">Historial</summary>
+        <div className="mt-2">
+          <Bitacora acciones={acciones} />
+        </div>
+      </details>
+
+      <p className="text-tenue text-xs uppercase tracking-wider">Cierre</p>
+      <FormularioCierre alarma={alarma} compacto />
     </div>
   );
 }

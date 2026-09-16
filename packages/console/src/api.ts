@@ -1,3 +1,4 @@
+import type { ResultadoLlamada } from './cierres.js';
 import type {
   Acceso,
   AccionAlarma,
@@ -134,8 +135,14 @@ export const verContexto = (alarmaId: number) => pedir<ContextoAlarma>(`/alarmas
 export const tomarAlarma = (id: number) => pedir<Alarma>(`/alarmas/${id}/tomar`, { method: 'POST' });
 export const anotarAlarma = (id: number, detalle: string) =>
   pedir<AccionAlarma>(`/alarmas/${id}/notas`, { method: 'POST', body: JSON.stringify({ detalle }) });
-export const cerrarAlarma = (id: number, resolucion: string, desenlace: DesenlaceAlarma = 'resuelta') =>
-  pedir<Alarma>(`/alarmas/${id}/cerrar`, { method: 'POST', body: JSON.stringify({ resolucion, desenlace }) });
+export const cerrarAlarma = (id: number, cierre: { desenlace: DesenlaceAlarma; motivo?: string; resolucion?: string }) =>
+  pedir<Alarma>(`/alarmas/${id}/cerrar`, { method: 'POST', body: JSON.stringify(cierre) });
+export const devolverAlarma = (id: number, motivo?: string) =>
+  pedir<Alarma>(`/alarmas/${id}/devolver`, { method: 'POST', body: JSON.stringify({ motivo }) });
+export const registrarLlamada = (
+  id: number,
+  llamada: { contactoId?: number; nombre: string; telefono: string; resultado: ResultadoLlamada },
+) => pedir<AccionAlarma>(`/alarmas/${id}/llamada`, { method: 'POST', body: JSON.stringify(llamada) });
 export const marcarPaso = (id: number, paso: string) =>
   pedir<{ ok: true }>(`/alarmas/${id}/paso`, { method: 'POST', body: JSON.stringify({ paso }) });
 

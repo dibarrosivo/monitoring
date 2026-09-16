@@ -104,7 +104,11 @@ export interface Alarma {
   creadoEn: string;
   tomadaEn: string | null;
   cerradaEn: string | null;
+  desenlace: DesenlaceAlarma | null;
+  motivo: string | null;
   resolucion: string | null;
+  /** Quién la tiene o la cerró */
+  operadorNombre: string | null;
   panelId: number | null;
   zonaDescripcion: string | null;
   clienteNombre: string | null;
@@ -113,11 +117,14 @@ export interface Alarma {
   };
 }
 
+export type TipoAccionAlarma = 'toma' | 'nota' | 'cierre' | 'sistema' | 'paso' | 'llamada';
+
 export interface AccionAlarma {
   id: number;
   alarmaId: number;
   operadorId: number | null;
-  tipo: 'toma' | 'nota' | 'cierre' | 'sistema';
+  operadorNombre: string | null;
+  tipo: TipoAccionAlarma;
   detalle: string | null;
   creadoEn: string;
 }

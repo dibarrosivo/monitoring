@@ -109,6 +109,21 @@ export function Consola({ usuario }: { usuario: Usuario }) {
   // El contador de la franja superior sale de la misma consulta que usa la cola.
   const { data: alarmas } = useQuery({ queryKey: ['alarmas'], queryFn: () => listarAlarmas(), refetchInterval: 15_000 });
 
+  /*
+   * Aviso insistente: mientras haya alarmas sin tomar, el sonido se repite.
+   * Un solo bip al llegar no alcanza si el operador estaba de espaldas; en una
+   * central el ruido para cuando alguien toma la alarma, no antes. Cada 12 s,
+   * con el tono de la más urgente que esté esperando.
+   */
+  useEffect(() => {
+    if (!sonido) return;
+    const sinTomar = (alarmas ?? []).filter((a) => a.estado === 'nueva');
+    if (sinTomar.length === 0) return;
+    const urgencia = Math.min(...sinTomar.map((a) => a.prioridad));
+    const temporizador = setInterval(() => sonarAlarma(urgencia), 12_000);
+    return () => clearInterval(temporizador);
+  }, [sonido, alarmas]);
+
   // Semilla del ticker: la última señal registrada, hasta que llegue una en vivo.
   const { data: ultimoEvento } = useQuery({
     queryKey: ['ultimo-evento'],

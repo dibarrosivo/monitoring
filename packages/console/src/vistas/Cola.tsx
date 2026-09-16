@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  anotarAlarma,
-  cerrarAlarma,
-  marcarPaso,
-  listarAcciones,
-  listarAlarmas,
-  tomarAlarma,
-  verContexto,
-} from '../api.js';
-import type { Alarma, DesenlaceAlarma } from '../tipos.js';
+import { anotarAlarma, devolverAlarma, marcarPaso, listarAcciones, listarAlarmas, tomarAlarma, verContexto } from '../api.js';
+import type { Alarma } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
 import { clasesPrioridad } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
+import { ETIQUETA_DESENLACE } from '../cierres.js';
+import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
 const NOMBRE_ESTADO = { nueva: 'NUEVA', en_atencion: 'EN ATENCIÓN', cerrada: 'CERRADA' } as const;
@@ -23,6 +17,19 @@ const NOMBRE_ESTADO = { nueva: 'NUEVA', en_atencion: 'EN ATENCIÓN', cerrada: 'C
  * El operador nunca navega a otra pantalla para procesar una alarma.
  */
 export type FiltroCola = 'abiertas' | 'nueva' | 'en_atencion' | 'cerrada';
+
+/** Tiempos de una alarma: cuánto esperó hasta tomarse y cuánto llevó atenderla. */
+function tiempos(alarma: Alarma, ahora: number): { espera: number; atencion: number | null; tomada: boolean; cerrada: boolean } {
+  const msCreada = new Date(alarma.creadoEn).getTime();
+  const msTomada = alarma.tomadaEn ? new Date(alarma.tomadaEn).getTime() : null;
+  const msCerrada = alarma.cerradaEn ? new Date(alarma.cerradaEn).getTime() : null;
+  return {
+    espera: (msTomada ?? msCerrada ?? ahora) - msCreada,
+    atencion: msTomada === null ? null : (msCerrada ?? ahora) - msTomada,
+    tomada: msTomada !== null,
+    cerrada: msCerrada !== null,
+  };
+}
 
 export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: number | null; filtro?: FiltroCola }) {
   // Las cerradas son otra consulta; nueva/en atención se filtran sobre las abiertas
@@ -69,9 +76,21 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
               <th className="px-3 py-2 font-medium">Descripción</th>
               <th className="px-3 py-2 font-medium">Cuenta</th>
               <th className="px-3 py-2 font-medium">Usuario / Zona</th>
-              <th className="px-3 py-2 font-medium">Estado</th>
-              <th className="px-3 py-2 font-medium text-right">Espera</th>
-              <th className="px-3 py-2" aria-label="Acciones" />
+              {cerradas ? (
+                <>
+                  <th className="px-3 py-2 font-medium">Desenlace</th>
+                  <th className="px-3 py-2 font-medium">Operador</th>
+                  <th className="px-3 py-2 font-medium text-right">Reacción</th>
+                  <th className="px-3 py-2 font-medium text-right">Atención</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-3 py-2 font-medium">Estado</th>
+                  <th className="px-3 py-2 font-medium">Operador</th>
+                  <th className="px-3 py-2 font-medium text-right">Espera</th>
+                  <th className="px-3 py-2" aria-label="Acciones" />
+                </>
+              )}
             </tr>
           </thead>
           <tbody className="font-datos">
@@ -80,14 +99,16 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
                 key={alarma.id}
                 alarma={alarma}
                 ahora={ahora}
+                cerradas={cerradas}
                 reciente={alarma.id === alarmaReciente}
                 seleccionada={alarma.id === seleccionada}
                 alSeleccionar={() => setSeleccionada(alarma.id === seleccionada ? null : alarma.id)}
+                alTomar={() => setSeleccionada(alarma.id)}
               />
             ))}
             {ordenadas.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-tenue font-ui">
+                <td colSpan={10} className="px-4 py-10 text-center text-tenue font-ui">
                   {cerradas
                     ? 'Sin alarmas cerradas todavía.'
                     : 'Sin alarmas en este estado. El receptor sigue escuchando; las nuevas aparecen aquí al instante.'}
@@ -106,22 +127,32 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
 function FilaAlarma({
   alarma,
   ahora,
+  cerradas,
   reciente,
   seleccionada,
   alSeleccionar,
+  alTomar,
 }: {
   alarma: Alarma;
   ahora: number;
+  cerradas: boolean;
   reciente: boolean;
   seleccionada: boolean;
   alSeleccionar: () => void;
+  alTomar: () => void;
 }) {
   const clienteConsultas = useQueryClient();
   const prio = clasesPrioridad(alarma.prioridad);
   const tomar = useMutation({
     mutationFn: () => tomarAlarma(alarma.id),
-    onSuccess: () => clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] }),
+    onSuccess: () => {
+      void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
+      // Tomarla es empezar a trabajarla: se abre el detalle sin un segundo clic
+      alTomar();
+    },
+    onError: () => void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] }),
   });
+  const t = tiempos(alarma, ahora);
 
   // Como en toda central: la fila entera de una alarma real sin atender se pinta.
   const fondoFila =
@@ -150,26 +181,44 @@ function FilaAlarma({
         {alarma.evento.zona ?? '—'}
         {alarma.zonaDescripcion && <span className="font-ui text-texto"> - {alarma.zonaDescripcion}</span>}
       </td>
-      <td className={`px-3 py-1.5 text-xs ${alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
-        {NOMBRE_ESTADO[alarma.estado]}
-      </td>
-      <td className={`px-3 py-1.5 text-right whitespace-nowrap ${alarma.estado === 'nueva' ? prio.texto : 'text-tenue'}`}>
-        {transcurrido(alarma.creadoEn, ahora)}
-      </td>
-      <td className="px-3 py-1.5 text-right">
-        {alarma.estado === 'nueva' && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              tomar.mutate();
-            }}
-            disabled={tomar.isPending}
-            className="bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-2.5 py-0.5 text-xs font-ui font-semibold disabled:opacity-50"
-          >
-            Tomar
-          </button>
-        )}
-      </td>
+      {cerradas ? (
+        <>
+          <td className="px-3 py-1.5 font-ui text-xs">
+            <span className={alarma.desenlace === 'falsa_alarma' ? 'text-prio2' : alarma.desenlace === 'escalada' ? 'text-prio3' : 'text-ok'}>
+              {alarma.desenlace ? ETIQUETA_DESENLACE[alarma.desenlace] : '—'}
+            </span>
+            {alarma.resolucion && <span className="text-tenue"> · {alarma.resolucion}</span>}
+          </td>
+          <td className="px-3 py-1.5 font-ui text-tenue whitespace-nowrap">{alarma.operadorNombre ?? '—'}</td>
+          <td className="px-3 py-1.5 text-right text-tenue whitespace-nowrap">{duracionCorta(t.espera)}</td>
+          <td className="px-3 py-1.5 text-right text-tenue whitespace-nowrap">{t.atencion === null ? '—' : duracionCorta(t.atencion)}</td>
+        </>
+      ) : (
+        <>
+          <td className={`px-3 py-1.5 text-xs ${alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
+            {NOMBRE_ESTADO[alarma.estado]}
+          </td>
+          <td className="px-3 py-1.5 font-ui text-tenue whitespace-nowrap">{alarma.operadorNombre ?? ''}</td>
+          <td className={`px-3 py-1.5 text-right whitespace-nowrap ${alarma.estado === 'nueva' ? prio.texto : 'text-tenue'}`}>
+            {alarma.estado === 'nueva' ? transcurrido(alarma.creadoEn, ahora) : t.atencion !== null ? duracionCorta(t.atencion) : ''}
+          </td>
+          <td className="px-3 py-1.5 text-right whitespace-nowrap">
+            {alarma.estado === 'nueva' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  tomar.mutate();
+                }}
+                disabled={tomar.isPending}
+                className="bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-2.5 py-0.5 text-xs font-ui font-semibold disabled:opacity-50"
+              >
+                Tomar
+              </button>
+            )}
+            {tomar.isError && <span className="ml-2 text-prio2 text-xs font-ui">{(tomar.error as Error).message}</span>}
+          </td>
+        </>
+      )}
     </tr>
   );
 }
@@ -185,8 +234,6 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
     queryFn: () => verContexto(alarma.id),
   });
   const [nota, setNota] = useState('');
-  const [resolucion, setResolucion] = useState('');
-  const [desenlace, setDesenlace] = useState<DesenlaceAlarma>('resuelta');
   const [senalVisible, setSenalVisible] = useState(false);
 
   // Reloj propio para que los tiempos de la cabecera corran a la vista
@@ -201,7 +248,8 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
     void clienteConsultas.invalidateQueries({ queryKey: ['acciones', alarma.id] });
   }
 
-  const tomar = useMutation({ mutationFn: () => tomarAlarma(alarma.id), onSuccess: refrescar });
+  const tomar = useMutation({ mutationFn: () => tomarAlarma(alarma.id), onSuccess: refrescar, onError: refrescar });
+  const devolver = useMutation({ mutationFn: () => devolverAlarma(alarma.id), onSuccess: refrescar });
   const anotar = useMutation({
     mutationFn: () => anotarAlarma(alarma.id, nota),
     onSuccess: () => {
@@ -216,24 +264,12 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
       void clienteConsultas.invalidateQueries({ queryKey: ['acciones', alarma.id] });
     },
   });
-  const cerrar = useMutation({
-    mutationFn: () => cerrarAlarma(alarma.id, resolucion, desenlace),
-    onSuccess: () => {
-      refrescar();
-      alCerrarPanel();
-    },
-  });
-
-  const NOMBRE_ACCION = { toma: 'Tomada', nota: 'Nota', cierre: 'Cerrada', sistema: 'Sistema', paso: 'Paso' } as const;
 
   // Dos tiempos distintos: cuánto tardó en tomarse, y cuánto lleva en atención.
   // El segundo corre en vivo mientras la alarma sigue abierta.
-  const msCreada = new Date(alarma.creadoEn).getTime();
-  const msTomada = alarma.tomadaEn ? new Date(alarma.tomadaEn).getTime() : null;
-  const msCerrada = alarma.cerradaEn ? new Date(alarma.cerradaEn).getTime() : null;
-  const espera = (msTomada ?? ahora) - msCreada;
-  const atencion = msTomada === null ? null : (msCerrada ?? ahora) - msTomada;
+  const t = tiempos(alarma, ahora);
   const prio = clasesPrioridad(alarma.prioridad);
+  const abierta = alarma.estado !== 'cerrada';
 
   return (
     <section className="h-80 shrink-0 bg-superficie border border-borde rounded-sm flex flex-col">
@@ -242,13 +278,14 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
         <span className="font-semibold">{alarma.evento.descripcion}</span>
         <span className="font-datos text-xs text-tenue">
           {fechaHora(alarma.evento.ocurridoEn)} · {NOMBRE_ESTADO[alarma.estado]}
+          {alarma.operadorNombre && <span className="text-texto"> · {alarma.operadorNombre}</span>}
         </span>
         <span className="font-datos text-xs flex items-center gap-2" title="Tiempo hasta tomarla y tiempo en atención">
-          <span className={msTomada === null && espera > 60_000 ? 'text-prio1 font-semibold' : 'text-tenue'}>
-            espera {duracionCorta(espera)}
+          <span className={!t.tomada && !t.cerrada && t.espera > 60_000 ? 'text-prio1 font-semibold' : 'text-tenue'}>
+            espera {duracionCorta(t.espera)}
           </span>
-          {atencion !== null && (
-            <span className={msCerrada === null ? 'text-acento' : 'text-tenue'}>atención {duracionCorta(atencion)}</span>
+          {t.atencion !== null && (
+            <span className={!t.cerrada ? 'text-acento' : 'text-tenue'}>atención {duracionCorta(t.atencion)}</span>
           )}
         </span>
         {alarma.estado === 'nueva' && (
@@ -260,6 +297,17 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
             Tomar
           </button>
         )}
+        {alarma.estado === 'en_atencion' && (
+          <button
+            onClick={() => devolver.mutate()}
+            disabled={devolver.isPending}
+            title="Vuelve a la cola como nueva para que otro operador la tome"
+            className="ml-2 text-tenue hover:text-texto text-xs font-datos underline underline-offset-2 disabled:opacity-50"
+          >
+            Devolver a la cola
+          </button>
+        )}
+        {tomar.isError && <span className="text-prio2 text-xs">{(tomar.error as Error).message}</span>}
         {alarma.evento.senalId && (
           <button
             onClick={() => setSenalVisible(true)}
@@ -337,21 +385,7 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
                 )}
               </div>
               <h3 className="text-tenue text-xs uppercase tracking-wider mt-1">Lista de llamadas</h3>
-              <ol className="flex flex-col gap-1">
-                {contexto.contactos.map((c) => (
-                  <li key={c.id}>
-                    <span className="font-datos text-tenue">{c.orden}.</span>{' '}
-                    <span className="font-semibold">{c.nombre}</span>
-                    {c.rol && <span className="text-tenue text-xs"> ({c.rol})</span>}{' '}
-                    <a href={`tel:${c.telefono}`} className="font-datos text-acento">
-                      {c.telefono}
-                    </a>
-                    {c.palabraClave && <span className="text-tenue"> · clave: {c.palabraClave}</span>}
-                    {c.autorizadoCancelar && <span className="text-ok text-xs font-semibold"> · puede cancelar</span>}
-                  </li>
-                ))}
-                {contexto.contactos.length === 0 && <li className="text-tenue">Sin contactos cargados.</li>}
-              </ol>
+              <ListaLlamadas alarma={alarma} contactos={contexto.contactos} />
             </>
           ) : (
             <p className="text-prio2">
@@ -363,16 +397,7 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
         {/* Historial */}
         <div className="p-3 overflow-y-auto text-sm">
           <h3 className="text-tenue text-xs uppercase tracking-wider mb-2">Historial</h3>
-          <ul className="flex flex-col gap-1.5">
-            {(acciones ?? []).map((accion) => (
-              <li key={accion.id} className="border-l-2 border-borde pl-2.5">
-                <span className="font-datos text-xs text-tenue">{fechaHora(accion.creadoEn)}</span>{' '}
-                <span className="font-semibold">{NOMBRE_ACCION[accion.tipo]}</span>
-                {accion.detalle && <p className="text-tenue">{accion.detalle}</p>}
-              </li>
-            ))}
-            {(acciones ?? []).length === 0 && <li className="text-tenue">Sin acciones todavía.</li>}
-          </ul>
+          <Bitacora acciones={acciones} />
         </div>
 
         {/* Gestión */}
@@ -392,7 +417,7 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
                     <li key={texto}>
                       <button
                         onClick={() => paso.mutate(texto)}
-                        disabled={hecho || paso.isPending || alarma.estado === 'cerrada'}
+                        disabled={hecho || paso.isPending || !abierta}
                         className={`flex items-start gap-2 text-left w-full py-0.5 ${
                           hecho ? 'text-tenue' : 'hover:text-acento'
                         } disabled:cursor-default`}
@@ -412,61 +437,40 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
               </ul>
             </>
           )}
-          <h3 className="text-tenue text-xs uppercase tracking-wider">Gestión</h3>
-          <textarea
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-            placeholder="Anotar una gestión (llamada, verificación…)"
-            rows={2}
-            className="bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
-          />
-          <button
-            onClick={() => anotar.mutate()}
-            disabled={!nota.trim() || anotar.isPending}
-            className="self-end bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1 text-xs font-semibold disabled:opacity-50"
-          >
-            Agregar nota
-          </button>
-          <textarea
-            value={resolucion}
-            onChange={(e) => setResolucion(e.target.value)}
-            placeholder="Resolución (obligatoria para cerrar)"
-            rows={2}
-            className="bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none mt-auto"
-          />
-          {/*
-            El desenlace se guarda como dato y no dentro del texto: la tasa de
-            falsas alarmas es de los indicadores que más dicen sobre la salud de
-            una instalación, y en texto libre no se puede medir.
-          */}
-          <div className="flex gap-1">
-            {(
-              [
-                ['resuelta', 'Resuelta'],
-                ['falsa_alarma', 'Falsa alarma'],
-                ['escalada', 'Escalada'],
-              ] as const
-            ).map(([valor, etiqueta]) => (
+          {abierta ? (
+            <>
+              <h3 className="text-tenue text-xs uppercase tracking-wider">Gestión</h3>
+              <textarea
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                placeholder="Anotar una gestión (verificación, observación…)"
+                rows={2}
+                className="bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
+              />
               <button
-                key={valor}
-                onClick={() => setDesenlace(valor)}
-                className={`flex-1 rounded-sm border px-2 py-1 text-xs ${
-                  desenlace === valor
-                    ? 'border-acento bg-acento/15 text-acento font-semibold'
-                    : 'border-borde text-tenue hover:text-texto'
-                }`}
+                onClick={() => anotar.mutate()}
+                disabled={!nota.trim() || anotar.isPending}
+                className="self-end bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1 text-xs font-semibold disabled:opacity-50"
               >
-                {etiqueta}
+                Agregar nota
               </button>
-            ))}
-          </div>
-          <button
-            onClick={() => cerrar.mutate()}
-            disabled={!resolucion.trim() || cerrar.isPending}
-            className="self-end bg-prio1/15 hover:bg-prio1/25 border border-prio1 text-prio1 rounded-sm px-3 py-1 text-xs font-semibold disabled:opacity-40"
-          >
-            Cerrar alarma
-          </button>
+              <h3 className="text-tenue text-xs uppercase tracking-wider mt-auto">Cierre</h3>
+              <FormularioCierre alarma={alarma} alCerrar={alCerrarPanel} />
+            </>
+          ) : (
+            <div className="mt-auto text-xs text-tenue">
+              <p>
+                Cerrada {alarma.cerradaEn && fechaHora(alarma.cerradaEn)}
+                {alarma.operadorNombre && ` por ${alarma.operadorNombre}`}
+              </p>
+              {alarma.desenlace && (
+                <p className="text-texto mt-1">
+                  {ETIQUETA_DESENLACE[alarma.desenlace]}
+                  {alarma.resolucion && `: ${alarma.resolucion}`}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>

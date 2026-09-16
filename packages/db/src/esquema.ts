@@ -32,7 +32,7 @@ export const categoriaEventoEnum = pgEnum('categoria_evento', [
   'desconocido',
 ]);
 export const estadoAlarmaEnum = pgEnum('estado_alarma', ['nueva', 'en_atencion', 'cerrada']);
-export const tipoAccionEnum = pgEnum('tipo_accion', ['toma', 'nota', 'cierre', 'sistema', 'paso']);
+export const tipoAccionEnum = pgEnum('tipo_accion', ['toma', 'nota', 'cierre', 'sistema', 'paso', 'llamada']);
 
 /**
  * Cómo terminó una alarma. Se separa del estado a propósito: el estado dice si
@@ -370,6 +370,13 @@ export const alarma = pgTable(
     tomadaEn: timestamp('tomada_en', { withTimezone: true }),
     cerradaEn: timestamp('cerrada_en', { withTimezone: true }),
     desenlace: desenlaceAlarmaEnum('desenlace'),
+    /**
+     * Motivo predefinido del cierre (ver MOTIVOS_CIERRE en shared). El
+     * desenlace dice cómo terminó; el motivo dice por qué, con valores fijos
+     * que se pueden contar: "falsa alarma por mascota" tres veces en un mes
+     * es un dato sobre esa instalación, no una anécdota.
+     */
+    motivo: varchar('motivo', { length: 32 }),
     resolucion: text('resolucion'),
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -295,3 +295,127 @@ describe('desenlace y protocolo', () => {
     expect(resultado.alarmaId).toBeGreaterThan(0);
   });
 });
+
+describe('varios operadores sobre la misma alarma', () => {
+  it('la cola dice quién tiene cada alarma', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    const { cuerpo } = await ctx.pedir('GET', '/alarmas', { token: tokenAdmin });
+    expect(cuerpo[0]).toMatchObject({ estado: 'en_atencion', operadorNombre: 'Operador Uno' });
+  });
+
+  it('no se puede tomar una alarma que otro ya tiene', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    const { estado, cuerpo } = await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenAdmin });
+    expect(estado).toBe(409);
+    expect(cuerpo.error).toContain('Operador Uno');
+  });
+
+  it('volver a tomar la propia no falla ni duplica la bitácora', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    const { estado } = await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    expect(estado).toBe(200);
+    const acciones = await ctx.pedir('GET', `/alarmas/${id}/acciones`, { token: tokenOperador });
+    expect(acciones.cuerpo.filter((a: { tipo: string }) => a.tipo === 'toma')).toHaveLength(1);
+    expect(acciones.cuerpo[0]).toMatchObject({ operadorNombre: 'Operador Uno' });
+    expect(acciones.cuerpo[0].detalle).toMatch(/Tomada tras/);
+  });
+
+  it('devolver a la cola la deja nueva y otro puede tomarla', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    const devuelta = await ctx.pedir('POST', `/alarmas/${id}/devolver`, { token: tokenOperador, cuerpo: { motivo: 'cambio de turno' } });
+    expect(devuelta.cuerpo).toMatchObject({ estado: 'nueva', operadorId: null, tomadaEn: null });
+    const { estado } = await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenAdmin });
+    expect(estado).toBe(200);
+    const acciones = await ctx.pedir('GET', `/alarmas/${id}/acciones`, { token: tokenAdmin });
+    expect(acciones.cuerpo.some((a: { detalle: string | null }) => a.detalle?.includes('Devuelta a la cola: cambio de turno'))).toBe(true);
+  });
+
+  it('solo se devuelve una alarma en atención', async () => {
+    const id = await dispararAlarma();
+    const { estado } = await ctx.pedir('POST', `/alarmas/${id}/devolver`, { token: tokenOperador, cuerpo: {} });
+    expect(estado).toBe(409);
+  });
+});
+
+describe('cierre guiado', () => {
+  it('el motivo queda como dato y en la bitácora con los tiempos', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    const { estado, cuerpo } = await ctx.pedir('POST', `/alarmas/${id}/cerrar`, {
+      token: tokenOperador,
+      cuerpo: { desenlace: 'falsa_alarma', motivo: 'mascota_objeto' },
+    });
+    expect(estado).toBe(200);
+    expect(cuerpo).toMatchObject({ estado: 'cerrada', desenlace: 'falsa_alarma', motivo: 'mascota_objeto' });
+    expect(cuerpo.resolucion).toBe('Mascota u objeto en movimiento');
+    const acciones = await ctx.pedir('GET', `/alarmas/${id}/acciones`, { token: tokenOperador });
+    const cierre = acciones.cuerpo.find((a: { tipo: string }) => a.tipo === 'cierre');
+    expect(cierre.detalle).toMatch(/^Falsa alarma tras .* en atención: Mascota u objeto en movimiento$/);
+    const cerradas = await ctx.pedir('GET', '/alarmas?estado=cerrada', { token: tokenOperador });
+    expect(cerradas.cuerpo[0]).toMatchObject({ motivo: 'mascota_objeto', desenlace: 'falsa_alarma', operadorNombre: 'Operador Uno' });
+  });
+
+  it('"otro" exige detalle, y un motivo ajeno al desenlace se rechaza', async () => {
+    const id = await dispararAlarma();
+    const sinTexto = await ctx.pedir('POST', `/alarmas/${id}/cerrar`, { token: tokenOperador, cuerpo: { desenlace: 'resuelta', motivo: 'otro' } });
+    expect(sinTexto.estado).toBe(400);
+    const ajeno = await ctx.pedir('POST', `/alarmas/${id}/cerrar`, { token: tokenOperador, cuerpo: { desenlace: 'resuelta', motivo: 'mascota_objeto' } });
+    expect(ajeno.estado).toBe(400);
+    const bien = await ctx.pedir('POST', `/alarmas/${id}/cerrar`, { token: tokenOperador, cuerpo: { desenlace: 'resuelta', motivo: 'otro', resolucion: 'Se coordinó con el vecino' } });
+    expect(bien.estado).toBe(200);
+    expect(bien.cuerpo.resolucion).toBe('Otro (detallar) — Se coordinó con el vecino');
+  });
+
+  it('cerrar sin haber tomado la asigna a quien cierra y lo dice en la bitácora', async () => {
+    const id = await dispararAlarma();
+    const { cuerpo } = await ctx.pedir('POST', `/alarmas/${id}/cerrar`, { token: tokenAdmin, cuerpo: { desenlace: 'resuelta', motivo: 'cliente_desarmo' } });
+    expect(cuerpo.tomadaEn).toBeTruthy();
+    const acciones = await ctx.pedir('GET', `/alarmas/${id}/acciones`, { token: tokenAdmin });
+    expect(acciones.cuerpo.at(-1).detalle).toMatch(/sin haberse tomado/);
+  });
+
+  it('una alarma cerrada no se cierra dos veces', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/cerrar`, { token: tokenAdmin, cuerpo: { desenlace: 'resuelta', motivo: 'cliente_desarmo' } });
+    const { estado } = await ctx.pedir('POST', `/alarmas/${id}/cerrar`, { token: tokenAdmin, cuerpo: { desenlace: 'resuelta', motivo: 'cliente_desarmo' } });
+    expect(estado).toBe(409);
+  });
+});
+
+describe('registro de llamadas', () => {
+  it('una llamada queda en la bitácora con su resultado', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    const { estado, cuerpo } = await ctx.pedir('POST', `/alarmas/${id}/llamada`, {
+      token: tokenOperador,
+      cuerpo: { nombre: 'Juan', telefono: '0414-1234567', resultado: 'no_atendio' },
+    });
+    expect(estado).toBe(201);
+    expect(cuerpo).toMatchObject({ tipo: 'llamada', detalle: 'Llamada a Juan (0414-1234567): No atendió' });
+  });
+
+  it('una palabra clave incorrecta sube la alarma a prioridad máxima y avisa de coacción', async () => {
+    const id = await dispararAlarma('E130', 2);
+    await ctx.pedir('POST', `/alarmas/${id}/tomar`, { token: tokenOperador });
+    await ctx.pedir('POST', `/alarmas/${id}/llamada`, {
+      token: tokenOperador,
+      cuerpo: { nombre: 'Juan', telefono: '0414-1234567', resultado: 'clave_incorrecta' },
+    });
+    const { cuerpo } = await ctx.pedir('GET', '/alarmas', { token: tokenOperador });
+    expect(cuerpo.find((a: { id: number }) => a.id === id).prioridad).toBe(1);
+    const acciones = await ctx.pedir('GET', `/alarmas/${id}/acciones`, { token: tokenOperador });
+    const aviso = acciones.cuerpo.find((a: { tipo: string; detalle: string }) => a.tipo === 'sistema' && a.detalle.startsWith('POSIBLE COACCIÓN'));
+    expect(aviso).toBeTruthy();
+    expect(aviso.operadorNombre).toBeNull();
+  });
+
+  it('un resultado inventado se rechaza', async () => {
+    const id = await dispararAlarma();
+    const { estado } = await ctx.pedir('POST', `/alarmas/${id}/llamada`, { token: tokenOperador, cuerpo: { nombre: 'Juan', telefono: '1', resultado: 'colgo' } });
+    expect(estado).toBe(400);
+  });
+});
