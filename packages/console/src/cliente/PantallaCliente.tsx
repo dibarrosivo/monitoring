@@ -5,6 +5,7 @@ import type { AlarmaCliente, PanelResumenCliente, Usuario } from '../tipos.js';
 import { ModalClave } from '../ModalClave.js';
 import { PanicoCliente } from './PanicoCliente.js';
 import { AvisosCliente, ControlesAviso, useAvisosCliente } from './Avisos.js';
+import { ActualizacionApp } from './ActualizacionApp.js';
 
 type Pestana = 'inicio' | 'eventos' | 'panico';
 
@@ -30,6 +31,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
 
   return (
     <div className="min-h-screen bg-fondo flex flex-col">
+      <ActualizacionApp />
       {impersonado && (
         <div className="bg-acento/15 border-b border-acento px-4 py-2 text-sm flex items-center gap-3">
           <span>

@@ -11,6 +11,13 @@
 		reverse_proxy api:3000
 	}
 
+	# La app Android se distribuye desde acá (APK, versión publicada y página
+	# de descarga). Los archivos viven en /opt/monitoring/app del servidor.
+	handle_path /app/* {
+		root * /srv/app
+		file_server
+	}
+
 	# La consola es una aplicación de una sola página: cualquier ruta que no
 	# sea un archivo real devuelve index.html para que el enrutador la resuelva.
 	handle {

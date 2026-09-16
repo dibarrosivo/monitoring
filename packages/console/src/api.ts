@@ -45,9 +45,14 @@ export function esNativo(): boolean {
   return Boolean((window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.());
 }
 
+/** Servidor de la central al que apunta la app nativa si nadie configuró otro. */
+export const SERVIDOR_POR_DEFECTO = 'https://monitoreo.falconseguridadtotal.com';
+
 /** URL del servidor de la central. Vacío = mismo origen (web). */
 export function servidorGuardado(): string {
-  return localStorage.getItem(CLAVE_SERVIDOR) ?? '';
+  const guardado = localStorage.getItem(CLAVE_SERVIDOR) ?? '';
+  // En la app instalada el servidor es el de la central, sin que el usuario lo escriba
+  return guardado || (esNativo() ? SERVIDOR_POR_DEFECTO : '');
 }
 export function guardarServidor(url: string): void {
   if (url.trim()) localStorage.setItem(CLAVE_SERVIDOR, url.trim().replace(/\/+$/, ''));

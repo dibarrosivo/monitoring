@@ -1,12 +1,12 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.monitoring.movil',
-  appName: 'Monitoring',
+  appId: 'com.falconseguridadtotal.alarma',
+  appName: 'Falcon Alarma',
   webDir: 'dist',
-  server: {
-    // Permite hablar con el servidor por http mientras no haya VPS con TLS
-    cleartext: true,
+  android: {
+    // La app habla solo con el servidor de la central, por TLS
+    allowMixedContent: false,
   },
 };
 

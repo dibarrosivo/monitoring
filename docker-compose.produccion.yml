@@ -88,6 +88,8 @@ services:
       - datos-caddy:/data
       - config-caddy:/config
       - registros-caddy:/var/log/caddy
+      # APK y página de descarga de la app Android (no van en git)
+      - ./app:/srv/app:ro
     depends_on:
       - api
 

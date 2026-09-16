@@ -7,7 +7,9 @@ export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }
   const [clave, setClave] = useState('');
   // En el envoltorio nativo el servidor es configurable; en la web es el mismo origen
   const [servidor, setServidor] = useState(servidorGuardado());
-  const mostrarServidor = esNativo() || servidorGuardado() !== '';
+  // En la app instalada el servidor viene fijo; se puede cambiar, pero hay que pedirlo
+  const [cambiarServidor, setCambiarServidor] = useState(false);
+  const mostrarServidor = (esNativo() && cambiarServidor) || (!esNativo() && servidorGuardado() !== '');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -16,7 +18,7 @@ export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }
     setError(null);
     setCargando(true);
     try {
-      if (mostrarServidor) guardarServidor(servidor);
+      if (esNativo() || mostrarServidor) guardarServidor(servidor);
       alIngresar(await ingresar(email, clave));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo ingresar');
@@ -77,6 +79,11 @@ export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }
         </label>
 
         {error && <p className="text-prio1 text-sm">{error}</p>}
+        {esNativo() && !cambiarServidor && (
+          <button type="button" onClick={() => setCambiarServidor(true)} className="text-tenue text-xs underline underline-offset-2 self-start">
+            Cambiar servidor
+          </button>
+        )}
 
         <button
           type="submit"
