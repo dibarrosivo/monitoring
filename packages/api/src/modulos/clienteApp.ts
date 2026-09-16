@@ -78,9 +78,11 @@ export function registrarClienteApp(app: App) {
   });
 
   app.get('/cliente/eventos', async (request) => {
-    const { limite } = request.query as { limite?: string };
+    const { limite, panelId } = request.query as { limite?: string; panelId?: string };
     const max = Math.min(Number(limite ?? 50), 200);
-    const paneles = await panelesDelUsuario(request.user.id);
+    let paneles = await panelesDelUsuario(request.user.id);
+    // Filtro por equipo, siempre dentro de los que el usuario alcanza
+    if (panelId) paneles = paneles.filter((p) => p.id === Number(panelId));
     if (paneles.length === 0) return [];
     return db
       .select({

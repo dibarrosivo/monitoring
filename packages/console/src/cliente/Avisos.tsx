@@ -54,6 +54,8 @@ export function useAvisosCliente(opciones: { nombrarSitio: boolean }): {
       void clienteConsultas.invalidateQueries({ queryKey: ['resumen-cli'] });
       void clienteConsultas.invalidateQueries({ queryKey: ['alarmas-cli'] });
       void clienteConsultas.invalidateQueries({ queryKey: ['eventos-cli'] });
+      // La pantalla del panel vuelve a preguntar el estado: un armado se refleja al instante
+      void clienteConsultas.invalidateQueries({ queryKey: ['estado-panel'] });
       if (mensaje.canal !== 'nuevo_evento') return;
 
       const frase = fraseParaEvento(mensaje.carga, { nombrarSitio: nombrarSitio.current });

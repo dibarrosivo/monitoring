@@ -6,6 +6,7 @@ import { ModalClave } from '../ModalClave.js';
 import { PanicoCliente } from './PanicoCliente.js';
 import { AvisosCliente, ControlesAviso, useAvisosCliente } from './Avisos.js';
 import { ActualizacionApp } from './ActualizacionApp.js';
+import { PanelHikvision } from './PanelHikvision.js';
 
 type Pestana = 'inicio' | 'eventos' | 'panico';
 
@@ -28,6 +29,17 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
   // Con más de un sitio, los avisos nombran dónde pasó
   const sitios = new Set((resumen?.paneles ?? []).map((p) => p.sitioId)).size;
   const avisos = useAvisosCliente({ nombrarSitio: sitios > 1 });
+  // Un panel Hikvision abre su propia pantalla, con el estilo de la app del fabricante
+  const [panelAbierto, setPanelAbierto] = useState<number | null>(null);
+  const panelHik = resumen?.paneles.find((p) => p.id === panelAbierto && p.tipo === 'hikvision');
+  if (panelHik) {
+    return (
+      <>
+        <PanelHikvision panel={panelHik} alVolver={() => setPanelAbierto(null)} />
+        <AvisosCliente avisos={avisos.avisos} alDescartar={avisos.descartar} />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-fondo flex flex-col">
@@ -95,7 +107,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
       )}
 
       <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4 w-full max-w-5xl mx-auto">
-        {pestana === 'inicio' && <InicioCliente paneles={resumen?.paneles} alarmas={alarmas ?? []} />}
+        {pestana === 'inicio' && <InicioCliente paneles={resumen?.paneles} alarmas={alarmas ?? []} alAbrirPanel={setPanelAbierto} />}
         {pestana === 'eventos' && <EventosCliente />}
         {pestana === 'panico' && <PanicoCliente sitios={resumen?.paneles ?? []} />}
       </main>
@@ -139,7 +151,15 @@ const ESTADO_ARMADO = {
   desconocido: { texto: 'Sin datos', clase: 'text-tenue', icono: '❔' },
 } as const;
 
-function InicioCliente({ paneles, alarmas }: { paneles: PanelResumenCliente[] | undefined; alarmas: AlarmaCliente[] }) {
+function InicioCliente({
+  paneles,
+  alarmas,
+  alAbrirPanel,
+}: {
+  paneles: PanelResumenCliente[] | undefined;
+  alarmas: AlarmaCliente[];
+  alAbrirPanel: (id: number) => void;
+}) {
   if (!paneles) return <p className="text-tenue">Cargando…</p>;
   if (paneles.length === 0) {
     return <p className="text-tenue">Su cuenta todavía no tiene paneles asociados. Comuníquese con la central.</p>;
@@ -157,7 +177,7 @@ function InicioCliente({ paneles, alarmas }: { paneles: PanelResumenCliente[] | 
             {paneles
               .filter((p) => p.clienteNombre === nombre)
               .map((panel) => (
-                <TarjetaSitio key={panel.id} panel={panel} alarmas={alarmas} />
+                <TarjetaSitio key={panel.id} panel={panel} alarmas={alarmas} alAbrir={panel.tipo === 'hikvision' ? () => alAbrirPanel(panel.id) : undefined} />
               ))}
           </div>
         </section>
@@ -166,12 +186,16 @@ function InicioCliente({ paneles, alarmas }: { paneles: PanelResumenCliente[] | 
   );
 }
 
-function TarjetaSitio({ panel, alarmas }: { panel: PanelResumenCliente; alarmas: AlarmaCliente[] }) {
+function TarjetaSitio({ panel, alarmas, alAbrir }: { panel: PanelResumenCliente; alarmas: AlarmaCliente[]; alAbrir?: () => void }) {
   const estado = ESTADO_ARMADO[panel.estadoArmado];
   const enAlarma = alarmas.some((a) => a.panelId === panel.id);
   return (
     <section
-      className={`bg-superficie border rounded-lg p-4 flex flex-col gap-2 ${enAlarma ? 'border-prio1' : 'border-borde'}`}
+      onClick={alAbrir}
+      role={alAbrir ? 'button' : undefined}
+      className={`bg-superficie border rounded-lg p-4 flex flex-col gap-2 ${enAlarma ? 'border-prio1' : 'border-borde'} ${
+        alAbrir ? 'cursor-pointer hover:border-acento' : ''
+      }`}
     >
       <div className="flex items-center gap-2">
         <h3 className="font-semibold text-lg flex-1 truncate">{panel.sitioNombre}</h3>
@@ -187,6 +211,7 @@ function TarjetaSitio({ panel, alarmas }: { panel: PanelResumenCliente; alarmas:
         {panel.ultimoMovimientoEn && <span>último movimiento {transcurrido(panel.ultimoMovimientoEn)}</span>}
         <span>{panel.ultimaSenalEn ? `en línea · señal ${transcurrido(panel.ultimaSenalEn)}` : 'sin señales aún'}</span>
       </div>
+      {alAbrir && <p className="text-acento text-xs font-semibold">Abrir el panel: armar, desarmar y ver zonas ›</p>}
     </section>
   );
 }
@@ -215,7 +240,7 @@ const NOMBRE_CAT: Record<string, string> = {
 function EventosCliente() {
   const { data: eventos, isLoading } = useQuery({
     queryKey: ['eventos-cli'],
-    queryFn: verEventosCliente,
+    queryFn: () => verEventosCliente(),
     refetchInterval: 30_000,
   });
 

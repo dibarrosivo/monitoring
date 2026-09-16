@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 import { comando, db, panel } from '@monitoring/db';
 import { crearProveedorHikvision } from './hikvision.js';
-import { proveedorPara, registrarProveedor, type AccionComando, type EstadoParticion } from './proveedor.js';
+import { proveedorPara, registrarProveedor, type AccionComando, type EstadoDetallado, type EstadoParticion } from './proveedor.js';
 
 /**
  * Envío y seguimiento de comandos a los paneles.
@@ -130,6 +130,15 @@ export async function estadoArmado(panelId: number): Promise<EstadoParticion[] |
   return proveedor.consultarEstado(equipo.serial);
 }
 
+/** Estado completo (zonas, batería, conexiones) para la pantalla del cliente. Null si el tipo no lo informa. */
+export async function estadoDetallado(panelId: number): Promise<EstadoDetallado | null> {
+  const [equipo] = await db.select().from(panel).where(eq(panel.id, panelId)).limit(1);
+  if (!equipo?.serial) return null;
+  const proveedor = proveedorPara(equipo.tipo);
+  if (!proveedor.consultarDetalle) return null;
+  return proveedor.consultarDetalle(equipo.serial);
+}
+
 /** Últimos comandos de un equipo, para la ficha y la auditoría. */
 export async function historialComandos(panelId: number, limite = 20) {
   return db
@@ -150,4 +159,4 @@ export async function historialComandos(panelId: number, limite = 20) {
 }
 
 export { admiteControl, proveedorPara, registrarProveedor, SIN_CONTROL } from './proveedor.js';
-export type { AccionComando, EstadoParticion, ProveedorControl, ResultadoComando } from './proveedor.js';
+export type { AccionComando, EstadoDetallado, EstadoParticion, EstadoZona, ProveedorControl, ResultadoComando } from './proveedor.js';

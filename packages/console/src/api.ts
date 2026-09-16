@@ -15,6 +15,7 @@ import type {
   Comando,
   EntradaCatalogo,
   EstadoParticion,
+  EstadoDetalladoPanel,
   EstadoCliente,
   EstadoPanel,
   Evento,
@@ -211,6 +212,7 @@ export const enviarComando = (panelId: number, accion: AccionComando) =>
 export const listarComandos = (panelId: number) => pedir<Comando[]>(`/paneles/${panelId}/comandos`);
 export const estadoArmado = (panelId: number) =>
   pedir<{ particiones: EstadoParticion[] }>(`/paneles/${panelId}/estado-armado`);
+export const estadoDetallado = (panelId: number) => pedir<EstadoDetalladoPanel>(`/paneles/${panelId}/estado-detallado`);
 
 export const listarFeriados = () => pedir<Feriado[]>('/feriados');
 export const crearFeriado = (datos: { fecha: string; descripcion?: string }) =>
@@ -291,7 +293,8 @@ export const cambiarClave = (actual: string, nueva: string) =>
 
 // ---- Vista de clientes (rol 'cliente') ----
 export const verResumenCliente = () => pedir<ResumenCliente>('/cliente/resumen');
-export const verEventosCliente = () => pedir<EventoCliente[]>('/cliente/eventos?limite=100');
+export const verEventosCliente = (panelId?: number) =>
+  pedir<EventoCliente[]>(panelId ? `/cliente/eventos?limite=50&panelId=${panelId}` : '/cliente/eventos?limite=100');
 export const verAlarmasCliente = () => pedir<AlarmaCliente[]>('/cliente/alarmas');
 export const enviarPanico = (sitioId: number) =>
   pedir<{ alarmaId: number; recibido: boolean }>('/cliente/panico', {

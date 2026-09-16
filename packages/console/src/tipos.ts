@@ -501,3 +501,23 @@ export interface EstadoParticion {
   estado: 'desarmado' | 'armado' | 'armado_casa' | 'armando';
   enAlarma: boolean;
 }
+
+export interface EstadoZonaPanel {
+  numero: number;
+  nombre: string;
+  estado: 'normal' | 'activa' | 'anulada' | 'sabotaje' | 'sin_conexion' | 'falla';
+  armada: boolean;
+  enAlarma: boolean;
+  tipo?: string;
+  /** Descripción cargada en la central, si difiere del nombre del panel */
+  descripcion: string | null;
+}
+
+/** Todo lo que el panel sabe decir de sí mismo (Hikvision). */
+export interface EstadoDetalladoPanel {
+  particiones: EstadoParticion[];
+  zonas: EstadoZonaPanel[];
+  bateria?: { porcentaje: number; estado: string };
+  comunicaciones?: { cable?: string; wifi?: string; senalWifi?: number; nube?: string };
+  perifericos: { tipo: 'sirena' | 'teclado' | 'repetidor'; nombre: string; estado: string; sabotaje: boolean }[];
+}

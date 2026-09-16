@@ -1,7 +1,7 @@
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { acceso, cliente, db, panel, sitio } from '@monitoring/db';
-import { admiteControl, enviarComando, estadoArmado, historialComandos } from '@monitoring/engine';
+import { acceso, cliente, db, panel, sitio, zona } from '@monitoring/db';
+import { admiteControl, enviarComando, estadoArmado, estadoDetallado, historialComandos } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 import type { FastifyRequest } from 'fastify';
 
@@ -113,6 +113,32 @@ export function registrarComandos(app: App) {
       return { particiones };
     } catch (err) {
       // El fabricante no respondió: no es un error nuestro, se informa tal cual
+      return reply.code(502).send({ error: err instanceof Error ? err.message : 'Sin respuesta del proveedor' });
+    }
+  });
+
+  /**
+   * Estado completo según el panel: zonas, batería, conexiones, periféricos.
+   * Es lo que la app del cliente muestra como "pantalla del panel". Los
+   * nombres de zona vienen del propio panel; si acá hay una descripción
+   * cargada para esa zona, se agrega como referencia.
+   */
+  app.get('/paneles/:id/estado-detallado', async (request, reply) => {
+    const panelId = idDe(request);
+    if (request.user.rol === 'cliente') {
+      const alcanza = await usuarioAlcanzaPanel(request.user.id, panelId);
+      if (!alcanza) return reply.code(403).send({ error: 'Sin acceso a este equipo' });
+    }
+    try {
+      const detalle = await estadoDetallado(panelId);
+      if (!detalle) return reply.code(409).send({ error: 'Este equipo no informa su estado' });
+      const nuestras = await db.select({ numero: zona.numero, descripcion: zona.descripcion }).from(zona).where(eq(zona.panelId, panelId));
+      const porNumero = new Map(nuestras.map((z) => [Number(z.numero), z.descripcion]));
+      return {
+        ...detalle,
+        zonas: detalle.zonas.map((z) => ({ ...z, descripcion: porNumero.get(z.numero) ?? null })),
+      };
+    } catch (err) {
       return reply.code(502).send({ error: err instanceof Error ? err.message : 'Sin respuesta del proveedor' });
     }
   });

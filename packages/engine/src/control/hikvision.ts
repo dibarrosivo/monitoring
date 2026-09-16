@@ -1,4 +1,4 @@
-import type { AccionComando, EstadoParticion, ProveedorControl, ResultadoComando } from './proveedor.js';
+import type { AccionComando, EstadoDetallado, EstadoParticion, EstadoZona, ProveedorControl, ResultadoComando } from './proveedor.js';
 
 /**
  * Control de paneles Hikvision por la OpenAPI de Hik-Partner Pro.
@@ -40,6 +40,8 @@ export function uriControl(accion: AccionComando, particion: number): string {
 }
 
 const URI_ESTADO = '/ISAPI/SecurityCP/status/subSystems?format=json';
+/** Estado completo del panel: zonas, particiones, batería, conexiones, periféricos */
+const URI_ESTADO_HOST = '/ISAPI/SecurityCP/status/host?format=json';
 
 export interface Sesion {
   /** Dominio regional que indicó el servicio; NO es el de la petición del token */
@@ -134,6 +136,77 @@ export function interpretarEstado(cuerpo: unknown): EstadoParticion[] {
   return estados;
 }
 
+/**
+ * Traduce el estado completo del panel (respuesta de /status/host).
+ *
+ * Forma verificada contra el panel DS-PHA20-W2P (cuenta 7037) el 16 de
+ * septiembre de 2026: ZoneList con status online/notRelated, banderas
+ * tamperEvident/bypassed/armed/alarm, BatteryList con percent, CommuniStatus
+ * con wired/wifi/wifiSignal/cloud, y ExDevStatus con sirenas, teclados y
+ * repetidores. Las zonas "notRelated" son posiciones sin sensor: no se muestran.
+ */
+export function interpretarEstadoHost(cuerpo: unknown): EstadoDetallado {
+  const h = ((cuerpo as { AlarmHostStatus?: Record<string, unknown> })?.AlarmHostStatus ?? {}) as {
+    ZoneList?: { Zone?: Record<string, unknown> }[];
+    SubSysList?: unknown;
+    BatteryList?: { Battery?: { percent?: number; status?: string } }[];
+    CommuniStatus?: { wired?: string; wifi?: string; wifiSignal?: number; cloud?: string };
+    ExDevStatus?: {
+      SirenList?: { Siren?: Record<string, unknown> }[];
+      KeypadList?: { Keypad?: Record<string, unknown> }[];
+      RepeaterList?: { Repeater?: Record<string, unknown> }[];
+    };
+  };
+
+  const zonas: EstadoZona[] = [];
+  for (const { Zone: z } of h.ZoneList ?? []) {
+    if (!z || typeof z.id !== 'number' || z.status === 'notRelated') continue;
+    const status = String(z.status ?? '');
+    let estado: EstadoZona['estado'] = 'normal';
+    if (z.tamperEvident === true) estado = 'sabotaje';
+    else if (z.bypassed === true || z.shielded === true) estado = 'anulada';
+    else if (status === 'offline' || status === 'heartbeatAbnormal') estado = 'sin_conexion';
+    else if (status === 'breakDown') estado = 'falla';
+    else if (status === 'trigger' || status === 'triggered' || z.alarm === true) estado = 'activa';
+    zonas.push({
+      numero: z.id + 1,
+      nombre: typeof z.name === 'string' && z.name.trim() ? z.name.trim() : `Zona ${z.id + 1}`,
+      estado,
+      armada: z.armed === true,
+      enAlarma: z.alarm === true,
+      tipo: typeof z.zoneType === 'string' ? z.zoneType : undefined,
+    });
+  }
+
+  const bateria = h.BatteryList?.[0]?.Battery;
+  const perifericos: EstadoDetallado['perifericos'] = [];
+  const agregar = (tipo: 'sirena' | 'teclado' | 'repetidor', lista?: { [k: string]: Record<string, unknown> | undefined }[]) => {
+    for (const item of lista ?? []) {
+      const d = Object.values(item)[0];
+      if (!d || d.status === 'notRelated') continue;
+      perifericos.push({
+        tipo,
+        nombre: typeof d.name === 'string' ? d.name : tipo,
+        estado: String(d.status ?? ''),
+        sabotaje: d.tamperEvident === true,
+      });
+    }
+  };
+  agregar('sirena', h.ExDevStatus?.SirenList);
+  agregar('teclado', h.ExDevStatus?.KeypadList);
+  agregar('repetidor', h.ExDevStatus?.RepeaterList);
+
+  return {
+    particiones: interpretarEstado(h),
+    zonas,
+    bateria: bateria && typeof bateria.percent === 'number' ? { porcentaje: bateria.percent, estado: String(bateria.status ?? '') } : undefined,
+    comunicaciones: h.CommuniStatus
+      ? { cable: h.CommuniStatus.wired, wifi: h.CommuniStatus.wifi, senalWifi: h.CommuniStatus.wifiSignal, nube: h.CommuniStatus.cloud }
+      : undefined,
+    perifericos,
+  };
+}
+
 let sesion: Sesion | null = null;
 
 /** Solo para las pruebas: olvida la sesión guardada. */
@@ -186,23 +259,32 @@ export function crearProveedorHikvision(): ProveedorControl {
     },
 
     async consultarEstado(serial): Promise<EstadoParticion[]> {
-      const cred = leerCredenciales();
-      if (!cred) throw new Error('Falta configurar las credenciales de la OpenAPI de Hikvision');
-      const s = await obtenerSesion(cred);
-      const respuesta = await fetch(s.base + TRANSPARENTE + URI_ESTADO, {
-        method: 'GET',
-        headers: { authorization: `Bearer ${s.token}`, 'X-Devserial': serial },
-      });
-      const texto = await respuesta.text();
-      let json: unknown;
-      try {
-        json = JSON.parse(texto);
-      } catch {
-        throw new Error(`Respuesta ilegible del proveedor (${respuesta.status})`);
-      }
-      const e = json as { errorCode?: string; message?: string };
-      if (typeof e.errorCode === 'string' && e.errorCode !== '0') throw new Error(e.message ?? `Error ${e.errorCode}`);
-      return interpretarEstado(json);
+      return interpretarEstado(await consultarIsapi(serial, URI_ESTADO));
+    },
+
+    async consultarDetalle(serial): Promise<EstadoDetallado> {
+      return interpretarEstadoHost(await consultarIsapi(serial, URI_ESTADO_HOST));
     },
   };
+}
+
+/** GET por el paso transparente; falla con el mensaje de la pasarela si lo hay. */
+async function consultarIsapi(serial: string, uri: string): Promise<unknown> {
+  const cred = leerCredenciales();
+  if (!cred) throw new Error('Falta configurar las credenciales de la OpenAPI de Hikvision');
+  const s = await obtenerSesion(cred);
+  const respuesta = await fetch(s.base + TRANSPARENTE + uri, {
+    method: 'GET',
+    headers: { authorization: `Bearer ${s.token}`, 'X-Devserial': serial },
+  });
+  const texto = await respuesta.text();
+  let json: unknown;
+  try {
+    json = JSON.parse(texto);
+  } catch {
+    throw new Error(`Respuesta ilegible del proveedor (${respuesta.status})`);
+  }
+  const e = json as { errorCode?: string; message?: string };
+  if (typeof e.errorCode === 'string' && e.errorCode !== '0') throw new Error(e.message ?? `Error ${e.errorCode}`);
+  return json;
 }

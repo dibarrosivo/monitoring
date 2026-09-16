@@ -35,6 +35,29 @@ export interface EstadoParticion {
   enAlarma: boolean;
 }
 
+/** Estado de una zona según el propio panel. */
+export interface EstadoZona {
+  /** Número de zona tal como lo reporta el panel (desde 1) */
+  numero: number;
+  nombre: string;
+  /** 'normal' | 'activa' (abierta o disparada) | 'anulada' | 'sabotaje' | 'sin_conexion' | 'falla' */
+  estado: 'normal' | 'activa' | 'anulada' | 'sabotaje' | 'sin_conexion' | 'falla';
+  armada: boolean;
+  enAlarma: boolean;
+  /** Tipo de zona del panel: retardada, instantánea, seguidora, 24 h… tal como lo nombra el panel */
+  tipo?: string;
+}
+
+/** Todo lo que el panel sabe decir de sí mismo, para la pantalla del cliente. */
+export interface EstadoDetallado {
+  particiones: EstadoParticion[];
+  zonas: EstadoZona[];
+  bateria?: { porcentaje: number; estado: string };
+  comunicaciones?: { cable?: string; wifi?: string; senalWifi?: number; nube?: string };
+  /** Periféricos con su estado, tal como los nombra el panel */
+  perifericos: { tipo: 'sirena' | 'teclado' | 'repetidor'; nombre: string; estado: string; sabotaje: boolean }[];
+}
+
 export interface ProveedorControl {
   /** Nombre para los registros */
   readonly nombre: string;
@@ -46,6 +69,8 @@ export interface ProveedorControl {
   }): Promise<ResultadoComando>;
   /** Estado actual de las particiones. Opcional: no todo proveedor sabe leerlo. */
   consultarEstado?(serial: string): Promise<EstadoParticion[]>;
+  /** Estado completo (zonas, batería, conexiones). Opcional. */
+  consultarDetalle?(serial: string): Promise<EstadoDetallado>;
 }
 
 /**
