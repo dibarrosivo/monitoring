@@ -66,9 +66,11 @@ describe('panel silencioso', () => {
     await revisarPanelesSilenciosos();
     const [alarma] = await abiertas();
     await ctx.pedir('POST', `/alarmas/${alarma!.id}/cerrar`, { token, cuerpo: { desenlace: 'resuelta', motivo: 'tecnico' } });
-    // El panel vuelve a la vida… y se calla otra vez
-    await registrarVida(panelId, new Date());
-    await envejecer(16);
+    // Pasa el tiempo: el aviso quedó atrás, el panel reportó después… y se calló otra vez
+    const { db, evento } = await import('@monitoring/db');
+    const { eq } = await import('drizzle-orm');
+    await db.update(evento).set({ ocurridoEn: new Date(Date.now() - 40 * 60_000) }).where(eq(evento.codigo, 'SIS'));
+    await registrarVida(panelId, new Date(Date.now() - 16 * 60_000));
     expect(await revisarPanelesSilenciosos()).toBe(1);
   });
 });
