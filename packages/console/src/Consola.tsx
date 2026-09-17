@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cerrarSesion, listarAlarmas, listarEventos } from './api.js';
 import { useTiempoReal } from './tiempoReal.js';
-import { sonarAlarma } from './sonido.js';
+import { sonarAlarma, sonarSirena } from './sonido.js';
 import type { MensajeTiempoReal, Usuario } from './tipos.js';
 import { Cola, type FiltroCola } from './vistas/Cola.js';
 import { Tablero } from './vistas/Tablero.js';
@@ -103,7 +103,11 @@ export function Consola({ usuario }: { usuario: Usuario }) {
     if (mensaje.canal === 'nueva_alarma') {
       void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
       if (mensaje.carga.alarmaId) setAlarmaReciente(mensaje.carga.alarmaId);
-      if (sonido) sonarAlarma(mensaje.carga.prioridad);
+      // Una emergencia entra con sirena; el resto, con el bip de siempre
+      if (sonido) {
+        if (mensaje.carga.prioridad <= 1) sonarSirena(4);
+        else sonarAlarma(mensaje.carga.prioridad);
+      }
     }
   });
 

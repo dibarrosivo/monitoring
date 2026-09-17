@@ -31,3 +31,34 @@ export function sonarAlarma(prioridad: number): void {
     // sin audio disponible: no es crítico
   }
 }
+
+/**
+ * Sirena para las emergencias (prioridad 1): un tono que sube y baja de
+ * frecuencia, como la sirena real, durante unos segundos. Sin archivos: se
+ * sintetiza en el momento. Después de la sirena sigue el aviso insistente
+ * normal hasta que alguien tome la alarma.
+ */
+export function sonarSirena(segundos = 4): void {
+  try {
+    contexto ??= new AudioContext();
+    if (contexto.state === 'suspended') void contexto.resume();
+    const inicio = contexto.currentTime;
+    const oscilador = contexto.createOscillator();
+    const ganancia = contexto.createGain();
+    oscilador.type = 'sawtooth';
+    // Barrido 600 → 1200 → 600 Hz, un ciclo por segundo
+    const ciclo = 1;
+    for (let t = 0; t <= segundos; t += ciclo / 2) {
+      oscilador.frequency.linearRampToValueAtTime(t % ciclo === 0 ? 600 : 1200, inicio + t);
+    }
+    ganancia.gain.setValueAtTime(0.0001, inicio);
+    ganancia.gain.exponentialRampToValueAtTime(0.16, inicio + 0.05);
+    ganancia.gain.setValueAtTime(0.16, inicio + segundos - 0.3);
+    ganancia.gain.exponentialRampToValueAtTime(0.0001, inicio + segundos);
+    oscilador.connect(ganancia).connect(contexto.destination);
+    oscilador.start(inicio);
+    oscilador.stop(inicio + segundos + 0.05);
+  } catch {
+    // sin audio disponible: no es crítico
+  }
+}
