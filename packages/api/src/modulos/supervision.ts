@@ -210,14 +210,16 @@ async function alertasDeSupervision() {
       texto: `${a.codigo} ${a.descripcion} (${a.prefijo ? `${a.prefijo}-` : ''}${a.numeroCuenta ?? '?'}) lleva ${Math.round((ahora - a.creadoEn.getTime()) / 60_000)} min sin tomar`,
     }));
 
-  // Cierres de alarmas reales en las últimas 24 h sin una sola llamada registrada
+  // Cierres de alarmas reales por OPERADORES en las últimas 24 h sin una sola
+  // llamada registrada. Los cierres del administrador no se señalan: son los
+  // del propio supervisor (por ejemplo, la limpieza de un histórico).
   const hace24h = new Date(ahora - 24 * 60 * 60_000);
   const cerradasRecientes = await db
     .select({ id: alarma.id, operadorId: alarma.operadorId, operadorNombre: usuario.nombre, codigo: evento.codigo, descripcion: evento.descripcion, categoria: evento.categoria })
     .from(alarma)
     .innerJoin(evento, eq(alarma.eventoId, evento.id))
-    .leftJoin(usuario, eq(alarma.operadorId, usuario.id))
-    .where(and(eq(alarma.estado, 'cerrada'), gte(alarma.cerradaEn, hace24h), eq(evento.categoria, 'alarma')));
+    .innerJoin(usuario, eq(alarma.operadorId, usuario.id))
+    .where(and(eq(alarma.estado, 'cerrada'), gte(alarma.cerradaEn, hace24h), eq(evento.categoria, 'alarma'), eq(usuario.rol, 'operador')));
   const conLlamada = new Set(
     cerradasRecientes.length
       ? (
