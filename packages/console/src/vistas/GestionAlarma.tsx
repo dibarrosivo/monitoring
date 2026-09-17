@@ -164,7 +164,7 @@ export function FormularioCierre({ alarma, alCerrar, compacto = false }: { alarm
   const listo = Boolean(motivo) && (motivo !== 'otro' || texto.trim().length > 0);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 shrink-0">
       <div className="flex gap-1">
         {(Object.keys(ETIQUETA_DESENLACE) as DesenlaceAlarma[]).map((valor) => (
           <button
@@ -194,7 +194,7 @@ export function FormularioCierre({ alarma, alCerrar, compacto = false }: { alarm
         onChange={(e) => setTexto(e.target.value)}
         placeholder={motivo === 'otro' ? 'Detalle (obligatorio)' : 'Detalle (opcional)'}
         rows={2}
-        className="bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
+        className="shrink-0 bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
       />
       {cerrar.isError && <p className="text-prio1 text-xs">{(cerrar.error as Error).message}</p>}
       <button

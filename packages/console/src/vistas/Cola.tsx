@@ -272,7 +272,7 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
   const abierta = alarma.estado !== 'cerrada';
 
   return (
-    <section className="h-80 shrink-0 bg-superficie border border-borde rounded-sm flex flex-col">
+    <section className="h-[48vh] min-h-[26rem] shrink-0 bg-superficie border border-borde rounded-sm flex flex-col">
       <header className="flex items-center gap-3 px-4 py-2 border-b border-borde bg-superficie-2">
         <span className={`font-datos font-semibold ${prio.texto}`}>{alarma.evento.codigo}</span>
         <span className="font-semibold">{alarma.evento.descripcion}</span>
@@ -440,21 +440,22 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
           {abierta ? (
             <>
               <h3 className="text-tenue text-xs uppercase tracking-wider">Gestión</h3>
+              {/* shrink-0: la columna scrollea; los campos no se aplastan para caber */}
               <textarea
                 value={nota}
                 onChange={(e) => setNota(e.target.value)}
                 placeholder="Anotar una gestión (verificación, observación…)"
                 rows={2}
-                className="bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
+                className="shrink-0 bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
               />
               <button
                 onClick={() => anotar.mutate()}
                 disabled={!nota.trim() || anotar.isPending}
-                className="self-end bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1 text-xs font-semibold disabled:opacity-50"
+                className="shrink-0 self-end bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1 text-xs font-semibold disabled:opacity-50"
               >
                 Agregar nota
               </button>
-              <h3 className="text-tenue text-xs uppercase tracking-wider mt-auto">Cierre</h3>
+              <h3 className="shrink-0 text-tenue text-xs uppercase tracking-wider mt-2">Cierre</h3>
               <FormularioCierre alarma={alarma} alCerrar={alCerrarPanel} />
             </>
           ) : (
