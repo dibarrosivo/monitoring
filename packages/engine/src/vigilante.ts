@@ -13,7 +13,13 @@ const FACTOR_TOLERANCIA = 1.5;
 
 export async function revisarPanelesSilenciosos(): Promise<number> {
   const silenciosos = await db
-    .select({ id: panel.id, numeroCuenta: panel.numeroCuenta, intervaloPruebaMin: panel.intervaloPruebaMin })
+    .select({
+      id: panel.id,
+      numeroCuenta: panel.numeroCuenta,
+      intervaloPruebaMin: panel.intervaloPruebaMin,
+      ultimaSenalEn: panel.ultimaSenalEn,
+      creadoEn: panel.creadoEn,
+    })
     .from(panel)
     .where(
       and(
@@ -28,6 +34,13 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
   let abiertas = 0;
   for (const p of silenciosos) {
     if (await tieneAlarmaSistemaAbierta(p.id)) continue;
+    /*
+     * Un aviso por episodio de silencio, no uno por minuto: si ya se avisó
+     * desde la última señal del panel y el operador lo cerró, no se vuelve a
+     * abrir hasta que el panel reporte y se calle de nuevo. Como red, se
+     * recuerda una vez al día mientras siga mudo.
+     */
+    if (await yaAvisadoSilencio(p.id, p.ultimaSenalEn ?? p.creadoEn)) continue;
 
     const descripcion = `Panel silencioso: cuenta ${p.numeroCuenta} sin señales por más de ${Math.round(
       p.intervaloPruebaMin * FACTOR_TOLERANCIA,
@@ -56,6 +69,17 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
     abiertas++;
   }
   return abiertas;
+}
+
+/** ¿Ya se avisó el silencio de este panel desde su última señal, en las últimas 24 h? */
+async function yaAvisadoSilencio(panelId: number, desde: Date): Promise<boolean> {
+  const piso = new Date(Math.max(desde.getTime(), Date.now() - 24 * 60 * 60_000));
+  const filas = await db
+    .select({ id: evento.id })
+    .from(evento)
+    .where(and(eq(evento.panelId, panelId), eq(evento.codigo, 'SIS'), gte(evento.ocurridoEn, piso)))
+    .limit(1);
+  return filas.length > 0;
 }
 
 /** Un evento de sistema con este código ya generado hoy para el panel (para no duplicar). */
