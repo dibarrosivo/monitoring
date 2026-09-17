@@ -35,6 +35,8 @@ import type {
   UsuarioAdmin,
   UsuarioPanel,
   Zona,
+  Supervision,
+  ActividadOperador,
 } from './tipos.js';
 
 const CLAVE_TOKEN = 'monitoring.token';
@@ -302,3 +304,8 @@ export const enviarPanico = (sitioId: number) =>
     method: 'POST',
     body: JSON.stringify({ sitioId }),
   });
+
+export const verSupervision = (desde: string, hasta: string) =>
+  pedir<Supervision>(`/supervision?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);
+export const verActividadOperador = (id: number, desde: string, hasta: string) =>
+  pedir<ActividadOperador>(`/supervision/operadores/${id}/actividad?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);

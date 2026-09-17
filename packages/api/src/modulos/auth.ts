@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db, hashearClave, usuario, verificarClave } from '@monitoring/db';
+import { db, hashearClave, sesionOperador, usuario, verificarClave } from '@monitoring/db';
 import type { App } from '../tipos.js';
 
 const esquemaLogin = z.object({
@@ -27,6 +27,14 @@ export function registrarAuth(app: App) {
       { id: fila.id, email: fila.email, rol: fila.rol },
       { expiresIn: fila.rol === 'cliente' ? '30d' : '12h' },
     );
+    // El personal deja rastro de cuándo entró en servicio (los clientes no)
+    if (fila.rol !== 'cliente') {
+      await db.insert(sesionOperador).values({
+        usuarioId: fila.id,
+        ip: request.ip?.slice(0, 64) ?? null,
+        agente: (request.headers['user-agent'] ?? '').toString().slice(0, 300) || null,
+      });
+    }
     return {
       token,
       usuario: { id: fila.id, email: fila.email, nombre: fila.nombre, rol: fila.rol },

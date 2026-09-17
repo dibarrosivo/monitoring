@@ -532,3 +532,61 @@ export interface EstadoDetalladoPanel {
   comunicaciones?: { cable?: string; wifi?: string; senalWifi?: number; nube?: string };
   perifericos: { tipo: 'sirena' | 'teclado' | 'repetidor'; nombre: string; estado: string; sabotaje: boolean }[];
 }
+
+/** Supervisión del personal (solo administradores). */
+export interface OperadorSupervision {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: 'admin' | 'operador';
+  activo: boolean;
+  tomadas: number;
+  cerradas: number;
+  reaccionMediaSeg: number | null;
+  reaccionMaxSeg: number | null;
+  atencionMediaSeg: number | null;
+  desenlaces: { resuelta: number; falsa_alarma: number; escalada: number };
+  motivos: { desenlace: string; motivo: string; n: number }[];
+  llamadas: number;
+  notas: number;
+  pasos: number;
+  devoluciones: number;
+  hombreMuerto: number;
+  sesiones: number;
+  horasEnServicio: number;
+  ultimaActividadEn: string | null;
+  enServicio: boolean;
+}
+
+export interface AlertaSupervision {
+  tipo: 'sin_tomar' | 'cierre_sin_llamada' | 'sin_actividad';
+  texto: string;
+  alarmaId?: number;
+  usuarioId?: number;
+  prioridad?: number;
+}
+
+export interface Supervision {
+  periodo: { desde: string; hasta: string };
+  operadores: OperadorSupervision[];
+  alertas: AlertaSupervision[];
+}
+
+export interface ActividadOperador {
+  operador: { id: number; nombre: string; email: string };
+  periodo: { desde: string; hasta: string };
+  acciones: {
+    id: number;
+    creadoEn: string;
+    tipo: TipoAccionAlarma;
+    detalle: string | null;
+    alarmaId: number;
+    codigo: string;
+    descripcion: string;
+    numeroCuenta: string | null;
+    prefijo: string | null;
+    clienteNombre: string | null;
+  }[];
+  sesiones: { id: number; ingresoEn: string; ultimaActividadEn: string; ip: string | null; agente: string | null }[];
+  hombreMuerto: { id: number; ocurridoEn: string; descripcion: string }[];
+}

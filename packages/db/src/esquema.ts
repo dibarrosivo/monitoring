@@ -313,6 +313,27 @@ export const usuario = pgTable('usuario', {
 });
 
 /**
+ * Sesiones del personal de la central: cuándo ingresó cada uno y hasta cuándo
+ * estuvo activo. Sin esto no hay forma de saber quién estaba en servicio
+ * cuando entró una alarma. La última actividad la actualiza la API con cada
+ * pedido autenticado (con un margen para no escribir en cada clic).
+ */
+export const sesionOperador = pgTable(
+  'sesion_operador',
+  {
+    id: serial('id').primaryKey(),
+    usuarioId: integer('id_usuario')
+      .notNull()
+      .references(() => usuario.id),
+    ingresoEn: timestamp('ingreso_en', { withTimezone: true }).notNull().defaultNow(),
+    ultimaActividadEn: timestamp('ultima_actividad_en', { withTimezone: true }).notNull().defaultNow(),
+    ip: varchar('ip', { length: 64 }),
+    agente: text('agente'),
+  },
+  (t) => [index('sesion_operador_usuario').on(t.usuarioId, t.ingresoEn)],
+);
+
+/**
  * Permiso de un usuario de plataforma (rol 'cliente') sobre el árbol de un cliente.
  * Granularidad por fila: panelId ⇒ solo ese panel; si no, sitioId ⇒ solo ese sitio;
  * si ambos son NULL ⇒ todos los sitios y paneles del cliente. Un usuario puede

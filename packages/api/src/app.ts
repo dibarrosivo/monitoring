@@ -5,7 +5,8 @@ import websocket from '@fastify/websocket';
 import type { WebSocket } from 'ws';
 import { crearSuscriptor, type Suscriptor } from './tiempoReal.js';
 import type { CargaJwt } from './tipos.js';
-import { pool } from '@monitoring/db';
+import { db, pool, sesionOperador } from '@monitoring/db';
+import { desc, eq, sql } from 'drizzle-orm';
 import { registrarAuth } from './modulos/auth.js';
 import { registrarClientes } from './modulos/clientes.js';
 import { registrarAlarmas } from './modulos/alarmas.js';
@@ -16,6 +17,7 @@ import { registrarClienteApp } from './modulos/clienteApp.js';
 import { registrarReportes } from './modulos/reportes.js';
 import { registrarConfiguracion } from './modulos/configuracion.js';
 import { registrarTablero } from './modulos/tablero.js';
+import { registrarSupervision } from './modulos/supervision.js';
 import { registrarBridge, registrarBridgesConsulta } from './modulos/bridge.js';
 import './tipos.js';
 
@@ -30,6 +32,17 @@ export interface OpcionesApp {
  * app.inject() y el arranque real (index.ts) solo agrega el puente WebSocket
  * y el listen.
  */
+/** Marca la última actividad en la sesión más reciente del usuario. */
+async function tocarSesion(usuarioId: number): Promise<void> {
+  const [ultima] = await db
+    .select({ id: sesionOperador.id })
+    .from(sesionOperador)
+    .where(eq(sesionOperador.usuarioId, usuarioId))
+    .orderBy(desc(sesionOperador.ingresoEn))
+    .limit(1);
+  if (ultima) await db.update(sesionOperador).set({ ultimaActividadEn: sql`now()` }).where(eq(sesionOperador.id, ultima.id));
+}
+
 export async function crearApp(opciones: OpcionesApp = {}): Promise<{
   app: FastifyInstance;
   conexiones: Map<WebSocket, Suscriptor>;
@@ -40,11 +53,22 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
   await app.register(jwt, { secret: opciones.jwtSecreto ?? process.env.JWT_SECRETO ?? 'solo-desarrollo' });
   await app.register(websocket);
 
+  /*
+   * Última actividad del personal: se anota en su sesión más reciente, como
+   * mucho una vez por minuto por usuario, sin demorar el pedido. Es lo que
+   * permite saber quién está en servicio y desde cuándo no toca la consola.
+   */
+  const ultimoToque = new Map<number, number>();
   app.decorate('autenticar', async (request, reply) => {
     try {
       await request.jwtVerify();
     } catch {
       return reply.code(401).send({ error: 'No autorizado' });
+    }
+    const u = request.user;
+    if (u.rol !== 'cliente' && Date.now() - (ultimoToque.get(u.id) ?? 0) > 60_000) {
+      ultimoToque.set(u.id, Date.now());
+      void tocarSesion(u.id).catch((err) => app.log.warn({ err }, 'No se pudo anotar la actividad de la sesión'));
     }
   });
 
@@ -77,6 +101,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       await api.register(async (sub) => registrarReportes(sub));
       await api.register(async (sub) => registrarConfiguracion(sub));
       await api.register(async (sub) => registrarTablero(sub));
+      await api.register(async (sub) => registrarSupervision(sub));
       await api.register(async (sub) => registrarBridge(sub));
       await api.register(async (sub) => registrarBridgesConsulta(sub));
 

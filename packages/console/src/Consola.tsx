@@ -9,6 +9,7 @@ import { Tablero } from './vistas/Tablero.js';
 import { Eventos } from './vistas/Eventos.js';
 import { Paneles } from './vistas/Paneles.js';
 import { Puentes } from './vistas/Puentes.js';
+import { Supervision } from './vistas/Supervision.js';
 import { Clientes } from './vistas/Clientes.js';
 import { Usuarios } from './vistas/Usuarios.js';
 import { Reportes } from './vistas/Reportes.js';
@@ -20,7 +21,7 @@ import { Buscador } from './Buscador.js';
 import { SelectorTema } from './SelectorTema.js';
 import { nombreCuenta } from './ui.js';
 
-type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'usuarios';
+type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'usuarios';
 
 const VISTAS: { clave: Vista; nombre: string; soloAdmin?: boolean }[] = [
   { clave: 'tablero', nombre: 'Dashboard', soloAdmin: true },
@@ -30,6 +31,7 @@ const VISTAS: { clave: Vista; nombre: string; soloAdmin?: boolean }[] = [
   { clave: 'puentes', nombre: 'Puentes' },
   { clave: 'clientes', nombre: 'Clientes' },
   { clave: 'reportes', nombre: 'Reportes' },
+  { clave: 'supervision', nombre: 'Supervisión', soloAdmin: true },
   { clave: 'usuarios', nombre: 'Usuarios', soloAdmin: true },
 ];
 
@@ -217,6 +219,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'puentes' && <Puentes />}
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
+          {vista === 'supervision' && <Supervision />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
         {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
@@ -321,6 +324,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'puentes' && <Puentes />}
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
+          {vista === 'supervision' && <Supervision />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
       </div>
