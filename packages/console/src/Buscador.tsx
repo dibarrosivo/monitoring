@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { buscar } from './api.js';
+import { nombreCuenta } from './ui.js';
 
 /**
  * Búsqueda global: clientes, sitios, paneles (por cuenta) y contactos.
@@ -76,7 +77,7 @@ export function Buscador({ alElegirCliente }: { alElegirCliente: (clienteId: num
             <Grupo titulo="Paneles">
               {resultados.paneles.map((p) => (
                 <Resultado key={p.id} alElegir={() => elegir(p.clienteId)}>
-                  <span className="font-datos font-semibold">cuenta {p.numeroCuenta}</span>
+                  <span className="font-datos font-semibold">cuenta {nombreCuenta(p.prefijo, p.numeroCuenta)}</span>
                   <span className="text-tenue text-xs">
                     {p.tipo} · {p.sitioNombre}
                   </span>

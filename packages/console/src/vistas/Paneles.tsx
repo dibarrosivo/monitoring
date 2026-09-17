@@ -4,6 +4,7 @@ import { editarPuente, listarPaneles, listarPuentes } from '../api.js';
 import type { EstadoPanel } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { DetalleDispositivo } from './Dispositivo.js';
+import { nombreCuenta } from '../ui.js';
 
 type Vida = 'al-dia' | 'demorado' | 'silencioso' | 'sin-datos';
 
@@ -112,7 +113,7 @@ export function Paneles({
                   }`}
                 >
                   <td className="px-3 py-1.5 font-semibold whitespace-nowrap">
-                    {panel.numeroCuenta}
+                    {nombreCuenta(panel.prefijo, panel.numeroCuenta)}
                     {!panel.activo && <span className="text-prio2 text-xs font-ui"> INACTIVO</span>}
                   </td>
                   <td className="px-3 py-1.5 font-ui">{panel.clienteNombre ?? '—'}</td>

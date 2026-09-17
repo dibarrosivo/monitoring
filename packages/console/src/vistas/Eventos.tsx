@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listarEventos, listarSenales } from '../api.js';
 import { fechaHora } from '../tiempo.js';
-import { NOMBRE_CATEGORIA, textoCategoria } from '../ui.js';
+import { NOMBRE_CATEGORIA, textoCategoria, nombreCuenta } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 
 /**
@@ -85,7 +85,7 @@ function TablaEventos({ alVerSenal }: { alVerSenal: (id: number) => void }) {
               <td className="px-3 py-1.5 font-ui text-tenue">{NOMBRE_CATEGORIA[evento.categoria]}</td>
               <td className="px-3 py-1.5 font-ui">{evento.descripcion}</td>
               <td className="px-3 py-1.5 whitespace-nowrap">
-                {evento.numeroCuenta ?? '—'}
+                {nombreCuenta(evento.prefijo, evento.numeroCuenta)}
                 {evento.clienteNombre && <span className="font-ui text-texto"> {evento.clienteNombre}</span>}
               </td>
               <td className="px-3 py-1.5 text-tenue">
@@ -155,7 +155,7 @@ function TablaSenales({ alVerSenal }: { alVerSenal: (id: number) => void }) {
                 <td className="px-3 py-1.5 text-tenue">{senal.fuente}</td>
                 <td className="px-3 py-1.5 text-tenue text-xs">{senal.remoto?.replace('::ffff:', '') ?? '—'}</td>
                 <td className="px-3 py-1.5 whitespace-nowrap">
-                  {senal.numeroCuenta ?? '—'}
+                  {nombreCuenta(senal.prefijo, senal.numeroCuenta)}
                   {senal.clienteNombre && <span className="font-ui text-texto"> {senal.clienteNombre}</span>}
                 </td>
                 <td className={`px-3 py-1.5 text-xs ${estado.clase}`}>{estado.nombre}</td>

@@ -17,7 +17,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-export const tipoPanelEnum = pgEnum('tipo_panel', ['hikvision', 'pima', 'ebm', 'otro']);
+export const tipoPanelEnum = pgEnum('tipo_panel', ['hikvision', 'pima', 'ebs', 'otro']);
 export const estadoParseEnum = pgEnum('estado_parse', ['ok', 'error', 'cifrada', 'ignorada']);
 export const categoriaEventoEnum = pgEnum('categoria_evento', [
   'alarma',

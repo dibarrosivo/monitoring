@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { verTablero } from '../api.js';
 import { fechaHora } from '../tiempo.js';
-import { NOMBRE_CATEGORIA } from '../ui.js';
+import { NOMBRE_CATEGORIA, nombreCuenta } from '../ui.js';
 import { clasesPrioridad } from '../ui.js';
 import type { FiltroCola } from './Cola.js';
 
@@ -63,7 +63,7 @@ export function Tablero({
             const vencida = Boolean(c.proximoVencimiento && c.proximoVencimiento < new Date().toISOString().slice(0, 10));
             return (
               <div key={c.panelId} className="flex items-center gap-3 text-sm">
-                <span className="font-datos">{c.numeroCuenta}</span>
+                <span className="font-datos">{nombreCuenta(c.prefijo, c.numeroCuenta)}</span>
                 <span className="flex-1 truncate">{c.clienteNombre}</span>
                 {c.montoAbono && <span className="font-datos text-tenue">{c.montoAbono}</span>}
                 <span className={`font-datos text-xs ${vencida ? 'text-prio2 font-semibold' : 'text-tenue'}`}>
@@ -111,7 +111,7 @@ export function Tablero({
                 <span className={`font-datos font-semibold ${prio.texto}`}>{a.codigo}</span>
                 <span className="flex-1 truncate">{a.descripcion}</span>
                 <span className="font-datos text-xs text-tenue whitespace-nowrap">
-                  {a.numeroCuenta ?? '—'}
+                  {nombreCuenta(a.prefijo, a.numeroCuenta)}
                   {a.clienteNombre && ` ${a.clienteNombre}`}
                 </span>
                 <span className="font-datos text-xs text-tenue whitespace-nowrap">{fechaHora(a.creadoEn)}</span>

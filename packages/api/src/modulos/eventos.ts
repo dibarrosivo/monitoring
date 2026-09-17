@@ -10,7 +10,7 @@ export function registrarEventos(app: App) {
     const { panelId, limite } = request.query as { panelId?: string; limite?: string };
     const max = Math.min(Number(limite ?? 100), 1000);
     const base = db
-      .select({ ...getTableColumns(evento), zonaDescripcion: zona.descripcion, clienteNombre: cliente.nombre })
+      .select({ ...getTableColumns(evento), zonaDescripcion: zona.descripcion, clienteNombre: cliente.nombre, prefijo: panel.prefijo })
       .from(evento)
       .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona)))
       .leftJoin(panel, eq(evento.panelId, panel.id))
@@ -25,7 +25,7 @@ export function registrarEventos(app: App) {
     const { limite } = request.query as { limite?: string };
     const max = Math.min(Number(limite ?? 200), 1000);
     return db
-      .select({ ...getTableColumns(senal), numeroCuenta: panel.numeroCuenta, clienteNombre: cliente.nombre })
+      .select({ ...getTableColumns(senal), numeroCuenta: panel.numeroCuenta, prefijo: panel.prefijo, clienteNombre: cliente.nombre })
       .from(senal)
       .leftJoin(panel, eq(senal.panelId, panel.id))
       .leftJoin(sitio, eq(panel.sitioId, sitio.id))

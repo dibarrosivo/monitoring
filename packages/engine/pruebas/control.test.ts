@@ -18,7 +18,7 @@ import { admiteControl, proveedorPara, registrarProveedor, SIN_CONTROL } from '.
 describe('qué equipos admiten control', () => {
   it('los equipos sin proveedor no admiten control', () => {
     // PIMA y los transmisores reportan por vías de un solo sentido
-    for (const tipo of ['pima', 'ebm', 'otro']) {
+    for (const tipo of ['pima', 'ebs', 'otro']) {
       expect(admiteControl(tipo)).toBe(false);
     }
   });

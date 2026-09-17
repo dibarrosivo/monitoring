@@ -24,6 +24,7 @@ export function registrarClienteApp(app: App) {
       .selectDistinctOn([panel.id], {
         id: panel.id,
         numeroCuenta: panel.numeroCuenta,
+        prefijo: panel.prefijo,
         tipo: panel.tipo,
         activo: panel.activo,
         ultimaSenalEn: panel.ultimaSenalEn,
@@ -94,9 +95,11 @@ export function registrarClienteApp(app: App) {
         zona: evento.zona,
         ocurridoEn: evento.ocurridoEn,
         zonaDescripcion: zona.descripcion,
+        prefijo: panel.prefijo,
       })
       .from(evento)
       .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona)))
+      .leftJoin(panel, eq(evento.panelId, panel.id))
       .where(
         and(
           inArray(

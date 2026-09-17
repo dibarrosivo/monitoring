@@ -28,6 +28,7 @@ import {
 import type { Cliente, Contacto, EstadoCliente, EstadoPanel, Sitio, TipoSitio } from '../tipos.js';
 import { Modal } from '../Modal.js';
 import { fechaHora } from '../tiempo.js';
+import { nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
 const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
@@ -353,7 +354,7 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
               className={CAMPO}
             >
               <option value="hikvision">Hikvision</option>
-              <option value="ebm">EBS</option>
+              <option value="ebs">EBS</option>
               <option value="pima">PIMA</option>
               <option value="otro">Otro</option>
             </select>
@@ -810,9 +811,9 @@ function TarjetaSitio({
             panel.activo ? '' : 'opacity-60'
           }`}
         >
-          <span className="font-datos font-semibold">cuenta {panel.numeroCuenta}</span>
+          <span className="font-datos font-semibold">cuenta {nombreCuenta(panel.prefijo, panel.numeroCuenta)}</span>
           <span className="text-tenue">
-            {[panel.alias, panel.tipo, panel.marca, panel.modelo].filter(Boolean).join(' · ')}
+            {[panel.alias, NOMBRE_TIPO_PANEL[panel.tipo] ?? panel.tipo, panel.marca, panel.modelo].filter(Boolean).join(' · ')}
             {!panel.activo && ' · INACTIVO'}
           </span>
           <span className="ml-auto text-acento text-xs">Abrir dispositivo →</span>
@@ -1127,7 +1128,7 @@ function FormularioPanel({ sitioId, alCrear }: { sitioId: number; alCrear: () =>
       />
       <select value={tipo} onChange={(e) => setTipo(e.target.value as EstadoPanel['tipo'])} className={CAMPO}>
         <option value="hikvision">Hikvision</option>
-        <option value="ebm">EBS</option>
+        <option value="ebs">EBS</option>
         <option value="pima">PIMA</option>
         <option value="otro">Otro</option>
       </select>
@@ -1330,7 +1331,7 @@ function AccesosDeUsuario({
         ))}
         {paneles.map((p) => (
           <option key={p.id} value={`panel:${p.id}`}>
-            panel: cuenta {p.numeroCuenta}
+            panel: cuenta {nombreCuenta(p.prefijo, p.numeroCuenta)}
           </option>
         ))}
       </select>

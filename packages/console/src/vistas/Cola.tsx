@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { anotarAlarma, devolverAlarma, marcarPaso, listarAcciones, listarAlarmas, tomarAlarma, verContexto } from '../api.js';
 import type { Alarma } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
-import { clasesPrioridad } from '../ui.js';
+import { clasesPrioridad, nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 import { ETIQUETA_DESENLACE } from '../cierres.js';
 import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
@@ -174,7 +174,7 @@ function FilaAlarma({
       <td className={`px-3 py-1.5 font-semibold ${prio.texto}`}>{alarma.evento.codigo}</td>
       <td className="px-3 py-1.5 font-ui">{alarma.evento.descripcion}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">
-        {alarma.evento.numeroCuenta ?? '—'}
+        {nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta)}
         {alarma.clienteNombre && <span className="font-ui text-texto"> {alarma.clienteNombre}</span>}
       </td>
       <td className="px-3 py-1.5 text-tenue">
@@ -363,7 +363,7 @@ function PanelDetalle({ alarma, alCerrarPanel }: { alarma: Alarma; alCerrarPanel
                   </p>
                 )}
                 <p className="font-datos text-xs text-tenue mt-1">
-                  cuenta {contexto.panel?.numeroCuenta} · {contexto.panel?.tipo}
+                  cuenta {nombreCuenta(contexto.panel?.prefijo, contexto.panel?.numeroCuenta)} · {NOMBRE_TIPO_PANEL[contexto.panel?.tipo ?? ''] ?? contexto.panel?.tipo}
                   {contexto.panel?.modelo && ` ${contexto.panel.modelo}`}
                   {contexto.sitio?.telefono && ` · sitio ${contexto.sitio.telefono}`}
                 </p>

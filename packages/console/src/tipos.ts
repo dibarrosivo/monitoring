@@ -22,6 +22,7 @@ export interface Evento {
   senalId: number | null;
   panelId: number | null;
   numeroCuenta: string | null;
+  prefijo?: string | null;
   categoria: CategoriaEvento;
   codigo: string;
   descripcion: string;
@@ -43,6 +44,7 @@ export interface Senal {
   panelId: number | null;
   recibidaEn: string;
   numeroCuenta?: string | null;
+  prefijo?: string | null;
   clienteNombre?: string | null;
 }
 
@@ -112,6 +114,7 @@ export interface Alarma {
   panelId: number | null;
   zonaDescripcion: string | null;
   clienteNombre: string | null;
+  prefijo?: string | null;
   evento: Pick<Evento, 'id' | 'codigo' | 'categoria' | 'descripcion' | 'numeroCuenta' | 'particion' | 'zona' | 'ocurridoEn'> & {
     senalId: number | null;
   };
@@ -133,7 +136,7 @@ export interface EstadoPanel {
   id: number;
   sitioId: number;
   numeroCuenta: string;
-  tipo: 'hikvision' | 'pima' | 'ebm' | 'otro';
+  tipo: 'hikvision' | 'pima' | 'ebs' | 'otro';
   supervisado: boolean;
   intervaloPruebaMin: number;
   ultimaSenalEn: string | null;
@@ -196,6 +199,7 @@ export interface LineaDiarioPuente {
   descripcion: string | null;
   categoria: CategoriaEvento | null;
   numeroCuenta: string | null;
+  prefijo?: string | null;
   prioridad: number | null;
 }
 
@@ -316,6 +320,7 @@ export interface ContextoAlarma {
   panel: {
     id: number;
     numeroCuenta: string;
+    prefijo?: string | null;
     alias: string | null;
     tipo: string;
     marca: string | null;
@@ -337,6 +342,7 @@ export type DesenlaceAlarma = 'resuelta' | 'falsa_alarma' | 'escalada';
 export interface PanelResumenCliente {
   id: number;
   numeroCuenta: string;
+  prefijo?: string | null;
   tipo: string;
   activo: boolean;
   ultimaSenalEn: string | null;
@@ -396,6 +402,7 @@ export interface Reporte {
     codigo: string;
     descripcion: string;
     numeroCuenta: string | null;
+    prefijo?: string | null;
   }[];
   eventos: {
     id: number;
@@ -403,6 +410,7 @@ export interface Reporte {
     categoria: CategoriaEvento;
     descripcion: string;
     numeroCuenta: string | null;
+    prefijo?: string | null;
     zona: string | null;
     particion: string | null;
     ocurridoEn: string;
@@ -427,6 +435,7 @@ export interface Tablero {
     cuentas: {
       panelId: number;
       numeroCuenta: string;
+      prefijo?: string | null;
       clienteNombre: string;
       proximoVencimiento: string | null;
       montoAbono: string | null;
@@ -441,6 +450,7 @@ export interface Tablero {
     codigo: string;
     descripcion: string;
     numeroCuenta: string | null;
+    prefijo?: string | null;
     clienteNombre: string | null;
   }[];
 }
@@ -449,7 +459,7 @@ export interface Tablero {
 export interface ResultadoBusqueda {
   clientes: { id: number; nombre: string; telefono: string | null }[];
   sitios: { id: number; nombre: string; direccion: string | null; clienteId: number }[];
-  paneles: { id: number; numeroCuenta: string; tipo: string; clienteId: number; sitioNombre: string }[];
+  paneles: { id: number; numeroCuenta: string; prefijo?: string | null; tipo: string; clienteId: number; sitioNombre: string }[];
   contactos: { id: number; nombre: string; telefono: string; clienteId: number }[];
 }
 
@@ -465,6 +475,7 @@ export interface MensajeTiempoReal {
     codigo?: string;
     categoria?: CategoriaEvento;
     numeroCuenta?: string | null;
+    prefijo?: string | null;
     /** Para decirlo en voz alta: zona física, su nombre y el sitio */
     zona?: string | null;
     zonaDescripcion?: string | null;

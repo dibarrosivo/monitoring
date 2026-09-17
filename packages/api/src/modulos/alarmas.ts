@@ -81,6 +81,7 @@ export function registrarAlarmas(app: App) {
         },
         zonaDescripcion: zona.descripcion,
         clienteNombre: cliente.nombre,
+        prefijo: panel.prefijo,
         panelId: alarma.panelId,
       })
       .from(alarma)
@@ -122,6 +123,7 @@ export function registrarAlarmas(app: App) {
         panel: {
           id: panel.id,
           numeroCuenta: panel.numeroCuenta,
+          prefijo: panel.prefijo,
           alias: panel.alias,
           tipo: panel.tipo,
           marca: panel.marca,
@@ -396,6 +398,7 @@ export function registrarAlarmas(app: App) {
         id: panel.id,
         sitioId: panel.sitioId,
         numeroCuenta: panel.numeroCuenta,
+        prefijo: panel.prefijo,
         tipo: panel.tipo,
         marca: panel.marca,
         modelo: panel.modelo,

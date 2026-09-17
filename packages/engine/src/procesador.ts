@@ -67,7 +67,7 @@ const TIPOS_POR_VIA: Partial<Record<FuenteSenal, string[]>> = {
   'dc09-tcp': ['hikvision', 'otro'],
   'dc09-udp': ['hikvision', 'otro'],
   'pima-bridge': ['pima', 'otro'],
-  'surgard-tcp': ['ebm', 'otro'],
+  'surgard-tcp': ['ebs', 'otro'],
 };
 
 /**
@@ -261,6 +261,7 @@ export async function procesarEvento(entrada: {
     descripcion,
     prioridad: normalizado.prioridad,
     numeroCuenta: normalizado.numeroCuenta,
+    prefijo: panelEncontrado?.prefijo ?? null,
     zona: normalizado.zona || null,
     ...contexto,
   });

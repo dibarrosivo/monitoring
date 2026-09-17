@@ -18,6 +18,7 @@ import { HombreMuerto } from './HombreMuerto.js';
 import { usePantallaChica } from './pantalla.js';
 import { Buscador } from './Buscador.js';
 import { SelectorTema } from './SelectorTema.js';
+import { nombreCuenta } from './ui.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'usuarios';
 
@@ -95,8 +96,8 @@ export function Consola({ usuario }: { usuario: Usuario }) {
 
   const enlace = useTiempoReal((mensaje: MensajeTiempoReal) => {
     if (mensaje.canal === 'nuevo_evento') {
-      const { codigo, numeroCuenta } = mensaje.carga;
-      if (codigo) setUltimaSenal(`${codigo} · cuenta ${numeroCuenta ?? '?'}`);
+      const { codigo, numeroCuenta, prefijo } = mensaje.carga;
+      if (codigo) setUltimaSenal(`${codigo} · cuenta ${nombreCuenta(prefijo, numeroCuenta ?? '?')}`);
       void clienteConsultas.invalidateQueries({ queryKey: ['eventos'] });
       void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] });
     }
@@ -137,7 +138,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
   });
   const textoUltimaSenal =
     ultimaSenal ??
-    (ultimoEvento?.[0] ? `${ultimoEvento[0].codigo} · cuenta ${ultimoEvento[0].numeroCuenta ?? '?'}` : null);
+    (ultimoEvento?.[0] ? `${ultimoEvento[0].codigo} · cuenta ${nombreCuenta(ultimoEvento[0].prefijo, ultimoEvento[0].numeroCuenta ?? '?')}` : null);
   const conteos = useMemo(() => {
     const abiertas = alarmas ?? [];
     return {

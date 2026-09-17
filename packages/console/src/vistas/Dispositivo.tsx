@@ -23,6 +23,7 @@ import { transcurrido } from '../tiempo.js';
 import { Modal } from '../Modal.js';
 import { CampoSugerido } from '../CampoSugerido.js';
 import { ControlPanel } from '../ControlPanel.js';
+import { nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
 const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
@@ -76,7 +77,7 @@ export function DetalleDispositivo({
       <header className={`bg-superficie border border-borde rounded-sm p-4 ${panel.activo ? '' : 'opacity-60'}`}>
         <div className="flex items-center gap-3 flex-wrap">
           <h2 className="font-datos font-semibold text-xl">
-            cuenta {panel.numeroCuenta}
+            cuenta {nombreCuenta(panel.prefijo, panel.numeroCuenta)}
             {panel.cuentaSecundaria && (
               <span className="text-tenue text-base font-normal"> · también reporta como {panel.cuentaSecundaria}</span>
             )}
@@ -246,7 +247,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
             <span className="text-tenue">Tipo</span>
             <select value={datos.tipo} onChange={(e) => setDatos({ ...datos, tipo: e.target.value as typeof datos.tipo })} className={CAMPO}>
               <option value="hikvision">Hikvision</option>
-              <option value="ebm">EBS</option>
+              <option value="ebs">EBS</option>
               <option value="pima">PIMA</option>
               <option value="otro">Otro</option>
             </select>

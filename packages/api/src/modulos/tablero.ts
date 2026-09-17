@@ -56,6 +56,7 @@ export function registrarTablero(app: App) {
           codigo: evento.codigo,
           descripcion: evento.descripcion,
           numeroCuenta: evento.numeroCuenta,
+          prefijo: panel.prefijo,
           clienteNombre: cliente.nombre,
         })
         .from(alarma)
@@ -85,6 +86,7 @@ export function registrarTablero(app: App) {
         .select({
           panelId: panel.id,
           numeroCuenta: panel.numeroCuenta,
+          prefijo: panel.prefijo,
           clienteNombre: cliente.nombre,
           proximoVencimiento: panel.proximoVencimiento,
           montoAbono: panel.montoAbono,

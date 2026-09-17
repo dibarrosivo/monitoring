@@ -36,7 +36,7 @@ beforeEach(async () => {
 
   const matarile = (await ctx.pedir('POST', '/clientes', { token, cuerpo: { nombre: 'Matarile' } })).cuerpo.id;
   const sitioMatarile = (await ctx.pedir('POST', '/sitios', { token, cuerpo: { clienteId: matarile, nombre: 'Local' } })).cuerpo.id;
-  const alta = await ctx.pedir('POST', '/paneles', { token, cuerpo: { sitioId: sitioMatarile, numeroCuenta: '7037', tipo: 'ebm' } });
+  const alta = await ctx.pedir('POST', '/paneles', { token, cuerpo: { sitioId: sitioMatarile, numeroCuenta: '7037', tipo: 'ebs' } });
   idEbs = alta.cuerpo.id;
 });
 
@@ -50,7 +50,7 @@ describe('alta de equipos con el mismo número', () => {
   it('se rechaza dentro del mismo tipo', async () => {
     const otro = (await ctx.pedir('POST', '/clientes', { token, cuerpo: { nombre: 'Tercero' } })).cuerpo.id;
     const sitio = (await ctx.pedir('POST', '/sitios', { token, cuerpo: { clienteId: otro, nombre: 'Local' } })).cuerpo.id;
-    const { estado, cuerpo } = await ctx.pedir('POST', '/paneles', { token, cuerpo: { sitioId: sitio, numeroCuenta: '7037', tipo: 'ebm' } });
+    const { estado, cuerpo } = await ctx.pedir('POST', '/paneles', { token, cuerpo: { sitioId: sitio, numeroCuenta: '7037', tipo: 'ebs' } });
     expect(estado).toBe(409);
     expect(cuerpo.error).toMatch(/EBS/);
   });

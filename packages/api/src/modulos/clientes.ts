@@ -116,7 +116,7 @@ const camposPanel = {
   cuentaSecundaria: z.string().regex(/^[0-9A-Fa-f]{3,16}$/).nullable().optional(),
   prefijo: z.string().max(8).optional(),
   alias: z.string().optional(),
-  tipo: z.enum(['hikvision', 'pima', 'ebm', 'otro']).default('otro'),
+  tipo: z.enum(['hikvision', 'pima', 'ebs', 'otro']).default('otro'),
   marca: z.string().optional(),
   modelo: z.string().optional(),
   serial: z.string().optional(),
@@ -207,7 +207,7 @@ async function cuentasEnConflicto(
   return `La cuenta ya está asignada a otro equipo ${NOMBRE_TIPO[choque.tipo] ?? choque.tipo} (${choque.numeroCuenta})`;
 }
 
-const NOMBRE_TIPO: Record<string, string> = { hikvision: 'Hikvision', pima: 'PIMA', ebm: 'EBS', otro: 'de otro tipo' };
+const NOMBRE_TIPO: Record<string, string> = { hikvision: 'Hikvision', pima: 'PIMA', ebs: 'EBS', otro: 'de otro tipo' };
 
 export function registrarClientes(app: App) {
   app.addHook('onRequest', app.autenticar);
@@ -253,7 +253,7 @@ export function registrarClientes(app: App) {
         .where(or(ilike(sitio.nombre, patron), ilike(sitio.direccion, patron)))
         .limit(6),
       db
-        .select({ id: panel.id, numeroCuenta: panel.numeroCuenta, tipo: panel.tipo, clienteId: sitio.clienteId, sitioNombre: sitio.nombre })
+        .select({ id: panel.id, numeroCuenta: panel.numeroCuenta, prefijo: panel.prefijo, tipo: panel.tipo, clienteId: sitio.clienteId, sitioNombre: sitio.nombre })
         .from(panel)
         .innerJoin(sitio, eq(panel.sitioId, sitio.id))
         .where(ilike(panel.numeroCuenta, patron))

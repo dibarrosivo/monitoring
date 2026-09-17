@@ -8,6 +8,7 @@ import { AvisosCliente, ControlesAviso, useAvisosCliente } from './Avisos.js';
 import { ActualizacionApp } from './ActualizacionApp.js';
 import { PanelHikvision } from './PanelHikvision.js';
 import { SelectorTema } from '../SelectorTema.js';
+import { nombreCuenta } from '../ui.js';
 
 type Pestana = 'inicio' | 'eventos' | 'panico';
 
@@ -209,7 +210,7 @@ function TarjetaSitio({ panel, alarmas, alAbrir }: { panel: PanelResumenCliente;
       {panel.sitioDireccion && <p className="text-tenue text-sm">{panel.sitioDireccion}</p>}
       {enAlarma && <p className="text-prio1 text-sm font-semibold">⚠ Alarma en curso en este sitio</p>}
       <div className="font-datos text-xs text-tenue flex flex-wrap gap-x-4">
-        <span>cuenta {panel.numeroCuenta}</span>
+        <span>cuenta {nombreCuenta(panel.prefijo, panel.numeroCuenta)}</span>
         {panel.ultimoMovimientoEn && <span>último movimiento {transcurrido(panel.ultimoMovimientoEn)}</span>}
         <span>{panel.ultimaSenalEn ? `en línea · señal ${transcurrido(panel.ultimaSenalEn)}` : 'sin señales aún'}</span>
       </div>

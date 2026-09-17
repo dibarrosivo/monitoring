@@ -27,6 +27,14 @@ export function textoCategoria(categoria: CategoriaEvento, prioridad: number): s
   }
 }
 
+/** Nombre de la cuenta como la nombra la central: prefijo y número (HIK-7037, AL-7048). */
+export function nombreCuenta(prefijo: string | null | undefined, numero: string | null | undefined): string {
+  if (!numero) return '—';
+  return prefijo ? `${prefijo}-${numero}` : numero;
+}
+
+export const NOMBRE_TIPO_PANEL: Record<string, string> = { hikvision: 'Hikvision', pima: 'PIMA', ebs: 'EBS', otro: 'Otro' };
+
 export const NOMBRE_CATEGORIA: Record<CategoriaEvento, string> = {
   alarma: 'Alarma',
   restauracion: 'Restauración',

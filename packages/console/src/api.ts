@@ -164,7 +164,8 @@ export const crearSitio = (datos: { clienteId: number; nombre: string; direccion
 export const crearPanel = (datos: {
   sitioId: number;
   numeroCuenta: string;
-  tipo: 'hikvision' | 'pima' | 'ebm' | 'otro';
+  prefijo?: string | null;
+  tipo: 'hikvision' | 'pima' | 'ebs' | 'otro';
   modelo?: string;
   intervaloPruebaMin?: number;
 }) => pedir<EstadoPanel>('/paneles', { method: 'POST', body: JSON.stringify(datos) });

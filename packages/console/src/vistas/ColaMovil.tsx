@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { anotarAlarma, devolverAlarma, listarAcciones, listarAlarmas, tomarAlarma, verContexto } from '../api.js';
 import type { Alarma } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
-import { clasesPrioridad } from '../ui.js';
+import { clasesPrioridad, nombreCuenta } from '../ui.js';
 import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -53,7 +53,7 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
         </span>
         <span className="font-datos text-xs text-tenue flex flex-wrap gap-x-3">
           <span>
-            cuenta {alarma.evento.numeroCuenta ?? '—'}
+            cuenta {nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta)}
             {alarma.clienteNombre && <span className="font-ui text-texto"> · {alarma.clienteNombre}</span>}
           </span>
           {alarma.evento.zona && (

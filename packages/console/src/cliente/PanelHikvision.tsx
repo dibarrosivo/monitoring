@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { enviarComando, estadoDetallado, listarComandos, verEventosCliente } from '../api.js';
 import type { AccionComando, EstadoDetalladoPanel, EstadoZonaPanel, PanelResumenCliente } from '../tipos.js';
+import { nombreCuenta } from '../ui.js';
 
 /**
  * La pantalla del panel para equipos Hikvision, con la lógica de la app del
@@ -103,7 +104,7 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
         <div className="min-w-0">
           <h1 className="font-semibold text-base truncate">{panel.sitioNombre}</h1>
           <p className="text-xs truncate" style={{ color: '#6B7280' }}>
-            Hikvision {panel.numeroCuenta}
+            Hikvision {nombreCuenta(panel.prefijo, panel.numeroCuenta)}
             {panel.ultimaSenalEn && ` · en línea`}
           </p>
         </div>
