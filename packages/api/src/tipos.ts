@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 export interface CargaJwt {
   id: number;
   email: string;
-  rol: 'admin' | 'operador' | 'cliente';
+  rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
 }
 
 declare module 'fastify' {

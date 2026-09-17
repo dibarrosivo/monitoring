@@ -82,7 +82,7 @@ export function registrarComandos(app: App) {
     // Guardia 2: quien lo pide puede hacerlo. Por decisión de la central, los
     // operadores no mandan órdenes a los paneles: solo administradores y el
     // propio cliente sobre sus equipos. Ver y consultar el estado sí pueden.
-    if (request.user.rol === 'operador') {
+    if (request.user.rol === 'operador' || request.user.rol === 'supervisor') {
       return reply.code(403).send({ error: 'El control de paneles está reservado a administradores' });
     }
     if (request.user.rol === 'cliente') {

@@ -271,10 +271,10 @@ export const crearUsuario = (datos: {
   email: string;
   nombre: string;
   clave: string;
-  rol: 'admin' | 'operador' | 'cliente';
+  rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
   clienteId?: number;
 }) => pedir<UsuarioAdmin>('/usuarios', { method: 'POST', body: JSON.stringify(datos) });
-export const editarUsuario = (id: number, datos: { nombre?: string; rol?: 'admin' | 'operador'; activo?: boolean; clave?: string }) =>
+export const editarUsuario = (id: number, datos: { nombre?: string; rol?: 'admin' | 'supervisor' | 'operador'; activo?: boolean; clave?: string }) =>
   editar<UsuarioAdmin>(`/usuarios/${id}`, datos);
 export const verTablero = () => pedir<Tablero>('/tablero');
 

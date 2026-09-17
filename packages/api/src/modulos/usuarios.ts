@@ -8,7 +8,7 @@ const esquemaAlta = z
     email: z.string().email(),
     nombre: z.string().min(1),
     clave: z.string().min(6),
-    rol: z.enum(['admin', 'operador', 'cliente']).default('operador'),
+    rol: z.enum(['admin', 'supervisor', 'operador', 'cliente']).default('operador'),
     /** Para rol 'cliente': acceso inicial a todo este cliente */
     clienteId: z.number().int().optional(),
   })
@@ -18,7 +18,7 @@ const esquemaAlta = z
 
 const esquemaEdicion = z.object({
   nombre: z.string().min(1).optional(),
-  rol: z.enum(['admin', 'operador']).optional(),
+  rol: z.enum(['admin', 'supervisor', 'operador']).optional(),
   activo: z.boolean().optional(),
   /** Si viene, restablece la clave del usuario */
   clave: z.string().min(6).optional(),
@@ -87,7 +87,7 @@ export function registrarUsuarios(app: App) {
     if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
     const { clave, ...resto } = datos.data;
     // Un admin no puede desactivarse ni degradarse a sí mismo (evita quedarse afuera).
-    if (id === request.user.id && (resto.activo === false || resto.rol === 'operador')) {
+    if (id === request.user.id && (resto.activo === false || (resto.rol && resto.rol !== 'admin'))) {
       return reply.code(400).send({ error: 'No puede desactivar o degradar su propio usuario' });
     }
     // Una cuenta de la app de clientes jamás pasa a personal de la central.

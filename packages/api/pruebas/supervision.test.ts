@@ -13,7 +13,7 @@ async function dispararAlarma(prioridad = 2): Promise<number> {
   const { db, evento } = await import('@monitoring/db');
   const [filaEvento] = await db
     .insert(evento)
-    .values({ panelId, numeroCuenta: 'SUP1', categoria: 'alarma', codigo: 'E130', descripcion: 'Robo', zona: '001', prioridad, ocurridoEn: new Date() })
+    .values({ panelId, numeroCuenta: 'ABC2', categoria: 'alarma', codigo: 'E130', descripcion: 'Robo', zona: '001', prioridad, ocurridoEn: new Date() })
     .returning({ id: evento.id });
   return abrirAlarma({ eventoId: filaEvento!.id, panelId, prioridad, descripcion: 'Robo' });
 }
@@ -37,7 +37,7 @@ beforeEach(async () => {
   tokenOperador = await ctx.ingresar('oper@test.local', 'oper123');
   const clienteId = (await ctx.pedir('POST', '/clientes', { token: tokenAdmin, cuerpo: { nombre: 'Cliente S' } })).cuerpo.id;
   const sitioId = (await ctx.pedir('POST', '/sitios', { token: tokenAdmin, cuerpo: { clienteId, nombre: 'Sitio S' } })).cuerpo.id;
-  panelId = (await ctx.pedir('POST', '/paneles', { token: tokenAdmin, cuerpo: { sitioId, numeroCuenta: 'SUP1' } })).cuerpo.id;
+  panelId = (await ctx.pedir('POST', '/paneles', { token: tokenAdmin, cuerpo: { sitioId, numeroCuenta: 'ABC2' } })).cuerpo.id;
 });
 
 describe('supervisión del personal', () => {
@@ -89,7 +89,7 @@ describe('supervisión del personal', () => {
     const { cuerpo } = await ctx.pedir('GET', `/supervision/operadores/${oper.id}/actividad`, { token: tokenAdmin });
     expect(cuerpo.operador.nombre).toBe('Operador Uno');
     expect(cuerpo.acciones).toHaveLength(1);
-    expect(cuerpo.acciones[0]).toMatchObject({ tipo: 'toma', codigo: 'E130', numeroCuenta: 'SUP1' });
+    expect(cuerpo.acciones[0]).toMatchObject({ tipo: 'toma', codigo: 'E130', numeroCuenta: 'ABC2' });
     expect(cuerpo.sesiones).toHaveLength(1);
   });
 
@@ -98,5 +98,22 @@ describe('supervisión del personal', () => {
     const { cuerpo } = await ctx.pedir('GET', '/supervision', { token: tokenAdmin });
     const oper = cuerpo.operadores.find((o: { email: string }) => o.email === 'oper@test.local');
     expect(oper.hombreMuerto).toBe(1);
+  });
+});
+
+describe('rol supervisor', () => {
+  it('ve la supervisión pero no gestiona usuarios ni controla paneles', async () => {
+    await crearUsuarioDirecto({ email: 'sup@test.local', nombre: 'Supervisora', clave: 'sup123', rol: 'supervisor' });
+    const token = await ctx.ingresar('sup@test.local', 'sup123');
+    expect((await ctx.pedir('GET', '/supervision', { token })).estado).toBe(200);
+    expect((await ctx.pedir('GET', '/usuarios', { token })).estado).toBe(403);
+    // Un equipo que sí admite control: el rechazo tiene que venir del rol, no del tipo
+    const sitioId = (await ctx.pedir('GET', '/paneles', { token })).cuerpo[0].sitioId;
+    const hik = (await ctx.pedir('POST', '/paneles', { token: tokenAdmin, cuerpo: { sitioId, numeroCuenta: 'ABC3', tipo: 'hikvision', serial: 'QX1' } })).cuerpo;
+    const orden = await ctx.pedir('POST', `/paneles/${hik.id}/comando`, { token, cuerpo: { accion: 'armar' } });
+    expect(orden.estado).toBe(403);
+    expect(orden.cuerpo.error).toMatch(/administradores/);
+    // Y lo del operador sí: la cola
+    expect((await ctx.pedir('GET', '/alarmas', { token })).estado).toBe(200);
   });
 });

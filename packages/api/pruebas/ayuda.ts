@@ -100,7 +100,7 @@ export async function crearUsuarioDirecto(datos: {
   email: string;
   nombre: string;
   clave: string;
-  rol: 'admin' | 'operador' | 'cliente';
+  rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
 }): Promise<number> {
   const { db, hashearClave, usuario } = await import('@monitoring/db');
   const [fila] = await db

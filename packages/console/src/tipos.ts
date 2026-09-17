@@ -2,7 +2,7 @@ export interface Usuario {
   id: number;
   email: string;
   nombre: string;
-  rol: 'admin' | 'operador' | 'cliente';
+  rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
 }
 
 export type CategoriaEvento =
@@ -70,7 +70,7 @@ export interface UsuarioAdmin {
   id: number;
   email: string;
   nombre: string;
-  rol: 'admin' | 'operador' | 'cliente';
+  rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
   activo: boolean;
   creadoEn: string;
 }
@@ -538,7 +538,7 @@ export interface OperadorSupervision {
   id: number;
   nombre: string;
   email: string;
-  rol: 'admin' | 'operador';
+  rol: 'admin' | 'supervisor' | 'operador';
   activo: boolean;
   tomadas: number;
   cerradas: number;

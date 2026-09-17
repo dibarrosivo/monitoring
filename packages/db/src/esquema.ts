@@ -41,7 +41,8 @@ export const tipoAccionEnum = pgEnum('tipo_accion', ['toma', 'nota', 'cierre', '
  * más dicen sobre la salud de una instalación.
  */
 export const desenlaceAlarmaEnum = pgEnum('desenlace_alarma', ['resuelta', 'falsa_alarma', 'escalada']);
-export const rolUsuarioEnum = pgEnum('rol_usuario', ['admin', 'operador', 'cliente']);
+/** supervisor: lo del operador más supervisión y tablero; sin usuarios ni control de paneles */
+export const rolUsuarioEnum = pgEnum('rol_usuario', ['admin', 'supervisor', 'operador', 'cliente']);
 export const estadoClienteEnum = pgEnum('estado_cliente', ['activo', 'suspendido', 'baja']);
 export const tipoPersonaEnum = pgEnum('tipo_persona', ['natural', 'juridico', 'gobierno', 'otro']);
 export const tipoSitioEnum = pgEnum('tipo_sitio', [

@@ -184,7 +184,7 @@ function ConfigPresencia() {
 
 function FormularioUsuario() {
   const clienteConsultas = useQueryClient();
-  const [datos, setDatos] = useState({ nombre: '', email: '', clave: '', rol: 'operador' as 'admin' | 'operador' });
+  const [datos, setDatos] = useState({ nombre: '', email: '', clave: '', rol: 'operador' as 'admin' | 'supervisor' | 'operador' });
   const [error, setError] = useState<string | null>(null);
   const crear = useMutation({
     mutationFn: () => crearUsuario(datos),
@@ -216,8 +216,9 @@ function FormularioUsuario() {
         minLength={6}
         className={`${CAMPO} font-datos`}
       />
-      <select value={datos.rol} onChange={(e) => setDatos({ ...datos, rol: e.target.value as 'admin' | 'operador' })} className={CAMPO}>
+      <select value={datos.rol} onChange={(e) => setDatos({ ...datos, rol: e.target.value as 'admin' | 'supervisor' | 'operador' })} className={CAMPO}>
         <option value="operador">Operador</option>
+        <option value="supervisor">Supervisor</option>
         <option value="admin">Administrador</option>
       </select>
       <button type="submit" disabled={crear.isPending} className={BOTON}>
@@ -234,7 +235,7 @@ function FilaUsuario({ usuario, esUsuarioActual }: { usuario: UsuarioAdmin; esUs
   const refrescar = () => void clienteConsultas.invalidateQueries({ queryKey: ['usuarios'] });
 
   const editar = useMutation({
-    mutationFn: (cambios: { activo?: boolean; rol?: 'admin' | 'operador'; clave?: string }) => editarUsuario(usuario.id, cambios),
+    mutationFn: (cambios: { activo?: boolean; rol?: 'admin' | 'supervisor' | 'operador'; clave?: string }) => editarUsuario(usuario.id, cambios),
     onSuccess: () => {
       setClaveNueva(null);
       refrescar();
@@ -270,12 +271,16 @@ function FilaUsuario({ usuario, esUsuarioActual }: { usuario: UsuarioAdmin; esUs
         {!esUsuarioActual && (
           <>
             {usuario.rol !== 'cliente' && (
-              <button
-                onClick={() => editar.mutate({ rol: usuario.rol === 'admin' ? 'operador' : 'admin' })}
-                className={BOTON_MINI}
+              <select
+                value={usuario.rol}
+                onChange={(e) => editar.mutate({ rol: e.target.value as 'admin' | 'supervisor' | 'operador' })}
+                className={`${CAMPO} text-xs`}
+                title="Rol"
               >
-                Hacer {usuario.rol === 'admin' ? 'operador' : 'admin'}
-              </button>
+                <option value="operador">Operador</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="admin">Administrador</option>
+              </select>
             )}
             <button onClick={() => editar.mutate({ activo: !usuario.activo })} className={usuario.activo ? BOTON_MINI_ROJO : BOTON_MINI}>
               {usuario.activo ? 'Desactivar' : 'Reactivar'}

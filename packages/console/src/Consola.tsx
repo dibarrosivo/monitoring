@@ -23,21 +23,22 @@ import { nombreCuenta } from './ui.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'usuarios';
 
-const VISTAS: { clave: Vista; nombre: string; soloAdmin?: boolean }[] = [
-  { clave: 'tablero', nombre: 'Dashboard', soloAdmin: true },
+/** Vistas por rol: sin `roles`, la ven todos los de la central. */
+const VISTAS: { clave: Vista; nombre: string; roles?: Usuario['rol'][] }[] = [
+  { clave: 'tablero', nombre: 'Dashboard', roles: ['admin', 'supervisor'] },
   { clave: 'cola', nombre: 'Central de monitoreo' },
   { clave: 'eventos', nombre: 'Señales' },
   { clave: 'paneles', nombre: 'Dispositivos' },
   { clave: 'puentes', nombre: 'Puentes' },
   { clave: 'clientes', nombre: 'Clientes' },
   { clave: 'reportes', nombre: 'Reportes' },
-  { clave: 'supervision', nombre: 'Supervisión', soloAdmin: true },
-  { clave: 'usuarios', nombre: 'Usuarios', soloAdmin: true },
+  { clave: 'supervision', nombre: 'Supervisión', roles: ['admin', 'supervisor'] },
+  { clave: 'usuarios', nombre: 'Usuarios', roles: ['admin'] },
 ];
 
 export function Consola({ usuario }: { usuario: Usuario }) {
   const clienteConsultas = useQueryClient();
-  const [vista, setVista] = useState<Vista>(usuario.rol === 'admin' ? 'tablero' : 'cola');
+  const [vista, setVista] = useState<Vista>(usuario.rol === 'admin' || usuario.rol === 'supervisor' ? 'tablero' : 'cola');
   const [reloj, setReloj] = useState(() => new Date());
   const [sonido, setSonido] = useState(() => localStorage.getItem('monitoring.sonido') !== 'no');
   const [claveVisible, setClaveVisible] = useState(false);
@@ -151,7 +152,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
 
   // Disposición para teléfono: encabezado compacto con menú, cola como tarjetas.
   if (pantallaChica) {
-    const vistasVisibles = VISTAS.filter((v) => !v.soloAdmin || usuario.rol === 'admin');
+    const vistasVisibles = VISTAS.filter((v) => !v.roles || v.roles.includes(usuario.rol));
     return (
       <div className="min-h-screen bg-fondo flex flex-col">
         <header className="px-3 py-2.5 border-b border-borde bg-superficie flex items-center gap-3 font-datos text-xs sticky top-0 z-30">
@@ -236,7 +237,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           <h1 className="font-datos font-semibold tracking-[0.2em] text-xs">CENTRAL DE MONITOREO</h1>
         </div>
         <div className="flex-1 py-2">
-          {VISTAS.filter((v) => !v.soloAdmin || usuario.rol === 'admin').map((v) => (
+          {VISTAS.filter((v) => !v.roles || v.roles.includes(usuario.rol)).map((v) => (
             <button
               key={v.clave}
               onClick={() => irAVista(v.clave)}
@@ -357,6 +358,7 @@ function PestanaSenal({
 
 const NOMBRE_ROL: Record<Usuario['rol'], string> = {
   admin: 'Administrador',
+  supervisor: 'Supervisor',
   operador: 'Operador',
   cliente: 'Cliente',
 };

@@ -5,7 +5,7 @@ import type { App } from '../tipos.js';
 /**
  * Supervisión del personal: qué hizo cada operador y cómo. Es el único módulo
  * que mira a las personas y no a los clientes, y por eso es solo para
- * administradores.
+ * administradores y supervisores.
  *
  * Todo sale de lo que ya se registra: la bitácora de cada alarma (tomas,
  * llamadas, notas, pasos, cierres con su tiempo), los cierres con desenlace
@@ -37,7 +37,9 @@ function segundos(a: Date, b: Date): number {
 export function registrarSupervision(app: App) {
   app.addHook('onRequest', app.autenticar);
   app.addHook('onRequest', async (request, reply) => {
-    if (request.user.rol !== 'admin') return reply.code(403).send({ error: 'Solo administradores' });
+    if (request.user.rol !== 'admin' && request.user.rol !== 'supervisor') {
+      return reply.code(403).send({ error: 'Solo administradores y supervisores' });
+    }
   });
 
   /** Resumen por operador en un período, más las alertas de supervisión del momento. */
