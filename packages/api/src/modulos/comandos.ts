@@ -79,7 +79,12 @@ export function registrarComandos(app: App) {
       return reply.code(409).send({ error: 'El equipo no tiene serial cargado' });
     }
 
-    // Guardia 2: quien lo pide puede hacerlo
+    // Guardia 2: quien lo pide puede hacerlo. Por decisión de la central, los
+    // operadores no mandan órdenes a los paneles: solo administradores y el
+    // propio cliente sobre sus equipos. Ver y consultar el estado sí pueden.
+    if (request.user.rol === 'operador') {
+      return reply.code(403).send({ error: 'El control de paneles está reservado a administradores' });
+    }
     if (request.user.rol === 'cliente') {
       const alcanza = await usuarioAlcanzaPanel(request.user.id, panelId);
       if (!alcanza) return reply.code(403).send({ error: 'Sin acceso a este equipo' });

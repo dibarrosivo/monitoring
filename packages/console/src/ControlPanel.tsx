@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { enviarComando, estadoArmado, listarComandos, usuarioGuardado } from './api.js';
-import { Modal } from './Modal.js';
-import { nombreCuenta } from './ui.js';
 import { fechaHora } from './tiempo.js';
 import type { AccionComando, EstadoPanel } from './tipos.js';
 
@@ -15,8 +13,6 @@ import type { AccionComando, EstadoPanel } from './tipos.js';
  * Desarmar deja un sitio sin protección, así que pide confirmación explícita.
  * Las otras dos acciones no la piden: equivocarse armando no tiene costo.
  */
-
-const VERBO: Record<AccionComando, string> = { armar: 'armar', armar_casa: 'armar en casa', desarmar: 'desarmar' };
 
 const ACCIONES: { valor: AccionComando; etiqueta: string; peligrosa?: boolean }[] = [
   { valor: 'armar', etiqueta: 'Armar' },
@@ -46,11 +42,11 @@ export function ControlPanel({ panel }: { panel: EstadoPanel }) {
   const [confirmando, setConfirmando] = useState<AccionComando | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   /*
-   * Un operador confirma SIEMPRE, sea cual sea la orden: está actuando sobre
-   * el panel real de un cliente, no sobre una pantalla. Al administrador solo
-   * se le pide confirmar el desarme, que es la única orden con costo.
+   * Por decisión de la central, el operador no manda órdenes a los paneles:
+   * ve el estado y el historial, y los botones no existen para él. Un botón
+   * deshabilitado invita a preguntar por qué; uno ausente, no.
    */
-  const esOperador = usuarioGuardado()?.rol === 'operador';
+  const puedeControlar = usuarioGuardado()?.rol === 'admin';
 
   const { data: comandos } = useQuery({
     queryKey: ['comandos', panel.id],
@@ -118,11 +114,15 @@ export function ControlPanel({ panel }: { panel: EstadoPanel }) {
       )}
       {sinEstado && <p className="text-xs text-tenue">El panel no responde la consulta de estado.</p>}
 
+      {!puedeControlar && (
+        <p className="text-xs text-tenue">El control de este equipo está reservado a administradores.</p>
+      )}
+      {puedeControlar && (
       <div className="flex gap-2 flex-wrap">
         {ACCIONES.map((a) => (
           <button
             key={a.valor}
-            onClick={() => (a.peligrosa || esOperador ? setConfirmando(a.valor) : enviar.mutate(a.valor))}
+            onClick={() => (a.peligrosa ? setConfirmando(a.valor) : enviar.mutate(a.valor))}
             disabled={enviar.isPending || !panel.activo}
             className={`rounded-sm border px-3 py-1.5 text-sm font-semibold disabled:opacity-40 ${
               a.peligrosa
@@ -134,39 +134,9 @@ export function ControlPanel({ panel }: { panel: EstadoPanel }) {
           </button>
         ))}
       </div>
-
-      {confirmando && esOperador && (
-        <Modal titulo="Orden al panel del cliente" alCerrar={() => setConfirmando(null)} ancho="max-w-md">
-          <p className="text-sm">
-            Esta orden se envía al <span className="font-semibold">panel real</span> instalado en{' '}
-            <span className="font-semibold">{panel.sitioNombre}</span> (cuenta {nombreCuenta(panel.prefijo, panel.numeroCuenta)}).
-            El sistema del cliente se va a <span className="font-semibold">{VERBO[confirmando]}</span> de verdad.
-          </p>
-          {confirmando === 'desarmar' && (
-            <p className="text-sm text-prio1">Desarmar deja el sitio sin protección hasta que alguien vuelva a armarlo.</p>
-          )}
-          <p className="text-sm text-tenue">Si está seguro, continúe. La orden queda registrada a su nombre.</p>
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setConfirmando(null)}
-              className="border border-borde rounded-sm px-3 py-1.5 text-sm text-tenue hover:text-texto"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => enviar.mutate(confirmando)}
-              disabled={enviar.isPending}
-              className={`rounded-sm border px-3 py-1.5 text-sm font-semibold disabled:opacity-50 ${
-                confirmando === 'desarmar' ? 'bg-prio1/15 border-prio1 text-prio1' : 'bg-acento/15 border-acento text-acento'
-              }`}
-            >
-              Continuar
-            </button>
-          </div>
-        </Modal>
       )}
 
-      {confirmando && !esOperador && (
+      {confirmando && (
         <div className="border border-prio1 rounded-sm p-3 flex flex-col gap-2 text-sm">
           <p>
             Desarmar deja el sitio <span className="font-semibold">sin protección</span> hasta que alguien vuelva a

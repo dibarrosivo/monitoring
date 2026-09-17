@@ -181,3 +181,16 @@ describe('confirmación por el evento del panel', () => {
     expect(cuerpo[0].estado).toBe('enviado');
   });
 });
+
+describe('los operadores no controlan paneles', () => {
+  it('un operador recibe 403 al mandar una orden, aunque el equipo lo admita', async () => {
+    const { crearUsuarioDirecto } = await import('./ayuda.js');
+    await crearUsuarioDirecto({ email: 'oper2@test.local', nombre: 'Operador Dos', clave: 'oper123', rol: 'operador' });
+    const tokenOper = await ctx.ingresar('oper2@test.local', 'oper123');
+    const { cuerpo: paneles } = await ctx.pedir('GET', '/paneles', { token: tokenOper });
+    const hik = paneles.find((p: { tipo: string }) => p.tipo === 'hikvision');
+    const { estado, cuerpo } = await ctx.pedir('POST', `/paneles/${hik.id}/comando`, { token: tokenOper, cuerpo: { accion: 'armar' } });
+    expect(estado).toBe(403);
+    expect(cuerpo.error).toMatch(/administradores/);
+  });
+});
