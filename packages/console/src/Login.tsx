@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { esNativo, guardarServidor, ingresar, servidorGuardado } from './api.js';
 import type { Usuario } from './tipos.js';
+import { SelectorTema } from './SelectorTema.js';
 
 export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }) {
   const [email, setEmail] = useState('');
@@ -79,6 +80,7 @@ export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }
         </label>
 
         {error && <p className="text-prio1 text-sm">{error}</p>}
+        <SelectorTema conNombre className="text-xs self-end" />
         {esNativo() && !cambiarServidor && (
           <button type="button" onClick={() => setCambiarServidor(true)} className="text-tenue text-xs underline underline-offset-2 self-start">
             Cambiar servidor

@@ -7,6 +7,7 @@ import { PanicoCliente } from './PanicoCliente.js';
 import { AvisosCliente, ControlesAviso, useAvisosCliente } from './Avisos.js';
 import { ActualizacionApp } from './ActualizacionApp.js';
 import { PanelHikvision } from './PanelHikvision.js';
+import { SelectorTema } from '../SelectorTema.js';
 
 type Pestana = 'inicio' | 'eventos' | 'panico';
 
@@ -74,6 +75,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
           ))}
         </nav>
         <span className="text-tenue text-sm truncate ml-auto">{usuario.nombre}</span>
+        <SelectorTema />
         <ControlesAviso
           voz={avisos.voz}
           alternarVoz={avisos.alternarVoz}

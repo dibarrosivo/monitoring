@@ -19,10 +19,49 @@
   --font-datos: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 }
 
+/*
+ * Tema claro. Los mismos nombres de color con otros valores: los componentes
+ * no saben qué tema corre. Se aplica por preferencia del sistema si nadie
+ * eligió, o por elección guardada (data-theme en <html>, ver tema.ts). Los
+ * colores de prioridad se oscurecen apenas para que sigan leyéndose sobre
+ * blanco; su significado no cambia.
+ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --color-fondo: #eef2f7;
+    --color-superficie: #ffffff;
+    --color-superficie-2: #f2f5f9;
+    --color-borde: #cfd9e6;
+    --color-texto: #15212e;
+    --color-tenue: #5d6f84;
+    --color-acento: #0e7c9a;
+    --color-prio1: #d7372b;
+    --color-prio2: #b8741a;
+    --color-prio3: #1e6ef0;
+    --color-ok: #1a8f6f;
+    color-scheme: light;
+  }
+}
+:root[data-theme='light'] {
+  --color-fondo: #eef2f7;
+  --color-superficie: #ffffff;
+  --color-superficie-2: #f2f5f9;
+  --color-borde: #cfd9e6;
+  --color-texto: #15212e;
+  --color-tenue: #5d6f84;
+  --color-acento: #0e7c9a;
+  --color-prio1: #d7372b;
+  --color-prio2: #b8741a;
+  --color-prio3: #1e6ef0;
+  --color-ok: #1a8f6f;
+  color-scheme: light;
+}
+
 html {
   background: var(--color-fondo);
   color: var(--color-texto);
   font-family: var(--font-ui);
+  color-scheme: dark;
 }
 
 /* Pulso de alarma nueva: el único momento animado de la consola. */

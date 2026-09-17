@@ -17,6 +17,7 @@ import { ModalClave } from './ModalClave.js';
 import { HombreMuerto } from './HombreMuerto.js';
 import { usePantallaChica } from './pantalla.js';
 import { Buscador } from './Buscador.js';
+import { SelectorTema } from './SelectorTema.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'usuarios';
 
@@ -179,6 +180,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
                 {v.nombre}
               </button>
             ))}
+            <SelectorTema conNombre className="border-t border-borde px-4 py-2.5 w-full" />
             <div className="border-t border-borde flex items-center gap-3 px-4 py-2.5 font-ui">
               <Avatar nombre={usuario.nombre} />
               <span className="min-w-0">
@@ -377,6 +379,7 @@ function PanelUsuario({ usuario, alCambiarClave }: { usuario: Usuario; alCambiar
           >
             Cambiar clave
           </button>
+          <SelectorTema conNombre className="px-3 py-2.5 hover:bg-borde/40 border-t border-borde/50 w-full text-sm" />
           <button onClick={cerrarSesion} className="text-left px-3 py-2.5 text-prio1 hover:bg-borde/40 border-t border-borde/50">
             Cerrar sesión
           </button>
