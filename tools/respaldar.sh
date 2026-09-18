@@ -48,6 +48,10 @@ find "$CARPETA" -name 'monitoring-*.sql.gz' -mtime +"$DIAS_HISTORIAL" -delete
 if [ -f "$LLAVE_REMOTA" ]; then
   if scp -q -i "$LLAVE_REMOTA" -o BatchMode=yes -o ConnectTimeout=20 "$archivo" "$DESTINO_REMOTO"; then
     echo "[$(date '+%F %T')] Copiado a $DESTINO_REMOTO"
+    # En el destino se conservan 60 días; lo demás se borra desde acá
+    ssh -i "$LLAVE_REMOTA" -o BatchMode=yes -o ConnectTimeout=20 "${DESTINO_REMOTO%%:*}" \
+      'powershell -NoProfile -Command "Get-ChildItem C:\Respaldos\monitoreo -Filter monitoring-*.sql.gz | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-60) } | Remove-Item"' \
+      || echo "[$(date '+%F %T')] Aviso: no se pudo depurar el historial remoto" >&2
   else
     echo "[$(date '+%F %T')] ERROR: no se pudo copiar el respaldo fuera del VPS" >&2
     exit 2
