@@ -42,8 +42,6 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
   const [seleccionada, setSeleccionada] = useState<number | null>(null);
   const [ahora, setAhora] = useState(() => Date.now());
   const [filtroTexto, setFiltroTexto] = useState('');
-  // Sitios cuyo grupo de alarmas nuevas se muestra desplegado
-  const [desplegados, setDesplegados] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
     const temporizador = setInterval(() => setAhora(Date.now()), 10_000);
@@ -60,44 +58,39 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
             .filter(Boolean)
             .some((v) => String(v).toLowerCase().includes(termino))),
     );
-    return visibles.sort((a, b) =>
-      cerradas
-        ? new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()
-        : ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado] ||
-          a.prioridad - b.prioridad ||
-          new Date(a.creadoEn).getTime() - new Date(b.creadoEn).getTime(),
-    );
+    if (cerradas) return visibles.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime());
+    /*
+     * Las alarmas nuevas de un mismo sitio van juntas, una debajo de otra:
+     * el grupo se ubica por su alarma más urgente y más vieja, y adentro se
+     * ordenan por hora. Todas se ven; ninguna se pliega. Un sensor con
+     * rebote se lee como lo que es: diez señales seguidas del mismo lugar.
+     */
+    const clave = (a: Alarma) => (a.estado === 'nueva' && a.panelId !== null ? `p${a.panelId}` : `a${a.id}`);
+    const rango = new Map<string, { prioridad: number; creado: number }>();
+    for (const a of visibles) {
+      const k = clave(a);
+      const r = rango.get(k) ?? { prioridad: 9, creado: Infinity };
+      rango.set(k, { prioridad: Math.min(r.prioridad, a.prioridad), creado: Math.min(r.creado, new Date(a.creadoEn).getTime()) });
+    }
+    return visibles.sort((a, b) => {
+      const e = ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado];
+      if (e) return e;
+      const ra = rango.get(clave(a))!;
+      const rb = rango.get(clave(b))!;
+      return ra.prioridad - rb.prioridad || ra.creado - rb.creado || clave(a).localeCompare(clave(b)) || a.prioridad - b.prioridad || new Date(a.creadoEn).getTime() - new Date(b.creadoEn).getTime();
+    });
   }, [alarmas, filtro, cerradas, filtroTexto]);
 
-  /*
-   * Agrupación por sitio: las alarmas NUEVAS de un mismo panel se muestran
-   * como una sola fila con "+N", plegadas por defecto. Un sensor con rebote
-   * genera diez filas iguales; en la cola tienen que verse como un solo
-   * problema que se toma y se cierra de una vez.
-   */
-  const { filas, ocultasPorPanel } = useMemo(() => {
-    if (cerradas) return { filas: ordenadas, ocultasPorPanel: new Map<number, Alarma[]>() };
-    const vistas = new Map<number, Alarma>();
-    const ocultas = new Map<number, Alarma[]>();
-    const salida: Alarma[] = [];
-    for (const a of ordenadas) {
-      if (a.estado !== 'nueva' || a.panelId === null) {
-        salida.push(a);
-        continue;
-      }
-      const cabeza = vistas.get(a.panelId);
-      if (!cabeza) {
-        vistas.set(a.panelId, a);
-        salida.push(a);
-      } else if (desplegados.has(a.panelId) || a.id === seleccionada) {
-        salida.push(a);
-        ocultas.set(a.panelId, [...(ocultas.get(a.panelId) ?? []), a]);
-      } else {
-        ocultas.set(a.panelId, [...(ocultas.get(a.panelId) ?? []), a]);
+  /** Alarmas nuevas del mismo sitio que siguen a cada cabeza de grupo (para "Tomar las N"). */
+  const grupos = useMemo(() => {
+    const porPanel = new Map<number, Alarma[]>();
+    if (!cerradas) {
+      for (const a of ordenadas) {
+        if (a.estado === 'nueva' && a.panelId !== null) porPanel.set(a.panelId, [...(porPanel.get(a.panelId) ?? []), a]);
       }
     }
-    return { filas: salida, ocultasPorPanel: ocultas };
-  }, [ordenadas, cerradas, desplegados, seleccionada]);
+    return porPanel;
+  }, [ordenadas, cerradas]);
 
   const detalle = ordenadas.find((a) => a.id === seleccionada) ?? null;
   /** Otras alarmas abiertas del mismo sitio que la seleccionada: para cerrar en lote */
@@ -150,9 +143,9 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
             </tr>
           </thead>
           <tbody className="font-datos">
-            {filas.map((alarma) => {
-              const esCabeza = !cerradas && alarma.estado === 'nueva' && alarma.panelId !== null && (ocultasPorPanel.get(alarma.panelId)?.length ?? 0) > 0 && ordenadas.find((x) => x.panelId === alarma.panelId && x.estado === 'nueva') === alarma;
-              const grupo = esCabeza ? ocultasPorPanel.get(alarma.panelId!) ?? [] : [];
+            {ordenadas.map((alarma) => {
+              const delSitio = alarma.estado === 'nueva' && alarma.panelId !== null ? (grupos.get(alarma.panelId) ?? []) : [];
+              const posicion = delSitio.findIndex((x) => x.id === alarma.id);
               return (
                 <FilaAlarma
                   key={alarma.id}
@@ -163,16 +156,8 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
                   seleccionada={alarma.id === seleccionada}
                   alSeleccionar={() => setSeleccionada(alarma.id === seleccionada ? null : alarma.id)}
                   alTomar={() => setSeleccionada(alarma.id)}
-                  grupo={grupo}
-                  desplegado={alarma.panelId !== null && desplegados.has(alarma.panelId)}
-                  alDesplegar={() =>
-                    setDesplegados((d) => {
-                      const n = new Set(d);
-                      if (n.has(alarma.panelId!)) n.delete(alarma.panelId!);
-                      else n.add(alarma.panelId!);
-                      return n;
-                    })
-                  }
+                  grupo={delSitio.length > 1 && posicion === 0 ? delSitio.slice(1) : []}
+                  continuacion={delSitio.length > 1 && posicion > 0}
                 />
               );
             })}
@@ -203,8 +188,7 @@ function FilaAlarma({
   alSeleccionar,
   alTomar,
   grupo = [],
-  desplegado = false,
-  alDesplegar,
+  continuacion = false,
 }: {
   alarma: Alarma;
   ahora: number;
@@ -213,10 +197,10 @@ function FilaAlarma({
   seleccionada: boolean;
   alSeleccionar: () => void;
   alTomar: () => void;
-  /** Otras alarmas nuevas del mismo sitio, plegadas bajo esta fila */
+  /** Otras alarmas nuevas del mismo sitio que siguen a esta (solo en la primera del grupo) */
   grupo?: Alarma[];
-  desplegado?: boolean;
-  alDesplegar?: () => void;
+  /** true si esta fila continúa el grupo de la fila anterior (mismo sitio) */
+  continuacion?: boolean;
 }) {
   const clienteConsultas = useQueryClient();
   const prio = clasesPrioridad(alarma.prioridad);
@@ -257,18 +241,16 @@ function FilaAlarma({
       <td className="px-3 py-1.5 text-tenue whitespace-nowrap">{fechaHora(alarma.evento.ocurridoEn)}</td>
       <td className={`px-3 py-1.5 font-semibold ${prio.texto}`}>{alarma.evento.codigo}</td>
       <td className="px-3 py-1.5 font-ui">
+        {continuacion && (
+          <span className="text-tenue mr-1.5" aria-hidden title="Del mismo sitio que la anterior">
+            ↳
+          </span>
+        )}
         {alarma.evento.descripcion}
         {grupo.length > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              alDesplegar?.();
-            }}
-            title={desplegado ? 'Plegar las demás de este sitio' : 'Ver las demás de este sitio'}
-            className="ml-2 font-datos text-xs border border-borde rounded-sm px-1.5 py-0.5 text-tenue hover:text-texto"
-          >
-            {desplegado ? '−' : '+'}{grupo.length} del mismo sitio
-          </button>
+          <span className="ml-2 font-datos text-xs text-tenue" title="Las que siguen son del mismo sitio">
+            {grupo.length + 1} de este sitio
+          </span>
         )}
       </td>
       <td className="px-3 py-1.5 whitespace-nowrap">
