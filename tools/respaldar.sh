@@ -35,7 +35,8 @@ tamano=$(du -h "$archivo" | cut -f1)
 echo "[$(date '+%F %T')] Listo: $tamano"
 
 # El volcado tiene que ser un gzip íntegro que termine como termina pg_dump
-if ! gzip -t "$archivo" || ! zcat "$archivo" | tail -n 3 | grep -q "PostgreSQL database dump complete"; then
+# (las versiones nuevas de pg_dump agregan líneas después del "dump complete")
+if ! gzip -t "$archivo" || ! zcat "$archivo" | tail -n 10 | grep -q "PostgreSQL database dump complete"; then
   echo "[$(date '+%F %T')] ERROR: el volcado está incompleto o corrupto" >&2
   exit 1
 fi
