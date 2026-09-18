@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { cerrarAlarma, registrarLlamada } from '../api.js';
+import { cerrarAlarma, cerrarLote, registrarLlamada } from '../api.js';
 import type { AccionAlarma, Alarma, ContextoAlarma, DesenlaceAlarma } from '../tipos.js';
 import { ETIQUETA_DESENLACE, MOTIVOS_CIERRE, RESULTADOS_LLAMADA, type ResultadoLlamada } from '../cierres.js';
 import { fechaHora } from '../tiempo.js';
@@ -147,13 +147,30 @@ export function Bitacora({ acciones }: { acciones: AccionAlarma[] | undefined })
  * motivo es "otro" o el operador quiere agregar algo. Lo fijo se puede contar;
  * lo libre queda para el detalle.
  */
-export function FormularioCierre({ alarma, alCerrar, compacto = false }: { alarma: Alarma; alCerrar?: () => void; compacto?: boolean }) {
+export function FormularioCierre({
+  alarma,
+  otrasDelSitio = [],
+  alCerrar,
+  compacto = false,
+}: {
+  alarma: Alarma;
+  /** Otras alarmas abiertas del mismo sitio: se ofrecen para cerrar en lote */
+  otrasDelSitio?: number[];
+  alCerrar?: () => void;
+  compacto?: boolean;
+}) {
   const clienteConsultas = useQueryClient();
   const [desenlace, setDesenlace] = useState<DesenlaceAlarma>('resuelta');
   const [motivo, setMotivo] = useState<string>('');
   const [texto, setTexto] = useState('');
+  const [tambienLasOtras, setTambienLasOtras] = useState(false);
   const cerrar = useMutation({
-    mutationFn: () => cerrarAlarma(alarma.id, { desenlace, motivo, resolucion: texto.trim() || undefined }),
+    mutationFn: async (): Promise<unknown> => {
+      const cierre = { desenlace, motivo, resolucion: texto.trim() || undefined };
+      return tambienLasOtras && otrasDelSitio.length > 0
+        ? cerrarLote([alarma.id, ...otrasDelSitio], cierre)
+        : cerrarAlarma(alarma.id, cierre);
+    },
     onSuccess: () => {
       void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
       void clienteConsultas.invalidateQueries({ queryKey: ['acciones', alarma.id] });
@@ -196,6 +213,14 @@ export function FormularioCierre({ alarma, alCerrar, compacto = false }: { alarm
         rows={2}
         className="shrink-0 bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
       />
+      {otrasDelSitio.length > 0 && (
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={tambienLasOtras} onChange={(e) => setTambienLasOtras(e.target.checked)} className="accent-[var(--color-acento)]" />
+          <span>
+            Cerrar también las otras <span className="font-semibold">{otrasDelSitio.length}</span> abiertas de este sitio con el mismo cierre
+          </span>
+        </label>
+      )}
       {cerrar.isError && <p className="text-prio1 text-xs">{(cerrar.error as Error).message}</p>}
       <button
         onClick={() => cerrar.mutate()}

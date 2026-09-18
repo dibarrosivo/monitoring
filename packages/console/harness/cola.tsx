@@ -9,13 +9,14 @@ const alarma = (id: number, codigo: string, descripcion: string, cuenta: string,
   evento: { id, senalId: 10, codigo, categoria: 'alarma', descripcion, numeroCuenta: cuenta, particion: '01', zona, ocurridoEn: '2026-09-15T02:49:46Z' },
 });
 const alarmas = [
-  alarma(1, 'E140', 'Alarma en zona 11', '7002', 'PANADERIA K3', '011', 'en_atencion'),
-  alarma(2, 'E140', 'Alarma general', '7048', 'COMERCIAL GALIVEN', null, 'nueva'),
-  alarma(3, 'E140', 'Alarma en zona 17', '7048', 'COMERCIAL GALIVEN', '017', 'nueva'),
+  { ...alarma(1, 'E140', 'Alarma en zona 11', '7002', 'PANADERIA K3', '011', 'en_atencion'), restauradaEn: '2026-09-17T15:52:00Z' },
+  { ...alarma(2, 'E140', 'Alarma general', '7048', 'COMERCIAL GALIVEN', null, 'nueva'), panelId: 8 },
+  { ...alarma(3, 'E140', 'Alarma en zona 17', '7048', 'COMERCIAL GALIVEN', '017', 'nueva'), panelId: 8 },
+  { ...alarma(5, 'E140', 'Alarma en zona 18', '7048', 'COMERCIAL GALIVEN', '018', 'nueva'), panelId: 8 },
   alarma(4, 'E130', 'Robo', '7075', 'ROMULO REYES', '004', 'nueva', 1),
 ];
 const respuestas: Record<string, unknown> = {
-  '/contexto': { cliente: { id: 1, nombre: 'PANADERIA K3', telefono: null, instrucciones: null, estado: 'activo', motivoEstado: null }, sitio: { id: 3, nombre: 'PANADERIA K3', tipo: 'comercial', direccion: null, ciudad: null, referencia: null, latitud: null, longitud: null, telefono: null, llaves: null, instruccionesAcceso: null, instrucciones: null }, panel: { id: 3, numeroCuenta: '7002', alias: null, tipo: 'otro', marca: null, modelo: null, claveMaestra: null }, contactos: [], zonaDescripcion: null, pasos: ['Llamar al sitio y pedir la palabra clave', 'Llamar a los contactos por orden de la lista', 'Despachar móvil si no se puede verificar'], pasosCumplidos: [] },
+  '/contexto': { cliente: { id: 1, nombre: 'PANADERIA K3', telefono: null, instrucciones: null, estado: 'activo', motivoEstado: null }, sitio: { id: 3, nombre: 'PANADERIA K3', tipo: 'comercial', direccion: null, ciudad: null, referencia: null, latitud: null, longitud: null, telefono: null, llaves: null, instruccionesAcceso: null, instrucciones: null }, panel: { id: 3, numeroCuenta: '7002', alias: null, tipo: 'otro', marca: null, modelo: null, claveMaestra: null }, contactos: [], zonaDescripcion: null, pasos: ['Llamar al sitio y pedir la palabra clave', 'Llamar a los contactos por orden de la lista', 'Despachar móvil si no se puede verificar'], pasosCumplidos: [], horarios: [{ id: 1, panelId: 3, dias: 'LMXJV--', apertura: '07:00', cierre: '19:00', toleranciaMin: 15, activo: true }], usuariosPanel: [{ id: 1, panelId: 3, numero: '001', nombre: 'Ana Pérez', telefono: '0414-1111111', contactoId: null }, { id: 2, panelId: 3, numero: '006', nombre: 'Luis Gómez', telefono: null, contactoId: null }], previas: [{ id: 40, codigo: 'E140', descripcion: 'Alarma en zona 11', creadoEn: '2026-09-15T21:22:00Z', cerradaEn: '2026-09-15T21:40:00Z', desenlace: 'falsa_alarma', resolucion: 'Mascota u objeto en movimiento', operadorNombre: 'Brayan' }] },
   '/acciones': [{ id: 1, alarmaId: 1, operadorId: 2, operadorNombre: 'Héctor', tipo: 'toma', detalle: 'Tomada tras 60 h 50 min de espera', creadoEn: '2026-09-17T15:40:02Z' }],
   '/alarmas': alarmas,
 };

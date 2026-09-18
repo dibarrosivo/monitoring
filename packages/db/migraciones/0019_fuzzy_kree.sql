@@ -1,0 +1,1 @@
+ALTER TABLE "alarma" ADD COLUMN "restaurada_en" timestamp with time zone;

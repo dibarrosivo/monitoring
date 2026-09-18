@@ -391,6 +391,13 @@ export const alarma = pgTable(
     operadorId: integer('id_operador').references(() => usuario.id),
     tomadaEn: timestamp('tomada_en', { withTimezone: true }),
     cerradaEn: timestamp('cerrada_en', { withTimezone: true }),
+    /**
+     * Cuándo el propio panel dio por restaurada la condición (llegó la
+     * restauración del mismo código y zona, o el panel silencioso volvió a
+     * reportar). No cierra la alarma: el operador sigue teniendo que
+     * verificar, pero ya sabe que en el sitio la situación cambió.
+     */
+    restauradaEn: timestamp('restaurada_en', { withTimezone: true }),
     desenlace: desenlaceAlarmaEnum('desenlace'),
     /**
      * Motivo predefinido del cierre (ver MOTIVOS_CIERRE en shared). El

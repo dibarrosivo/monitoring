@@ -1,5 +1,6 @@
-import { and, eq, ne, or } from 'drizzle-orm';
+import { and, eq, isNull, ne, or } from 'drizzle-orm';
 import {
+  accionAlarma,
   alarma,
   CANAL_ALARMAS,
   CANAL_EVENTOS,
@@ -177,6 +178,7 @@ export async function procesarEvento(entrada: {
   if (panelEncontrado) {
     await registrarVida(panelEncontrado.id, recibidaEn);
     await db.update(senal).set({ panelId: panelEncontrado.id }).where(eq(senal.id, senalId));
+    await marcarRestauraciones(panelEncontrado.id, normalizado, recibidaEn);
   }
 
   let alarmaId: number | undefined;
@@ -296,6 +298,40 @@ export async function abrirAlarma(entrada: {
   });
 
   return fila!.id;
+}
+
+/**
+ * Correlación con las alarmas abiertas del panel: si llega la restauración
+ * del mismo código y zona, o si un panel dado por silencioso vuelve a
+ * reportar, la alarma queda marcada como restaurada y lo dice su bitácora.
+ * NO se cierra sola: que el sensor se haya restablecido no dice qué pasó, y
+ * un operador tiene que verificar igual. Pero ya sabe que la situación en el
+ * sitio cambió, que es lo primero que preguntaría.
+ */
+async function marcarRestauraciones(panelId: number, normalizado: EventoNormalizado, cuando: Date): Promise<void> {
+  const abiertas = await db
+    .select({ id: alarma.id, codigo: evento.codigo, zona: evento.zona })
+    .from(alarma)
+    .innerJoin(evento, eq(alarma.eventoId, evento.id))
+    .where(and(eq(alarma.panelId, panelId), ne(alarma.estado, 'cerrada'), isNull(alarma.restauradaEn)));
+  if (abiertas.length === 0) return;
+
+  const restauradas: { id: number; nota: string }[] = [];
+  for (const a of abiertas) {
+    if (a.codigo === 'SIS' && normalizado.categoria !== 'sistema') {
+      restauradas.push({ id: a.id, nota: `El panel volvió a reportar (${normalizado.codigo})` });
+    } else if (
+      normalizado.categoria === 'restauracion' &&
+      a.codigo === `E${normalizado.codigoCid}` &&
+      (!normalizado.zona || !a.zona || a.zona === normalizado.zona)
+    ) {
+      restauradas.push({ id: a.id, nota: `Restaurado por el panel: ${normalizado.codigo} ${normalizado.descripcion}` });
+    }
+  }
+  for (const r of restauradas) {
+    await db.update(alarma).set({ restauradaEn: cuando }).where(eq(alarma.id, r.id));
+    await db.insert(accionAlarma).values({ alarmaId: r.id, operadorId: null, tipo: 'sistema', detalle: r.nota });
+  }
 }
 
 /** ¿El panel ya tiene abierta una alarma de sistema (panel silencioso)? */

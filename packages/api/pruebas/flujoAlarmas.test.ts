@@ -419,3 +419,108 @@ describe('registro de llamadas', () => {
     expect(estado).toBe(400);
   });
 });
+
+describe('correlación con lo que reporta el panel', () => {
+  async function llegaEvento(codigoCid: string, calificador: 1 | 3, zona: string, categoria?: string) {
+    const { procesarEvento, registrarSenal } = await import('@monitoring/engine');
+    const { interpretarCid } = await import('@monitoring/shared');
+    const senalId = await registrarSenal({ fuente: 'simulador', remoto: 'prueba', cruda: 'x', estadoParse: 'ok' });
+    return procesarEvento({
+      senalId,
+      normalizado: interpretarCid({ numeroCuenta: 'CCC1', calificador, codigoCid, particion: '01', zona }),
+      recibidaEn: new Date(),
+      fuente: 'simulador',
+    });
+  }
+
+  it('la restauración del mismo código y zona marca la alarma como restaurada, sin cerrarla', async () => {
+    const id = await dispararAlarma('E130', 2); // zona 015
+    await llegaEvento('130', 3, '015');
+    const { cuerpo } = await ctx.pedir('GET', '/alarmas', { token: tokenAdmin });
+    const a = cuerpo.find((x: { id: number }) => x.id === id);
+    expect(a.estado).toBe('nueva');
+    expect(a.restauradaEn).toBeTruthy();
+    const acciones = await ctx.pedir('GET', `/alarmas/${id}/acciones`, { token: tokenAdmin });
+    expect(acciones.cuerpo.some((x: { detalle: string | null }) => x.detalle?.startsWith('Restaurado por el panel: R130'))).toBe(true);
+  });
+
+  it('la restauración de otra zona no la marca', async () => {
+    const id = await dispararAlarma('E130', 2);
+    await llegaEvento('130', 3, '007');
+    const { cuerpo } = await ctx.pedir('GET', '/alarmas', { token: tokenAdmin });
+    expect(cuerpo.find((x: { id: number }) => x.id === id).restauradaEn).toBeNull();
+  });
+
+  it('un panel silencioso que vuelve a reportar marca su alarma como restaurada', async () => {
+    const { db, panel, evento: tEvento } = await import('@monitoring/db');
+    const { eq } = await import('drizzle-orm');
+    const { abrirAlarma } = await import('@monitoring/engine');
+    const [e] = await db
+      .insert(tEvento)
+      .values({ panelId, numeroCuenta: 'CCC1', categoria: 'sistema', codigo: 'SIS', descripcion: 'Panel silencioso', prioridad: 3, ocurridoEn: new Date() })
+      .returning({ id: tEvento.id });
+    const id = await abrirAlarma({ eventoId: e!.id, panelId, prioridad: 3, descripcion: 'Panel silencioso', numeroCuenta: 'CCC1' });
+    await llegaEvento('602', 1, '000');
+    const { cuerpo } = await ctx.pedir('GET', '/alarmas', { token: tokenAdmin });
+    expect(cuerpo.find((x: { id: number }) => x.id === id).restauradaEn).toBeTruthy();
+    void panel; void eq;
+  });
+});
+
+describe('lotes y reapertura', () => {
+  it('tomar en lote asigna todas las nuevas y omite las que no lo están', async () => {
+    const a = await dispararAlarma();
+    const b = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${b}/tomar`, { token: tokenAdmin });
+    const { cuerpo } = await ctx.pedir('POST', '/alarmas/lote/tomar', { token: tokenOperador, cuerpo: { ids: [a, b] } });
+    expect(cuerpo).toEqual({ tomadas: 1, omitidas: 1 });
+    const cola = await ctx.pedir('GET', '/alarmas', { token: tokenAdmin });
+    expect(cola.cuerpo.find((x: { id: number }) => x.id === a).operadorNombre).toBe('Operador Uno');
+  });
+
+  it('cerrar en lote cierra todas con el mismo motivo y deja bitácora en cada una', async () => {
+    const a = await dispararAlarma();
+    const b = await dispararAlarma();
+    const { estado, cuerpo } = await ctx.pedir('POST', '/alarmas/lote/cerrar', {
+      token: tokenOperador,
+      cuerpo: { ids: [a, b], desenlace: 'falsa_alarma', motivo: 'falla_equipo' },
+    });
+    expect(estado).toBe(200);
+    expect(cuerpo).toEqual({ cerradas: 2, omitidas: 0 });
+    const acciones = await ctx.pedir('GET', `/alarmas/${b}/acciones`, { token: tokenAdmin });
+    expect(acciones.cuerpo.at(-1).detalle).toMatch(/en lote de 2: Falla del equipo/);
+    expect((await ctx.pedir('GET', '/alarmas', { token: tokenAdmin })).cuerpo).toHaveLength(0);
+  });
+
+  it('cerrar en lote exige motivo o resolución', async () => {
+    const a = await dispararAlarma();
+    const { estado } = await ctx.pedir('POST', '/alarmas/lote/cerrar', { token: tokenOperador, cuerpo: { ids: [a], desenlace: 'resuelta' } });
+    expect(estado).toBe(400);
+  });
+
+  it('una alarma cerrada por error se reabre y vuelve a atención de quien la reabre', async () => {
+    const id = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${id}/cerrar`, { token: tokenAdmin, cuerpo: { desenlace: 'resuelta', motivo: 'cliente_desarmo' } });
+    const { estado, cuerpo } = await ctx.pedir('POST', `/alarmas/${id}/reabrir`, { token: tokenOperador });
+    expect(estado).toBe(200);
+    expect(cuerpo).toMatchObject({ estado: 'en_atencion', desenlace: null, motivo: null });
+    const cola = await ctx.pedir('GET', '/alarmas', { token: tokenAdmin });
+    expect(cola.cuerpo.find((x: { id: number }) => x.id === id).operadorNombre).toBe('Operador Uno');
+    expect((await ctx.pedir('POST', `/alarmas/${id}/reabrir`, { token: tokenOperador })).estado).toBe(409);
+  });
+});
+
+describe('contexto ampliado', () => {
+  it('trae horarios, usuarios del panel y las últimas alarmas cerradas del sitio', async () => {
+    await ctx.pedir('POST', '/horarios', { token: tokenAdmin, cuerpo: { panelId, dias: 'LMXJV--', apertura: '08:00', cierre: '18:00' } });
+    await ctx.pedir('POST', '/usuarios-panel', { token: tokenAdmin, cuerpo: { panelId, numero: '003', nombre: 'Ana' } });
+    const vieja = await dispararAlarma();
+    await ctx.pedir('POST', `/alarmas/${vieja}/cerrar`, { token: tokenAdmin, cuerpo: { desenlace: 'falsa_alarma', motivo: 'mascota_objeto' } });
+    const id = await dispararAlarma();
+    const { cuerpo } = await ctx.pedir('GET', `/alarmas/${id}/contexto`, { token: tokenAdmin });
+    expect(cuerpo.horarios).toHaveLength(1);
+    expect(cuerpo.usuariosPanel[0]).toMatchObject({ numero: '003', nombre: 'Ana' });
+    expect(cuerpo.previas).toHaveLength(1);
+    expect(cuerpo.previas[0]).toMatchObject({ id: vieja, desenlace: 'falsa_alarma' });
+  });
+});

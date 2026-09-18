@@ -106,6 +106,7 @@ export interface Alarma {
   creadoEn: string;
   tomadaEn: string | null;
   cerradaEn: string | null;
+  restauradaEn: string | null;
   desenlace: DesenlaceAlarma | null;
   motivo: string | null;
   resolucion: string | null;
@@ -326,6 +327,8 @@ export interface ContextoAlarma {
     marca: string | null;
     modelo: string | null;
     claveMaestra: string | null;
+    instalador?: string | null;
+    ultimaSenalEn?: string | null;
   } | null;
   contactos: Contacto[];
   zonaDescripcion: string | null;
@@ -333,6 +336,19 @@ export interface ContextoAlarma {
   pasos: string[];
   /** Cuáles ya se marcaron; se deducen de la bitácora, no se guardan aparte */
   pasosCumplidos: string[];
+  /** Horarios activos del panel, usuarios con código, y las últimas alarmas cerradas del sitio */
+  horarios: Horario[];
+  usuariosPanel: UsuarioPanel[];
+  previas: {
+    id: number;
+    codigo: string;
+    descripcion: string;
+    creadoEn: string;
+    cerradaEn: string | null;
+    desenlace: DesenlaceAlarma | null;
+    resolucion: string | null;
+    operadorNombre: string | null;
+  }[];
 }
 
 /** Cómo terminó una alarma. Separado del texto libre para poder medirlo. */

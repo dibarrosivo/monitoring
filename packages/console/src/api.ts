@@ -309,3 +309,9 @@ export const verSupervision = (desde: string, hasta: string) =>
   pedir<Supervision>(`/supervision?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);
 export const verActividadOperador = (id: number, desde: string, hasta: string) =>
   pedir<ActividadOperador>(`/supervision/operadores/${id}/actividad?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);
+
+export const tomarLote = (ids: number[]) =>
+  pedir<{ tomadas: number; omitidas: number }>('/alarmas/lote/tomar', { method: 'POST', body: JSON.stringify({ ids }) });
+export const cerrarLote = (ids: number[], cierre: { desenlace: DesenlaceAlarma; motivo?: string; resolucion?: string }) =>
+  pedir<{ cerradas: number; omitidas: number }>('/alarmas/lote/cerrar', { method: 'POST', body: JSON.stringify({ ids, ...cierre }) });
+export const reabrirAlarma = (id: number) => pedir<Alarma>(`/alarmas/${id}/reabrir`, { method: 'POST' });

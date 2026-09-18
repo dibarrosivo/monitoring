@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { ETIQUETA_DESENLACE, etiquetaMotivo, protocoloPara, RESULTADOS_LLAMADA } from '@monitoring/shared';
-import { accionAlarma, alarma, cliente, contacto, db, evento, panel, sitio, usuario, zona } from '@monitoring/db';
+import { accionAlarma, alarma, cliente, contacto, db, evento, horario, panel, sitio, usuario, usuarioPanel, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
@@ -63,6 +63,7 @@ export function registrarAlarmas(app: App) {
         creadoEn: alarma.creadoEn,
         tomadaEn: alarma.tomadaEn,
         cerradaEn: alarma.cerradaEn,
+        restauradaEn: alarma.restauradaEn,
         desenlace: alarma.desenlace,
         motivo: alarma.motivo,
         resolucion: alarma.resolucion,
@@ -129,6 +130,8 @@ export function registrarAlarmas(app: App) {
           marca: panel.marca,
           modelo: panel.modelo,
           claveMaestra: panel.claveMaestra,
+          instalador: panel.instalador,
+          ultimaSenalEn: panel.ultimaSenalEn,
         },
         sitio: {
           id: sitio.id,
@@ -196,7 +199,31 @@ export function registrarAlarmas(app: App) {
           .filter((x): x is string => Boolean(x))
       : [];
 
-    return { ...contexto, contactos, zonaDescripcion, pasos, pasosCumplidos: cumplidos };
+    // Lo que el operador preguntaría a continuación: ¿el sitio debería estar
+    // abierto ahora? ¿quién tiene código? ¿qué pasó las últimas veces?
+    const [horarios, usuariosPanel, previas] = await Promise.all([
+      db.select().from(horario).where(and(eq(horario.panelId, fila.panelId), eq(horario.activo, true))).orderBy(horario.apertura),
+      db.select().from(usuarioPanel).where(eq(usuarioPanel.panelId, fila.panelId)).orderBy(usuarioPanel.numero),
+      db
+        .select({
+          id: alarma.id,
+          codigo: evento.codigo,
+          descripcion: evento.descripcion,
+          creadoEn: alarma.creadoEn,
+          cerradaEn: alarma.cerradaEn,
+          desenlace: alarma.desenlace,
+          resolucion: alarma.resolucion,
+          operadorNombre: usuario.nombre,
+        })
+        .from(alarma)
+        .innerJoin(evento, eq(alarma.eventoId, evento.id))
+        .leftJoin(usuario, eq(alarma.operadorId, usuario.id))
+        .where(and(eq(alarma.panelId, fila.panelId), eq(alarma.estado, 'cerrada'), ne(alarma.id, id)))
+        .orderBy(desc(alarma.creadoEn))
+        .limit(5),
+    ]);
+
+    return { ...contexto, contactos, zonaDescripcion, pasos, pasosCumplidos: cumplidos, horarios, usuariosPanel, previas };
   });
 
   /** Bitácora con el nombre de quien hizo cada cosa; lo de sistema va sin autor. */
@@ -375,6 +402,82 @@ export function registrarAlarmas(app: App) {
       .insert(accionAlarma)
       .values({ alarmaId: id, operadorId: request.user.id, tipo: 'paso', detalle: datos.data.paso });
     return { ok: true };
+  });
+
+  /**
+   * Lotes: varias alarmas del mismo sitio se toman o se cierran de una vez,
+   * con la misma regla que de a una (cada una queda con su bitácora). Un
+   * sensor con rebote genera diez filas; nadie debería cerrarlas de a una.
+   */
+  const esquemaLote = z.object({ ids: z.array(z.number().int()).min(1).max(200) });
+  app.post('/alarmas/lote/tomar', async (request, reply) => {
+    const datos = esquemaLote.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    const ahora = new Date();
+    const tomadas = await db
+      .update(alarma)
+      .set({ estado: 'en_atencion', operadorId: request.user.id, tomadaEn: ahora })
+      .where(and(inArray(alarma.id, datos.data.ids), eq(alarma.estado, 'nueva')))
+      .returning({ id: alarma.id, creadoEn: alarma.creadoEn });
+    if (tomadas.length) {
+      await db.insert(accionAlarma).values(
+        tomadas.map((t) => ({
+          alarmaId: t.id,
+          operadorId: request.user.id,
+          tipo: 'toma' as const,
+          detalle: `Tomada en lote tras ${duracionTexto(ahora.getTime() - t.creadoEn.getTime())} de espera`,
+        })),
+      );
+    }
+    return { tomadas: tomadas.length, omitidas: datos.data.ids.length - tomadas.length };
+  });
+
+  app.post('/alarmas/lote/cerrar', async (request, reply) => {
+    const datos = esquemaLote.merge(esquemaCierre.innerType()).safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    const validacion = esquemaCierre.safeParse(datos.data);
+    if (!validacion.success) return reply.code(400).send({ error: validacion.error.issues });
+    const ahora = new Date();
+    const texto = datos.data.resolucion?.trim() || null;
+    const motivoEtiqueta = datos.data.motivo ? etiquetaMotivo(datos.data.desenlace, datos.data.motivo) : null;
+    const resolucion = [motivoEtiqueta, texto].filter(Boolean).join(' — ') || texto;
+    const previas = await db
+      .select({ id: alarma.id, tomadaEn: alarma.tomadaEn, creadoEn: alarma.creadoEn })
+      .from(alarma)
+      .where(and(inArray(alarma.id, datos.data.ids), ne(alarma.estado, 'cerrada')));
+    for (const p of previas) {
+      await db
+        .update(alarma)
+        .set({
+          estado: 'cerrada',
+          cerradaEn: ahora,
+          desenlace: datos.data.desenlace,
+          motivo: datos.data.motivo ?? null,
+          resolucion,
+          ...(p.tomadaEn ? {} : { operadorId: request.user.id, tomadaEn: ahora }),
+        })
+        .where(eq(alarma.id, p.id));
+      await db.insert(accionAlarma).values({
+        alarmaId: p.id,
+        operadorId: request.user.id,
+        tipo: 'cierre',
+        detalle: `${ETIQUETA_DESENLACE[datos.data.desenlace]} en lote de ${previas.length}: ${resolucion}`,
+      });
+    }
+    return { cerradas: previas.length, omitidas: datos.data.ids.length - previas.length };
+  });
+
+  /** Reabrir una alarma cerrada por error: vuelve a atención de quien la reabre, con rastro. */
+  app.post('/alarmas/:id/reabrir', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const [fila] = await db
+      .update(alarma)
+      .set({ estado: 'en_atencion', operadorId: request.user.id, tomadaEn: new Date(), cerradaEn: null, desenlace: null, motivo: null, resolucion: null })
+      .where(and(eq(alarma.id, id), eq(alarma.estado, 'cerrada')))
+      .returning();
+    if (!fila) return reply.code(409).send({ error: 'Solo se reabre una alarma cerrada' });
+    await db.insert(accionAlarma).values({ alarmaId: id, operadorId: request.user.id, tipo: 'sistema', detalle: 'Reabierta' });
+    return fila;
   });
 
   /**
