@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { verActividadOperador, verSupervision } from '../api.js';
 import type { OperadorSupervision } from '../tipos.js';
@@ -15,7 +15,9 @@ import { ETIQUETA_DESENLACE, MOTIVOS_CIERRE } from '../cierres.js';
 type Rango = 'hoy' | '7d' | '30d' | 'personalizado';
 
 function limites(rango: Rango, desde: string, hasta: string): { desde: string; hasta: string } {
-  const fin = new Date();
+  // Redondeado al minuto: si "ahora" cambiara en cada render, la consulta se
+  // dispararía sin parar (la clave de la consulta cambiaría cada vez)
+  const fin = new Date(Math.floor(Date.now() / 60_000) * 60_000);
   if (rango === 'personalizado') return { desde: new Date(desde).toISOString(), hasta: new Date(`${hasta}T23:59:59`).toISOString() };
   const inicio = new Date(fin);
   if (rango === 'hoy') inicio.setHours(0, 0, 0, 0);
@@ -33,7 +35,8 @@ export function Supervision() {
   const [desde, setDesde] = useState(hoyIso);
   const [hasta, setHasta] = useState(hoyIso);
   const [elegido, setElegido] = useState<number | null>(null);
-  const l = limites(rango, desde, hasta);
+  // Se calcula solo cuando cambia la selección, no en cada render
+  const l = useMemo(() => limites(rango, desde, hasta), [rango, desde, hasta]);
   const { data, isLoading } = useQuery({
     queryKey: ['supervision', l.desde, l.hasta],
     queryFn: () => verSupervision(l.desde, l.hasta),
