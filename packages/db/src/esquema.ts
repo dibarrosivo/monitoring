@@ -167,9 +167,9 @@ export const panel = pgTable(
     /**
      * Ventana de cancelación por el usuario, en segundos: una alarma de robo
      * espera este tiempo antes de presentarse; si en ese lapso el usuario
-     * desarma, se cierra sola como cancelada. 0 = sin ventana.
+     * desarma, se cierra sola como cancelada. 0 = sin ventana. 25 s por defecto.
      */
-    ventanaCancelacionSeg: integer('ventana_cancelacion_seg').notNull().default(45),
+    ventanaCancelacionSeg: integer('ventana_cancelacion_seg').notNull().default(25),
     // Facturación por cuenta monitoreada: solo vencimiento y monto, sin facturas
     montoAbono: numeric('monto_abono', { precision: 12, scale: 2 }),
     frecuenciaMeses: integer('frecuencia_meses').notNull().default(1),

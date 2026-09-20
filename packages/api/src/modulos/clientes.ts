@@ -126,7 +126,7 @@ const camposPanel = {
   propiedad: z.enum(['propio', 'comodato', 'prestamo']).optional(),
   supervisado: z.boolean().default(true),
   intervaloPruebaMin: z.number().int().positive().default(1440),
-  ventanaCancelacionSeg: z.number().int().min(0).max(300).default(45),
+  ventanaCancelacionSeg: z.number().int().min(0).max(300).default(25),
   montoAbono: z.union([z.number(), z.string()]).transform(String).optional(),
   frecuenciaMeses: z.number().int().min(1).max(24).optional(),
   proximoVencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),

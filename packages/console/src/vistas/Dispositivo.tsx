@@ -259,7 +259,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
     propiedad: panel.propiedad ?? 'propio',
     supervisado: panel.supervisado,
     intervaloPruebaMin: String(panel.intervaloPruebaMin),
-    ventanaCancelacionSeg: String(panel.ventanaCancelacionSeg ?? 45),
+    ventanaCancelacionSeg: String(panel.ventanaCancelacionSeg ?? 25),
     montoAbono: panel.montoAbono ?? '',
     frecuenciaMeses: String(panel.frecuenciaMeses ?? 1),
     proximoVencimiento: panel.proximoVencimiento ?? '',
