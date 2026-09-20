@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, notInArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { ETIQUETA_DESENLACE, etiquetaMotivo, protocoloPara, RESULTADOS_LLAMADA, tipoSenal } from '@monitoring/shared';
 import { accionAlarma, alarma, cliente, contacto, db, evento, horario, panel, sitio, usuario, usuarioPanel, zona } from '@monitoring/db';
@@ -89,7 +89,7 @@ export function registrarAlarmas(app: App) {
       })
       .from(alarma)
       .innerJoin(evento, eq(alarma.eventoId, evento.id))
-      .leftJoin(zona, and(eq(zona.panelId, alarma.panelId), eq(zona.numero, evento.zona)))
+      .leftJoin(zona, and(eq(zona.panelId, alarma.panelId), eq(zona.numero, evento.zona), notInArray(evento.categoria, ['apertura', 'cierre'])))
       .leftJoin(panel, eq(alarma.panelId, panel.id))
       .leftJoin(sitio, eq(panel.sitioId, sitio.id))
       .leftJoin(cliente, eq(sitio.clienteId, cliente.id))

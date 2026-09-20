@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { acceso, alarma, cliente, db, evento, panel, sitio, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
@@ -98,7 +98,7 @@ export function registrarClienteApp(app: App) {
         prefijo: panel.prefijo,
       })
       .from(evento)
-      .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona)))
+      .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona), notInArray(evento.categoria, ['apertura', 'cierre'])))
       .leftJoin(panel, eq(evento.panelId, panel.id))
       .where(
         and(

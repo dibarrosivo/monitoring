@@ -1,4 +1,4 @@
-import { and, desc, eq, getTableColumns } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, notInArray } from 'drizzle-orm';
 import { cliente, db, evento, panel, senal, sitio, zona } from '@monitoring/db';
 import { tipoSenal } from '@monitoring/shared';
 import type { App } from '../tipos.js';
@@ -13,7 +13,7 @@ export function registrarEventos(app: App) {
     const base = db
       .select({ ...getTableColumns(evento), zonaDescripcion: zona.descripcion, clienteNombre: cliente.nombre, prefijo: panel.prefijo })
       .from(evento)
-      .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona)))
+      .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona), notInArray(evento.categoria, ['apertura', 'cierre'])))
       .leftJoin(panel, eq(evento.panelId, panel.id))
       .leftJoin(sitio, eq(panel.sitioId, sitio.id))
       .leftJoin(cliente, eq(sitio.clienteId, cliente.id));
