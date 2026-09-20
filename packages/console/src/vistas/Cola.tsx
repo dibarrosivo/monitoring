@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { anotarAlarma, devolverAlarma, marcarPaso, listarAcciones, listarAlarmas, reabrirAlarma, tomarAlarma, tomarLote, verContexto } from '../api.js';
-import type { Alarma } from '../tipos.js';
+import type { Alarma, TipoSenal } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
-import { clasesPrioridad, nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
+import { CLASES_TIPO, clasesPrioridad, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
+import { Modal } from '../Modal.js';
 import { ETIQUETA_DESENLACE } from '../cierres.js';
 import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
 
@@ -34,6 +35,7 @@ function tiempos(alarma: Alarma, ahora: number): { espera: number; atencion: num
 export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: number | null; filtro?: FiltroCola }) {
   // Las cerradas son otra consulta; nueva/en atención se filtran sobre las abiertas
   const cerradas = filtro === 'cerrada';
+  const clienteConsultas = useQueryClient();
   const { data: alarmas, isLoading } = useQuery({
     queryKey: cerradas ? ['alarmas', 'cerrada'] : ['alarmas'],
     queryFn: () => listarAlarmas(cerradas ? 'cerrada' : undefined),
@@ -42,15 +44,24 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
   const [seleccionada, setSeleccionada] = useState<number | null>(null);
   const [ahora, setAhora] = useState(() => Date.now());
   const [filtroTexto, setFiltroTexto] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState<TipoSenal | null>(null);
+  /*
+   * Selección múltiple para procesar en lote: todas las de un cliente, todas
+   * las de un tipo, o lo que el operador marque. Se guarda por id; lo que
+   * deja de verse (se cerró, se filtró) deja de contar.
+   */
+  const [marcadas, setMarcadas] = useState<Set<number>>(() => new Set());
+  const [ultimaMarcada, setUltimaMarcada] = useState<number | null>(null);
+  const [cerrandoLote, setCerrandoLote] = useState(false);
 
   useEffect(() => {
     const temporizador = setInterval(() => setAhora(Date.now()), 10_000);
     return () => clearInterval(temporizador);
   }, []);
 
-  const ordenadas = useMemo(() => {
+  const porTexto = useMemo(() => {
     const termino = filtroTexto.trim().toLowerCase();
-    const visibles = (alarmas ?? []).filter(
+    return (alarmas ?? []).filter(
       (a) =>
         (filtro === 'abiertas' || filtro === 'cerrada' ? true : a.estado === filtro) &&
         (!termino ||
@@ -58,6 +69,20 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
             .filter(Boolean)
             .some((v) => String(v).toLowerCase().includes(termino))),
     );
+  }, [alarmas, filtro, filtroTexto]);
+
+  /** Cuántas hay de cada tipo (leyenda de colores, que además filtra) */
+  const conteoTipos = useMemo(() => {
+    const conteo = new Map<TipoSenal, number>();
+    for (const a of porTexto) {
+      const t = tipoDe(a.evento);
+      conteo.set(t, (conteo.get(t) ?? 0) + 1);
+    }
+    return conteo;
+  }, [porTexto]);
+
+  const ordenadas = useMemo(() => {
+    const visibles = filtroTipo ? porTexto.filter((a) => tipoDe(a.evento) === filtroTipo) : [...porTexto];
     if (cerradas) return visibles.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime());
     /*
      * Las alarmas nuevas de un mismo sitio van juntas, una debajo de otra:
@@ -79,7 +104,7 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
       const rb = rango.get(clave(b))!;
       return ra.prioridad - rb.prioridad || ra.creado - rb.creado || clave(a).localeCompare(clave(b)) || a.prioridad - b.prioridad || new Date(a.creadoEn).getTime() - new Date(b.creadoEn).getTime();
     });
-  }, [alarmas, filtro, cerradas, filtroTexto]);
+  }, [porTexto, filtroTipo, cerradas]);
 
   /** Alarmas nuevas del mismo sitio que siguen a cada cabeza de grupo (para "Tomar las N"). */
   const grupos = useMemo(() => {
@@ -98,33 +123,154 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
     ? ordenadas.filter((a) => a.id !== detalle.id && a.panelId === detalle.panelId && a.estado !== 'cerrada').map((a) => a.id)
     : [];
 
+  // Lote efectivo: solo lo marcado que sigue a la vista
+  const seleccion = cerradas ? [] : ordenadas.filter((a) => marcadas.has(a.id));
+  const idsSeleccion = seleccion.map((a) => a.id);
+  const conSeleccion = !cerradas && ordenadas.length > 0;
+
+  /** Marca una fila; con Shift, todo el tramo desde la última marcada. */
+  const marcar = (alarma: Alarma, conTramo: boolean) => {
+    setMarcadas((previas) => {
+      const n = new Set(previas);
+      const desde = conTramo && ultimaMarcada !== null ? ordenadas.findIndex((a) => a.id === ultimaMarcada) : -1;
+      const hasta = ordenadas.findIndex((a) => a.id === alarma.id);
+      if (desde >= 0 && hasta >= 0) {
+        for (const a of ordenadas.slice(Math.min(desde, hasta), Math.max(desde, hasta) + 1)) n.add(a.id);
+      } else if (n.has(alarma.id)) n.delete(alarma.id);
+      else n.add(alarma.id);
+      return n;
+    });
+    setUltimaMarcada(alarma.id);
+  };
+  const marcarTodas = (si: boolean) => setMarcadas(si ? new Set(ordenadas.map((a) => a.id)) : new Set());
+
+  /*
+   * Ampliar la selección como se procesa en una central: "todas las de este
+   * cliente", "todas las de este tipo", "todas con este código". Se calcula
+   * sobre lo marcado y se ofrece solo si suma algo.
+   */
+  const ampliaciones = useMemo(() => {
+    if (seleccion.length === 0) return [];
+    const clientes = new Set(seleccion.map((a) => a.clienteId ?? `p${a.panelId}`));
+    const tipos = new Set(seleccion.map((a) => tipoDe(a.evento)));
+    const codigos = new Set(seleccion.map((a) => a.evento.codigo));
+    const faltan = (criterio: (a: Alarma) => boolean) => ordenadas.filter((a) => !marcadas.has(a.id) && criterio(a));
+    const opciones: { clave: string; etiqueta: string; alarmas: Alarma[] }[] = [
+      { clave: 'cliente', etiqueta: clientes.size === 1 ? 'del mismo cliente' : 'de los mismos clientes', alarmas: faltan((a) => clientes.has(a.clienteId ?? `p${a.panelId}`)) },
+      { clave: 'tipo', etiqueta: tipos.size === 1 ? `de tipo ${NOMBRE_TIPO_SENAL[[...tipos][0]!].toLowerCase()}` : 'de los mismos tipos', alarmas: faltan((a) => tipos.has(tipoDe(a.evento))) },
+      { clave: 'codigo', etiqueta: codigos.size === 1 ? `con código ${[...codigos][0]}` : 'con los mismos códigos', alarmas: faltan((a) => codigos.has(a.evento.codigo)) },
+    ];
+    return opciones.filter((o) => o.alarmas.length > 0);
+  }, [seleccion, ordenadas, marcadas]);
+
+  const tomarSeleccion = useMutation({
+    mutationFn: () => tomarLote(idsSeleccion),
+    onSuccess: () => void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] }),
+  });
+
   if (isLoading) return <p className="text-tenue">Cargando la cola…</p>;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <input
           value={filtroTexto}
           onChange={(e) => setFiltroTexto(e.target.value)}
           placeholder="Filtrar por cuenta, cliente, código u operador…"
           className="bg-superficie border border-borde rounded-sm px-3 py-1.5 text-sm w-80 font-datos"
         />
-        {filtroTexto && (
+        {/* Leyenda de colores: un chip por tipo presente; clic para ver solo ese tipo */}
+        <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filtrar por tipo de señal">
+          {ORDEN_TIPOS_SENAL.filter((t) => (conteoTipos.get(t) ?? 0) > 0).map((t) => {
+            const activo = filtroTipo === t;
+            const clases = CLASES_TIPO[t];
+            return (
+              <button
+                key={t}
+                onClick={() => setFiltroTipo(activo ? null : t)}
+                aria-pressed={activo}
+                className={`flex items-center gap-1.5 rounded-sm border px-2 py-1 text-xs font-ui ${
+                  activo ? `${clases.borde} ${clases.fondo} ${clases.texto} font-semibold` : 'border-borde text-tenue hover:text-texto'
+                }`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full ${clases.barra}`} aria-hidden />
+                {NOMBRE_TIPO_SENAL[t]}
+                <span className="font-datos">{conteoTipos.get(t)}</span>
+              </button>
+            );
+          })}
+        </div>
+        {(filtroTexto || filtroTipo) && (
           <span className="text-xs text-tenue font-datos">
             {ordenadas.length} de {(alarmas ?? []).length}
           </span>
         )}
       </div>
+
+      {seleccion.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap bg-acento/10 border border-acento/40 rounded-sm px-3 py-1.5 text-sm">
+          <span className="font-datos font-semibold text-acento">{seleccion.length} seleccionadas</span>
+          {ampliaciones.length > 0 && (
+            <>
+              <span className="text-tenue font-ui text-xs">Sumar las</span>
+              {ampliaciones.map((o) => (
+                <button
+                  key={o.clave}
+                  onClick={() => setMarcadas((previas) => new Set([...previas, ...o.alarmas.map((a) => a.id)]))}
+                  className="border border-borde rounded-sm px-2 py-0.5 text-xs font-ui hover:bg-superficie-2"
+                >
+                  {o.alarmas.length} {o.etiqueta}
+                </button>
+              ))}
+            </>
+          )}
+          <span className="flex-1" />
+          {seleccion.some((a) => a.estado === 'nueva') && (
+            <button
+              onClick={() => tomarSeleccion.mutate()}
+              disabled={tomarSeleccion.isPending}
+              className="bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-2.5 py-0.5 text-xs font-ui font-semibold disabled:opacity-50"
+            >
+              Tomar {seleccion.filter((a) => a.estado === 'nueva').length}
+            </button>
+          )}
+          <button
+            onClick={() => setCerrandoLote(true)}
+            className="bg-prio1/15 hover:bg-prio1/25 border border-prio1 text-prio1 rounded-sm px-2.5 py-0.5 text-xs font-ui font-semibold"
+          >
+            Cerrar {seleccion.length}…
+          </button>
+          <button onClick={() => marcarTodas(false)} className="text-tenue hover:text-texto text-xs font-ui px-1">
+            Quitar selección
+          </button>
+          {tomarSeleccion.isError && <span className="text-prio2 text-xs font-ui">{(tomarSeleccion.error as Error).message}</span>}
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 bg-superficie border border-borde rounded-sm overflow-auto">
         <table className="w-full text-sm border-collapse">
           <thead className="sticky top-0 bg-superficie-2 z-10">
             <tr className="text-left text-tenue text-xs uppercase tracking-wider">
-              <th className="w-1 p-0" aria-label="Prioridad" />
+              <th className="w-1 p-0" aria-label="Tipo de señal" />
+              {conSeleccion && (
+                <th className="px-2 py-2 w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todas las visibles"
+                    checked={seleccion.length > 0 && seleccion.length === ordenadas.length}
+                    ref={(el) => {
+                      if (el) el.indeterminate = seleccion.length > 0 && seleccion.length < ordenadas.length;
+                    }}
+                    onChange={(e) => marcarTodas(e.target.checked)}
+                    className="accent-[var(--color-acento)] align-middle"
+                  />
+                </th>
+              )}
               <th className="px-3 py-2 font-medium">Hora</th>
               <th className="px-3 py-2 font-medium">Código</th>
               <th className="px-3 py-2 font-medium">Descripción</th>
               <th className="px-3 py-2 font-medium">Cuenta</th>
-              <th className="px-3 py-2 font-medium">Usuario / Zona</th>
+              <th className="px-3 py-2 font-medium whitespace-nowrap">Usuario / Zona</th>
               {cerradas ? (
                 <>
                   <th className="px-3 py-2 font-medium">Desenlace</th>
@@ -158,15 +304,19 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
                   alTomar={() => setSeleccionada(alarma.id)}
                   grupo={delSitio.length > 1 && posicion === 0 ? delSitio.slice(1) : []}
                   continuacion={delSitio.length > 1 && posicion > 0}
+                  marcada={conSeleccion ? marcadas.has(alarma.id) : undefined}
+                  alMarcar={(conTramo) => marcar(alarma, conTramo)}
                 />
               );
             })}
             {ordenadas.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-10 text-center text-tenue font-ui">
+                <td colSpan={11} className="px-4 py-10 text-center text-tenue font-ui">
                   {cerradas
                     ? 'Sin alarmas cerradas todavía.'
-                    : 'Sin alarmas en este estado. El receptor sigue escuchando; las nuevas aparecen aquí al instante.'}
+                    : filtroTipo
+                      ? `Sin alarmas de tipo ${NOMBRE_TIPO_SENAL[filtroTipo].toLowerCase()} en este momento.`
+                      : 'Sin alarmas en este estado. El receptor sigue escuchando; las nuevas aparecen aquí al instante.'}
                 </td>
               </tr>
             )}
@@ -175,6 +325,47 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
       </div>
 
       {detalle && <PanelDetalle alarma={detalle} otrasDelSitio={otrasDelSitio} alCerrarPanel={() => setSeleccionada(null)} />}
+
+      {cerrandoLote && seleccion.length > 0 && (
+        <Modal titulo={`Cerrar ${seleccion.length} alarmas con el mismo cierre`} alCerrar={() => setCerrandoLote(false)}>
+          <ResumenLote alarmas={seleccion} />
+          <FormularioCierre
+            lote={idsSeleccion}
+            alCerrar={() => {
+              setCerrandoLote(false);
+              marcarTodas(false);
+            }}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/** Qué se va a cerrar: cuántas por tipo y de qué clientes, para que nadie cierre a ciegas. */
+function ResumenLote({ alarmas }: { alarmas: Alarma[] }) {
+  const porTipo = new Map<TipoSenal, number>();
+  const clientes = new Set<string>();
+  for (const a of alarmas) {
+    const t = tipoDe(a.evento);
+    porTipo.set(t, (porTipo.get(t) ?? 0) + 1);
+    clientes.add(a.clienteNombre ?? nombreCuenta(a.prefijo, a.evento.numeroCuenta));
+  }
+  return (
+    <div className="text-sm font-ui flex flex-col gap-1">
+      <div className="flex flex-wrap gap-1.5">
+        {ORDEN_TIPOS_SENAL.filter((t) => porTipo.has(t)).map((t) => (
+          <span key={t} className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-xs ${CLASES_TIPO[t].borde} ${CLASES_TIPO[t].texto}`}>
+            <span className={`inline-block w-2 h-2 rounded-full ${CLASES_TIPO[t].barra}`} aria-hidden />
+            {porTipo.get(t)} {NOMBRE_TIPO_SENAL[t].toLowerCase()}
+          </span>
+        ))}
+      </div>
+      <p className="text-tenue text-xs">
+        {clientes.size === 1 ? 'Cliente: ' : `${clientes.size} clientes: `}
+        {[...clientes].slice(0, 6).join(', ')}
+        {clientes.size > 6 && ` y ${clientes.size - 6} más`}
+      </p>
     </div>
   );
 }
@@ -189,6 +380,8 @@ function FilaAlarma({
   alTomar,
   grupo = [],
   continuacion = false,
+  marcada,
+  alMarcar,
 }: {
   alarma: Alarma;
   ahora: number;
@@ -201,9 +394,13 @@ function FilaAlarma({
   grupo?: Alarma[];
   /** true si esta fila continúa el grupo de la fila anterior (mismo sitio) */
   continuacion?: boolean;
+  /** Casilla de selección para lote: undefined = sin columna de selección */
+  marcada?: boolean;
+  alMarcar?: (conTramo: boolean) => void;
 }) {
   const clienteConsultas = useQueryClient();
   const prio = clasesPrioridad(alarma.prioridad);
+  const tipo = CLASES_TIPO[tipoDe(alarma.evento)];
   const tomar = useMutation({
     mutationFn: () => tomarAlarma(alarma.id),
     onSuccess: () => {
@@ -234,12 +431,26 @@ function FilaAlarma({
     <tr
       onClick={alSeleccionar}
       className={`cursor-pointer border-b border-borde/40 ${
-        seleccionada ? 'bg-acento/10' : fondoFila
+        seleccionada ? 'bg-acento/10' : marcada ? 'bg-acento/5' : fondoFila
       } ${reciente ? 'alarma-nueva' : ''}`}
     >
-      <td className={`p-0 ${prio.barra}`} aria-hidden />
+      <td className={`p-0 ${tipo.barra}`} aria-hidden />
+      {marcada !== undefined && (
+        <td className="px-2 py-1.5 w-8" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={marcada}
+            aria-label="Seleccionar para procesar en lote"
+            onClick={(e) => alMarcar?.(e.shiftKey)}
+            onChange={() => undefined}
+            className="accent-[var(--color-acento)] align-middle cursor-pointer"
+          />
+        </td>
+      )}
       <td className="px-3 py-1.5 text-tenue whitespace-nowrap">{fechaHora(alarma.evento.ocurridoEn)}</td>
-      <td className={`px-3 py-1.5 font-semibold ${prio.texto}`}>{alarma.evento.codigo}</td>
+      <td className={`px-3 py-1.5 font-semibold whitespace-nowrap ${tipo.texto}`} title={NOMBRE_TIPO_SENAL[tipoDe(alarma.evento)]}>
+        {alarma.evento.codigo}
+      </td>
       <td className="px-3 py-1.5 font-ui">
         {continuacion && (
           <span className="text-tenue mr-1.5" aria-hidden title="Del mismo sitio que la anterior">
@@ -275,7 +486,7 @@ function FilaAlarma({
         </>
       ) : (
         <>
-          <td className={`px-3 py-1.5 text-xs ${alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
+          <td className={`px-3 py-1.5 text-xs whitespace-nowrap ${alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
             {NOMBRE_ESTADO[alarma.estado]}
             {alarma.restauradaEn && (
               <span className="ml-1.5 text-ok" title={`El panel reportó la restauración ${fechaHora(alarma.restauradaEn)}`}>

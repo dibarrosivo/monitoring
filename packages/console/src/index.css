@@ -15,6 +15,16 @@
   --color-prio2: #ffb020;
   --color-prio3: #3e9bff;
   --color-ok: #2ec4a0;
+  /* Tipos de señal (ver CLASES_TIPO en ui.ts) */
+  --color-tipo-emergencia: #ff4d3d;
+  --color-tipo-robo: #ff8a3d;
+  --color-tipo-averia: #ffc42e;
+  --color-tipo-horario: #c39bff;
+  --color-tipo-apertura: #2ec4a0;
+  --color-tipo-restauracion: #3e9bff;
+  --color-tipo-anulacion: #7fb8c9;
+  --color-tipo-prueba: #f06bd0;
+  --color-tipo-sistema: #9fb3c8;
   --font-ui: 'Barlow', system-ui, sans-serif;
   --font-datos: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 }
@@ -39,6 +49,15 @@
     --color-prio2: #b8741a;
     --color-prio3: #1e6ef0;
     --color-ok: #1a8f6f;
+    --color-tipo-emergencia: #d7372b;
+    --color-tipo-robo: #d95f1a;
+    --color-tipo-averia: #a8780f;
+    --color-tipo-horario: #7b47d1;
+    --color-tipo-apertura: #1a8f6f;
+    --color-tipo-restauracion: #1e6ef0;
+    --color-tipo-anulacion: #3d7f93;
+    --color-tipo-prueba: #b0308f;
+    --color-tipo-sistema: #5d6f84;
     color-scheme: light;
   }
 }
@@ -54,6 +73,15 @@
   --color-prio2: #b8741a;
   --color-prio3: #1e6ef0;
   --color-ok: #1a8f6f;
+  --color-tipo-emergencia: #d7372b;
+  --color-tipo-robo: #d95f1a;
+  --color-tipo-averia: #a8780f;
+  --color-tipo-horario: #7b47d1;
+  --color-tipo-apertura: #1a8f6f;
+  --color-tipo-restauracion: #1e6ef0;
+  --color-tipo-anulacion: #3d7f93;
+  --color-tipo-prueba: #b0308f;
+  --color-tipo-sistema: #5d6f84;
   color-scheme: light;
 }
 

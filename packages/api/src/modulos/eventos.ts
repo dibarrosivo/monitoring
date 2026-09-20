@@ -1,5 +1,6 @@
 import { and, desc, eq, getTableColumns } from 'drizzle-orm';
 import { cliente, db, evento, panel, senal, sitio, zona } from '@monitoring/db';
+import { tipoSenal } from '@monitoring/shared';
 import type { App } from '../tipos.js';
 
 export function registrarEventos(app: App) {
@@ -17,7 +18,8 @@ export function registrarEventos(app: App) {
       .leftJoin(sitio, eq(panel.sitioId, sitio.id))
       .leftJoin(cliente, eq(sitio.clienteId, cliente.id));
     const filtrada = panelId ? base.where(eq(evento.panelId, Number(panelId))) : base;
-    return filtrada.orderBy(desc(evento.ocurridoEn)).limit(max);
+    const filas = await filtrada.orderBy(desc(evento.ocurridoEn)).limit(max);
+    return filas.map((f) => ({ ...f, tipo: tipoSenal(f) }));
   });
 
   /** Diario crudo: TODO lo recibido, incluidos latidos, errores y tramas ignoradas. */

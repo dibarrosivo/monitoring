@@ -17,6 +17,18 @@ export type CategoriaEvento =
   | 'sistema'
   | 'desconocido';
 
+/** Familia de la señal, con color fijo en toda la consola (ver ui.ts). La calcula la API. */
+export type TipoSenal =
+  | 'emergencia'
+  | 'robo'
+  | 'averia'
+  | 'horario'
+  | 'apertura_cierre'
+  | 'restauracion'
+  | 'anulacion'
+  | 'prueba'
+  | 'sistema';
+
 export interface Evento {
   id: number;
   senalId: number | null;
@@ -29,6 +41,7 @@ export interface Evento {
   particion: string | null;
   zona: string | null;
   prioridad: number;
+  tipo?: TipoSenal;
   ocurridoEn: string;
   zonaDescripcion?: string | null;
   clienteNombre?: string | null;
@@ -114,9 +127,10 @@ export interface Alarma {
   operadorNombre: string | null;
   panelId: number | null;
   zonaDescripcion: string | null;
+  clienteId?: number | null;
   clienteNombre: string | null;
   prefijo?: string | null;
-  evento: Pick<Evento, 'id' | 'codigo' | 'categoria' | 'descripcion' | 'numeroCuenta' | 'particion' | 'zona' | 'ocurridoEn'> & {
+  evento: Pick<Evento, 'id' | 'codigo' | 'categoria' | 'descripcion' | 'numeroCuenta' | 'particion' | 'zona' | 'ocurridoEn' | 'tipo'> & {
     senalId: number | null;
   };
 }

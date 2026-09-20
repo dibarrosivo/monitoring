@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
-import { ETIQUETA_DESENLACE, etiquetaMotivo, protocoloPara, RESULTADOS_LLAMADA } from '@monitoring/shared';
+import { ETIQUETA_DESENLACE, etiquetaMotivo, protocoloPara, RESULTADOS_LLAMADA, tipoSenal } from '@monitoring/shared';
 import { accionAlarma, alarma, cliente, contacto, db, evento, horario, panel, sitio, usuario, usuarioPanel, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
@@ -54,7 +54,7 @@ export function registrarAlarmas(app: App) {
   app.get('/alarmas', async (request) => {
     const { estado } = request.query as { estado?: 'nueva' | 'en_atencion' | 'cerrada' };
     const condicion = estado ? eq(alarma.estado, estado) : ne(alarma.estado, 'cerrada');
-    return db
+    const filas = await db
       .select({
         id: alarma.id,
         estado: alarma.estado,
@@ -79,8 +79,10 @@ export function registrarAlarmas(app: App) {
           particion: evento.particion,
           zona: evento.zona,
           ocurridoEn: evento.ocurridoEn,
+          prioridad: evento.prioridad,
         },
         zonaDescripcion: zona.descripcion,
+        clienteId: cliente.id,
         clienteNombre: cliente.nombre,
         prefijo: panel.prefijo,
         panelId: alarma.panelId,
@@ -95,6 +97,8 @@ export function registrarAlarmas(app: App) {
       .where(condicion)
       .orderBy(alarma.prioridad, desc(alarma.creadoEn))
       .limit(500);
+    // El tipo de señal (color en la consola) se deriva del evento, no se guarda
+    return filas.map((f) => ({ ...f, evento: { ...f.evento, tipo: tipoSenal(f.evento) } }));
   });
 
   /** Contexto para el panel de detalle: cliente, sitio, lista de llamadas y zona. */

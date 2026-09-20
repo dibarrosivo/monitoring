@@ -149,11 +149,15 @@ export function Bitacora({ acciones }: { acciones: AccionAlarma[] | undefined })
  */
 export function FormularioCierre({
   alarma,
+  lote,
   otrasDelSitio = [],
   alCerrar,
   compacto = false,
 }: {
-  alarma: Alarma;
+  /** La alarma que se cierra (modo normal) */
+  alarma?: Alarma;
+  /** Cierre en lote: ids de todas las alarmas seleccionadas; el mismo desenlace y motivo para todas */
+  lote?: number[];
   /** Otras alarmas abiertas del mismo sitio: se ofrecen para cerrar en lote */
   otrasDelSitio?: number[];
   alCerrar?: () => void;
@@ -167,13 +171,15 @@ export function FormularioCierre({
   const cerrar = useMutation({
     mutationFn: async (): Promise<unknown> => {
       const cierre = { desenlace, motivo, resolucion: texto.trim() || undefined };
+      if (lote) return cerrarLote(lote, cierre);
+      if (!alarma) throw new Error('Nada que cerrar');
       return tambienLasOtras && otrasDelSitio.length > 0
         ? cerrarLote([alarma.id, ...otrasDelSitio], cierre)
         : cerrarAlarma(alarma.id, cierre);
     },
     onSuccess: () => {
       void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
-      void clienteConsultas.invalidateQueries({ queryKey: ['acciones', alarma.id] });
+      if (alarma) void clienteConsultas.invalidateQueries({ queryKey: ['acciones', alarma.id] });
       alCerrar?.();
     },
   });
@@ -201,7 +207,7 @@ export function FormularioCierre({
       <div className={`flex flex-col ${compacto ? 'gap-1' : 'gap-0.5'}`}>
         {motivos.map((m) => (
           <label key={m.clave} className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" name={`motivo-${alarma.id}`} checked={motivo === m.clave} onChange={() => setMotivo(m.clave)} className="accent-[var(--color-acento)]" />
+            <input type="radio" name={`motivo-${alarma?.id ?? 'lote'}`} checked={motivo === m.clave} onChange={() => setMotivo(m.clave)} className="accent-[var(--color-acento)]" />
             <span className={motivo === m.clave ? '' : 'text-tenue'}>{m.etiqueta}</span>
           </label>
         ))}
@@ -213,7 +219,7 @@ export function FormularioCierre({
         rows={2}
         className="shrink-0 bg-fondo border border-borde rounded-sm px-2.5 py-1.5 resize-none"
       />
-      {otrasDelSitio.length > 0 && (
+      {!lote && otrasDelSitio.length > 0 && (
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" checked={tambienLasOtras} onChange={(e) => setTambienLasOtras(e.target.checked)} className="accent-[var(--color-acento)]" />
           <span>
@@ -227,7 +233,7 @@ export function FormularioCierre({
         disabled={!listo || cerrar.isPending}
         className={`${compacto ? 'w-full py-2.5' : 'self-end px-3 py-1'} bg-prio1/15 hover:bg-prio1/25 border border-prio1 text-prio1 rounded-sm text-xs font-semibold disabled:opacity-40`}
       >
-        Cerrar alarma
+        {lote ? `Cerrar ${lote.length} alarmas` : 'Cerrar alarma'}
       </button>
     </div>
   );

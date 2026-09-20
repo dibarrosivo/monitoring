@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listarEventos, listarSenales } from '../api.js';
 import { fechaHora } from '../tiempo.js';
-import { NOMBRE_CATEGORIA, textoCategoria, nombreCuenta } from '../ui.js';
+import { CLASES_TIPO, NOMBRE_TIPO_SENAL, nombreCuenta, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 
 /**
@@ -68,7 +68,7 @@ function TablaEventos({ alVerSenal }: { alVerSenal: (id: number) => void }) {
           <tr className="text-left text-tenue text-xs uppercase tracking-wider border-b border-borde">
             <th className="px-3 py-2 font-medium">Hora</th>
             <th className="px-3 py-2 font-medium">Código</th>
-            <th className="px-3 py-2 font-medium">Categoría</th>
+            <th className="px-3 py-2 font-medium">Tipo</th>
             <th className="px-3 py-2 font-medium">Descripción</th>
             <th className="px-3 py-2 font-medium">Cuenta</th>
             <th className="px-3 py-2 font-medium">Usuario / Zona</th>
@@ -79,10 +79,13 @@ function TablaEventos({ alVerSenal }: { alVerSenal: (id: number) => void }) {
           {(eventos ?? []).map((evento) => (
             <tr key={evento.id} className="border-b border-borde/50 last:border-0">
               <td className="px-3 py-1.5 text-tenue whitespace-nowrap">{fechaHora(evento.ocurridoEn)}</td>
-              <td className={`px-3 py-1.5 font-semibold ${textoCategoria(evento.categoria, evento.prioridad)}`}>
-                {evento.codigo}
+              <td className={`px-3 py-1.5 font-semibold ${CLASES_TIPO[tipoDe(evento)].texto}`}>{evento.codigo}</td>
+              <td className="px-3 py-1.5 font-ui text-xs">
+                <span className={`inline-flex items-center gap-1.5 ${CLASES_TIPO[tipoDe(evento)].texto}`}>
+                  <span className={`inline-block w-2 h-2 rounded-full ${CLASES_TIPO[tipoDe(evento)].barra}`} aria-hidden />
+                  {NOMBRE_TIPO_SENAL[tipoDe(evento)]}
+                </span>
               </td>
-              <td className="px-3 py-1.5 font-ui text-tenue">{NOMBRE_CATEGORIA[evento.categoria]}</td>
               <td className="px-3 py-1.5 font-ui">{evento.descripcion}</td>
               <td className="px-3 py-1.5 whitespace-nowrap">
                 {nombreCuenta(evento.prefijo, evento.numeroCuenta)}

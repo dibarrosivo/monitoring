@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { anotarAlarma, devolverAlarma, listarAcciones, listarAlarmas, tomarAlarma, verContexto } from '../api.js';
 import type { Alarma } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
-import { clasesPrioridad, nombreCuenta } from '../ui.js';
+import { CLASES_TIPO, clasesPrioridad, nombreCuenta, tipoDe } from '../ui.js';
 import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -42,13 +42,14 @@ export function ColaMovil() {
 
 function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: boolean; alAbrir: () => void }) {
   const prio = clasesPrioridad(alarma.prioridad);
+  const tipo = CLASES_TIPO[tipoDe(alarma.evento)];
   const fondo = alarma.estado === 'nueva' && alarma.prioridad <= 2 ? (alarma.prioridad <= 1 ? 'bg-prio1/15' : 'bg-prio2/10') : '';
 
   return (
-    <li className={`bg-superficie border rounded-lg overflow-hidden ${prio.borde} ${fondo}`}>
+    <li className={`bg-superficie border rounded-lg overflow-hidden ${tipo.borde} ${fondo}`}>
       <button onClick={alAbrir} className="w-full text-left p-3 flex flex-col gap-1">
         <span className="flex items-center gap-2">
-          <span className={`font-datos font-semibold ${prio.texto}`}>{alarma.evento.codigo}</span>
+          <span className={`font-datos font-semibold ${tipo.texto}`}>{alarma.evento.codigo}</span>
           <span className="font-semibold text-sm flex-1 truncate">{alarma.evento.descripcion}</span>
         </span>
         <span className="font-datos text-xs text-tenue flex flex-wrap gap-x-3">

@@ -1,4 +1,4 @@
-import type { CategoriaEvento } from './tipos.js';
+import type { CategoriaEvento, TipoSenal } from './tipos.js';
 
 /** Clases estáticas (Tailwind las detecta en el código fuente, no se pueden armar dinámicamente). */
 
@@ -47,3 +47,60 @@ export const NOMBRE_CATEGORIA: Record<CategoriaEvento, string> = {
   sistema: 'Sistema',
   desconocido: 'Desconocido',
 };
+
+/**
+ * Código de color por tipo de señal, el mismo en la cola, el diario y la app.
+ * Sigue la convención de las centrales (y del software anterior): emergencia
+ * rojo, robo naranja, avería amarillo, horario violeta, apertura/cierre verde,
+ * restauración azul, prueba magenta, sistema gris. Las clases van escritas
+ * completas porque Tailwind las busca en el código fuente.
+ */
+export const CLASES_TIPO: Record<TipoSenal, { texto: string; barra: string; fondo: string; borde: string }> = {
+  emergencia: { texto: 'text-tipo-emergencia', barra: 'bg-tipo-emergencia', fondo: 'bg-tipo-emergencia/15', borde: 'border-tipo-emergencia' },
+  robo: { texto: 'text-tipo-robo', barra: 'bg-tipo-robo', fondo: 'bg-tipo-robo/15', borde: 'border-tipo-robo' },
+  averia: { texto: 'text-tipo-averia', barra: 'bg-tipo-averia', fondo: 'bg-tipo-averia/15', borde: 'border-tipo-averia' },
+  horario: { texto: 'text-tipo-horario', barra: 'bg-tipo-horario', fondo: 'bg-tipo-horario/15', borde: 'border-tipo-horario' },
+  apertura_cierre: { texto: 'text-tipo-apertura', barra: 'bg-tipo-apertura', fondo: 'bg-tipo-apertura/15', borde: 'border-tipo-apertura' },
+  restauracion: { texto: 'text-tipo-restauracion', barra: 'bg-tipo-restauracion', fondo: 'bg-tipo-restauracion/15', borde: 'border-tipo-restauracion' },
+  anulacion: { texto: 'text-tipo-anulacion', barra: 'bg-tipo-anulacion', fondo: 'bg-tipo-anulacion/15', borde: 'border-tipo-anulacion' },
+  prueba: { texto: 'text-tipo-prueba', barra: 'bg-tipo-prueba', fondo: 'bg-tipo-prueba/15', borde: 'border-tipo-prueba' },
+  sistema: { texto: 'text-tipo-sistema', barra: 'bg-tipo-sistema', fondo: 'bg-tipo-sistema/15', borde: 'border-tipo-sistema' },
+};
+
+export const NOMBRE_TIPO_SENAL: Record<TipoSenal, string> = {
+  emergencia: 'Emergencia',
+  robo: 'Robo',
+  averia: 'Avería',
+  horario: 'Horario',
+  apertura_cierre: 'Apertura / cierre',
+  restauracion: 'Restauración',
+  anulacion: 'Anulación',
+  prueba: 'Prueba',
+  sistema: 'Sistema',
+};
+
+/** De lo urgente a lo informativo: así se listan en la leyenda y en los filtros. */
+export const ORDEN_TIPOS_SENAL: TipoSenal[] = ['emergencia', 'robo', 'averia', 'horario', 'apertura_cierre', 'restauracion', 'anulacion', 'prueba', 'sistema'];
+
+/** Tipo de un evento; si la respuesta no lo trae (versión vieja de la API), se aproxima por categoría. */
+export function tipoDe(evento: { tipo?: TipoSenal; categoria: CategoriaEvento; prioridad?: number }): TipoSenal {
+  if (evento.tipo) return evento.tipo;
+  switch (evento.categoria) {
+    case 'alarma':
+      return (evento.prioridad ?? 2) <= 1 ? 'emergencia' : 'robo';
+    case 'restauracion':
+      return 'restauracion';
+    case 'apertura':
+    case 'cierre':
+    case 'cancelacion':
+      return 'apertura_cierre';
+    case 'averia':
+      return 'averia';
+    case 'anulacion':
+      return 'anulacion';
+    case 'prueba':
+      return 'prueba';
+    default:
+      return 'sistema';
+  }
+}
