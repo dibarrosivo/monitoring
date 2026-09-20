@@ -238,6 +238,9 @@ export const editarSitio = (id: number, datos: Partial<Omit<Sitio, 'id' | 'clien
 export const eliminarSitio = (id: number) => eliminar(`/sitios/${id}`);
 export const editarPanel = (id: number, datos: Partial<Omit<EstadoPanel, 'id' | 'sitioId' | 'ultimaSenalEn'>> & { modelo?: string }) =>
   editar<EstadoPanel>(`/paneles/${id}`, datos);
+export const ponerEnPrueba = (panelId: number, datos: { horas: number; motivo: string }) =>
+  pedir<EstadoPanel>(`/paneles/${panelId}/prueba`, { method: 'POST', body: JSON.stringify(datos) });
+export const quitarPrueba = (panelId: number) => pedir<EstadoPanel>(`/paneles/${panelId}/prueba`, { method: 'DELETE' });
 export const listarZonas = (panelId: number) => pedir<Zona[]>(`/paneles/${panelId}/zonas`);
 export const crearZona = (datos: { panelId: number; numero: string; particion?: string; descripcion?: string }) =>
   pedir<Zona>('/zonas', { method: 'POST', body: JSON.stringify(datos) });

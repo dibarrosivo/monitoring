@@ -19,7 +19,7 @@ import { HombreMuerto } from './HombreMuerto.js';
 import { usePantallaChica } from './pantalla.js';
 import { Buscador } from './Buscador.js';
 import { SelectorTema } from './SelectorTema.js';
-import { nombreCuenta } from './ui.js';
+import { nombreCuenta, enVerificacion } from './ui.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'usuarios';
 
@@ -103,12 +103,18 @@ export function Consola({ usuario }: { usuario: Usuario }) {
       if (codigo) setUltimaSenal(`${codigo} · cuenta ${nombreCuenta(prefijo, numeroCuenta ?? '?')}`);
       void clienteConsultas.invalidateQueries({ queryKey: ['eventos'] });
       void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] });
+      // Un desarmado puede haber cancelado una alarma en verificación
+      if (mensaje.carga.categoria === 'apertura' || mensaje.carga.categoria === 'cancelacion') {
+        void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
+      }
     }
     if (mensaje.canal === 'nueva_alarma') {
       void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
       if (mensaje.carga.alarmaId) setAlarmaReciente(mensaje.carga.alarmaId);
+      // Retenida en verificación: todavía no es del operador, no suena
+      const retenida = mensaje.carga.enVerificacionHasta && new Date(mensaje.carga.enVerificacionHasta).getTime() > Date.now();
       // Una emergencia entra con sirena; el resto, con el bip de siempre
-      if (sonido) {
+      if (sonido && !retenida) {
         if (mensaje.carga.prioridad <= 1) sonarSirena(4);
         else sonarAlarma(mensaje.carga.prioridad);
       }
@@ -126,7 +132,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
    */
   useEffect(() => {
     if (!sonido) return;
-    const sinTomar = (alarmas ?? []).filter((a) => a.estado === 'nueva');
+    const sinTomar = (alarmas ?? []).filter((a) => a.estado === 'nueva' && !enVerificacion(a));
     if (sinTomar.length === 0) return;
     const urgencia = Math.min(...sinTomar.map((a) => a.prioridad));
     const temporizador = setInterval(() => sonarAlarma(urgencia), 12_000);
@@ -145,7 +151,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
   const conteos = useMemo(() => {
     const abiertas = alarmas ?? [];
     return {
-      nuevas: abiertas.filter((a) => a.estado === 'nueva').length,
+      nuevas: abiertas.filter((a) => a.estado === 'nueva' && !enVerificacion(a)).length,
       enAtencion: abiertas.filter((a) => a.estado === 'en_atencion').length,
     };
   }, [alarmas]);

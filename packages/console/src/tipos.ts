@@ -120,6 +120,8 @@ export interface Alarma {
   tomadaEn: string | null;
   cerradaEn: string | null;
   restauradaEn: string | null;
+  /** Mientras no venza, la alarma espera el desarmado del usuario: se lista atenuada y no suena */
+  enVerificacionHasta?: string | null;
   desenlace: DesenlaceAlarma | null;
   motivo: string | null;
   resolucion: string | null;
@@ -156,6 +158,11 @@ export interface EstadoPanel {
   intervaloPruebaMin: number;
   ultimaSenalEn: string | null;
   activo: boolean;
+  /** Cuenta en prueba (técnico en el sitio): sin alarmas hasta esta hora */
+  enPruebaHasta?: string | null;
+  enPruebaMotivo?: string | null;
+  /** Segundos que un robo espera el desarmado del usuario antes de presentarse (0 = ninguno) */
+  ventanaCancelacionSeg?: number;
   cuentaSecundaria?: string | null;
   prefijo?: string | null;
   alias?: string | null;
@@ -343,6 +350,8 @@ export interface ContextoAlarma {
     claveMaestra: string | null;
     instalador?: string | null;
     ultimaSenalEn?: string | null;
+    enPruebaHasta?: string | null;
+    enPruebaMotivo?: string | null;
   } | null;
   contactos: Contacto[];
   zonaDescripcion: string | null;
@@ -510,6 +519,8 @@ export interface MensajeTiempoReal {
     zona?: string | null;
     zonaDescripcion?: string | null;
     sitioNombre?: string | null;
+    /** Alarma retenida en verificación: no suena hasta que venza */
+    enVerificacionHasta?: string | null;
   };
 }
 

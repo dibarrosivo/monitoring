@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { anotarAlarma, devolverAlarma, marcarPaso, listarAcciones, listarAlarmas, reabrirAlarma, tomarAlarma, tomarLote, verContexto } from '../api.js';
 import type { Alarma, TipoSenal } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
-import { CLASES_TIPO, clasesPrioridad, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, tipoDe } from '../ui.js';
+import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 import { Modal } from '../Modal.js';
 import { ETIQUETA_DESENLACE } from '../cierres.js';
@@ -55,7 +55,7 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
   const [cerrandoLote, setCerrandoLote] = useState(false);
 
   useEffect(() => {
-    const temporizador = setInterval(() => setAhora(Date.now()), 10_000);
+    const temporizador = setInterval(() => setAhora(Date.now()), 5_000);
     return () => clearInterval(temporizador);
   }, []);
 
@@ -418,10 +418,14 @@ function FilaAlarma({
     },
   });
   const t = tiempos(alarma, ahora);
+  // Esperando el desarmado del usuario: se ve, atenuada, pero todavía no es del operador
+  const verificando = enVerificacion(alarma, ahora);
+  const segundosVerificacion = verificando ? Math.max(0, Math.ceil((new Date(alarma.enVerificacionHasta!).getTime() - ahora) / 1000)) : 0;
 
   // Como en toda central: la fila entera de una alarma real sin atender se pinta.
-  const fondoFila =
-    alarma.estado === 'nueva' && alarma.prioridad <= 1
+  const fondoFila = verificando
+    ? 'opacity-60 hover:opacity-80'
+    : alarma.estado === 'nueva' && alarma.prioridad <= 1
       ? 'bg-prio1/20 hover:bg-prio1/25'
       : alarma.estado === 'nueva' && alarma.prioridad === 2
         ? 'bg-prio2/10 hover:bg-prio2/15'
@@ -486,8 +490,12 @@ function FilaAlarma({
         </>
       ) : (
         <>
-          <td className={`px-3 py-1.5 text-xs whitespace-nowrap ${alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
-            {NOMBRE_ESTADO[alarma.estado]}
+          <td className={`px-3 py-1.5 text-xs whitespace-nowrap ${verificando ? 'text-tenue' : alarma.estado === 'nueva' ? prio.texto : 'text-acento'}`}>
+            {verificando ? (
+              <span title="Esperando el desarmado del usuario; si no llega, se presenta como nueva">VERIFICANDO {segundosVerificacion} s</span>
+            ) : (
+              NOMBRE_ESTADO[alarma.estado]
+            )}
             {alarma.restauradaEn && (
               <span className="ml-1.5 text-ok" title={`El panel reportó la restauración ${fechaHora(alarma.restauradaEn)}`}>
                 RESTAURADA
@@ -697,6 +705,12 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
                   {contexto.panel?.ultimaSenalEn && ` · última señal ${transcurrido(contexto.panel.ultimaSenalEn)}`}
                   {contexto.panel?.instalador && ` · instaló ${contexto.panel.instalador}`}
                 </p>
+                {enPrueba(contexto.panel) && (
+                  <p className="text-prio2 text-xs font-semibold uppercase tracking-wider mt-1" title={contexto.panel?.enPruebaMotivo ?? ''}>
+                    Cuenta en prueba hasta {fechaHora(contexto.panel!.enPruebaHasta!)}
+                    {contexto.panel?.enPruebaMotivo && <span className="normal-case tracking-normal font-normal text-tenue"> · {contexto.panel.enPruebaMotivo}</span>}
+                  </p>
+                )}
                 {contexto.horarios.length > 0 && (
                   <p className="font-datos text-xs text-tenue">
                     Horario: {contexto.horarios.map((h) => `${h.dias.replace(/-/g, '')} ${h.apertura}–${h.cierre}`).join(' · ')}

@@ -25,6 +25,8 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
       and(
         eq(panel.activo, true),
         eq(panel.supervisado, true),
+        // Una cuenta en prueba (técnico trabajando) no cuenta como silenciosa
+        sql`(${panel.enPruebaHasta} IS NULL OR ${panel.enPruebaHasta} < now())`,
         // 1.5 × intervalo en minutos = intervalo × 90 segundos (el factor no puede ir
         // como parámetro: Postgres lo infiere entero y rechaza "1.5")
         sql`COALESCE(${panel.ultimaSenalEn}, ${panel.creadoEn}) < now() - (${panel.intervaloPruebaMin} * interval '90 seconds')`,
@@ -115,7 +117,7 @@ export async function revisarHorarios(): Promise<number> {
     .from(horario)
     .innerJoin(panel, eq(horario.panelId, panel.id))
     .innerJoin(sitio, eq(panel.sitioId, sitio.id))
-    .where(and(eq(horario.activo, true), eq(panel.activo, true)));
+    .where(and(eq(horario.activo, true), eq(panel.activo, true), sql`(${panel.enPruebaHasta} IS NULL OR ${panel.enPruebaHasta} < now())`));
   if (filas.length === 0) return 0;
 
   const porPanel = new Map<number, { numeroCuenta: string; zonaHoraria: string | null; horarios: typeof filas }>();

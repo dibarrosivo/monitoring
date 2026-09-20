@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or } from 'drizzle-orm';
+import { and, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import {
   accionAlarma,
   alarma,
@@ -16,6 +16,8 @@ import {
 } from '@monitoring/db';
 import { abreAlarma, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
 import { esAperturaFueraDeHorario } from './horarios.js';
+import { esCancelacionDelUsuario, estaEnPrueba, ventanaDeVerificacion } from './verificacion.js';
+import { etiquetaMotivo } from '@monitoring/shared';
 import { confirmarPorEvento } from './control/comandos.js';
 
 /** Categorías que abren una alarma para el operador. Las averías quedan en el registro de eventos. */
@@ -142,6 +144,9 @@ export async function procesarEvento(entrada: {
   let descripcion = panelEncontrado
     ? normalizado.descripcion
     : `${normalizado.descripcion} — CUENTA DESCONOCIDA (${normalizado.numeroCuenta})`;
+  // Cuenta en prueba (técnico en el sitio): todo se registra, nada abre alarma
+  const enPrueba = panelEncontrado ? estaEnPrueba(panelEncontrado, recibidaEn) : false;
+  if (enPrueba) descripcion += ' — EN PRUEBA';
 
   // En los eventos 4xx el campo zona es el número de usuario del teclado:
   // si está dado de alta, el evento nombra a la persona.
@@ -179,6 +184,7 @@ export async function procesarEvento(entrada: {
     await registrarVida(panelEncontrado.id, recibidaEn);
     await db.update(senal).set({ panelId: panelEncontrado.id }).where(eq(senal.id, senalId));
     await marcarRestauraciones(panelEncontrado.id, normalizado, recibidaEn);
+    if (esCancelacionDelUsuario(normalizado)) await cancelarPorUsuario(panelEncontrado.id, normalizado, descripcion, recibidaEn);
   }
 
   let alarmaId: number | undefined;
@@ -190,19 +196,21 @@ export async function procesarEvento(entrada: {
   const correspondeAlarma =
     CATEGORIAS_CON_ALARMA.has(normalizado.categoria) &&
     abreAlarma({ codigo: normalizado.codigo, codigoCid: normalizado.codigoCid });
-  if (correspondeAlarma || !panelEncontrado) {
+  if ((correspondeAlarma && !enPrueba) || !panelEncontrado) {
     alarmaId = await abrirAlarma({
       eventoId: filaEvento!.id,
       panelId: panelEncontrado?.id,
       prioridad: panelEncontrado ? normalizado.prioridad : 3,
       descripcion,
       numeroCuenta: normalizado.numeroCuenta,
+      // Un robo espera unos segundos el desarmado del usuario antes de presentarse
+      enVerificacionHasta: panelEncontrado ? ventanaDeVerificacion(normalizado, panelEncontrado, recibidaEn) : null,
     });
   }
 
   // Apertura fuera del horario permitido: alguien entró con código válido en un
   // momento en que el sitio debería estar cerrado. Alarma aparte, prioridad alta.
-  if (panelEncontrado && normalizado.categoria === 'apertura') {
+  if (panelEncontrado && !enPrueba && normalizado.categoria === 'apertura') {
     const horarios = await db
       .select()
       .from(horario)
@@ -277,6 +285,7 @@ export async function abrirAlarma(entrada: {
   prioridad: number;
   descripcion: string;
   numeroCuenta?: string;
+  enVerificacionHasta?: Date | null;
 }): Promise<number> {
   const [fila] = await db
     .insert(alarma)
@@ -285,6 +294,7 @@ export async function abrirAlarma(entrada: {
       panelId: entrada.panelId,
       prioridad: entrada.prioridad,
       estado: 'nueva',
+      enVerificacionHasta: entrada.enVerificacionHasta ?? null,
     })
     .returning({ id: alarma.id });
 
@@ -295,6 +305,7 @@ export async function abrirAlarma(entrada: {
     prioridad: entrada.prioridad,
     descripcion: entrada.descripcion,
     numeroCuenta: entrada.numeroCuenta ?? null,
+    enVerificacionHasta: entrada.enVerificacionHasta?.toISOString() ?? null,
   });
 
   return fila!.id;
@@ -331,6 +342,36 @@ async function marcarRestauraciones(panelId: number, normalizado: EventoNormaliz
   for (const r of restauradas) {
     await db.update(alarma).set({ restauradaEn: cuando }).where(eq(alarma.id, r.id));
     await db.insert(accionAlarma).values({ alarmaId: r.id, operadorId: null, tipo: 'sistema', detalle: r.nota });
+  }
+}
+
+/**
+ * Cancelación por el usuario: si dentro de la ventana de verificación llega
+ * el desarmado (o la cancelación) del mismo panel, las alarmas que todavía
+ * esperaban se cierran solas como falsa alarma cancelada por el usuario. Es
+ * la causa más común de falsa alarma (entró, tardó en desarmar) y no amerita
+ * una llamada. Lo que ya se presentó al operador no se toca: sigue el
+ * procedimiento normal, con la nota de que el usuario desarmó.
+ */
+async function cancelarPorUsuario(panelId: number, normalizado: EventoNormalizado, descripcionDesarme: string, cuando: Date): Promise<void> {
+  const pendientes = await db
+    .select({ id: alarma.id })
+    .from(alarma)
+    .where(and(eq(alarma.panelId, panelId), eq(alarma.estado, 'nueva'), sql`${alarma.enVerificacionHasta} > ${cuando}`));
+  if (pendientes.length === 0) return;
+  const motivo = 'cancelada_usuario';
+  const resolucion = etiquetaMotivo('falsa_alarma', motivo) ?? 'Cancelada por el usuario';
+  for (const p of pendientes) {
+    await db
+      .update(alarma)
+      .set({ estado: 'cerrada', cerradaEn: cuando, desenlace: 'falsa_alarma', motivo, resolucion, enVerificacionHasta: null })
+      .where(and(eq(alarma.id, p.id), eq(alarma.estado, 'nueva')));
+    await db.insert(accionAlarma).values({
+      alarmaId: p.id,
+      operadorId: null,
+      tipo: 'cierre',
+      detalle: `${resolucion}: ${normalizado.codigo} ${descripcionDesarme}`,
+    });
   }
 }
 

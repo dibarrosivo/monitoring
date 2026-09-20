@@ -19,6 +19,7 @@ const alarmas = [
   { ...alarma(8, 'PIMA-TO', 'No ha cerrado a horario', '7112', 'LICORERIA EL SOL', null, 'nueva', 3, 'horario', 11), panelId: 11 },
   { ...alarma(9, 'E602', 'Prueba periódica', '7037', 'MATARILE', null, 'nueva', 5, 'prueba', 12), panelId: 12, prefijo: 'EBS' },
   { ...alarma(10, 'SIS', 'Panel silencioso: sin señales hace 26 h', '7090', 'BODEGON CENTRAL', null, 'nueva', 2, 'sistema', 13), panelId: 13 },
+  { ...alarma(11, 'E130', 'Robo: Robo perímetro', '7016', 'FERRETERIA PEPINO', '001', 'nueva', 2, 'robo', 18), panelId: 18, creadoEn: new Date().toISOString(), enVerificacionHasta: new Date(Date.now() + 38_000).toISOString() },
 ];
 const respuestas: Record<string, unknown> = {
   '/contexto': { cliente: { id: 1, nombre: 'PANADERIA K3', telefono: null, instrucciones: null, estado: 'activo', motivoEstado: null }, sitio: { id: 3, nombre: 'PANADERIA K3', tipo: 'comercial', direccion: null, ciudad: null, referencia: null, latitud: null, longitud: null, telefono: null, llaves: null, instruccionesAcceso: null, instrucciones: null }, panel: { id: 3, numeroCuenta: '7002', alias: null, tipo: 'otro', marca: null, modelo: null, claveMaestra: null }, contactos: [], zonaDescripcion: null, pasos: ['Llamar al sitio y pedir la palabra clave', 'Llamar a los contactos por orden de la lista', 'Despachar móvil si no se puede verificar'], pasosCumplidos: [], horarios: [{ id: 1, panelId: 3, dias: 'LMXJV--', apertura: '07:00', cierre: '19:00', toleranciaMin: 15, activo: true }], usuariosPanel: [{ id: 1, panelId: 3, numero: '001', nombre: 'Ana Pérez', telefono: '0414-1111111', contactoId: null }, { id: 2, panelId: 3, numero: '006', nombre: 'Luis Gómez', telefono: null, contactoId: null }], previas: [{ id: 40, codigo: 'E140', descripcion: 'Alarma en zona 11', creadoEn: '2026-09-15T21:22:00Z', cerradaEn: '2026-09-15T21:40:00Z', desenlace: 'falsa_alarma', resolucion: 'Mascota u objeto en movimiento', operadorNombre: 'Brayan' }] },
@@ -42,7 +43,7 @@ createRoot(document.getElementById('raiz')!).render(
 setTimeout(() => {
   const casillas = document.querySelectorAll<HTMLInputElement>('tbody input[type=checkbox]');
   casillas[3]?.click();
-  casillas[5]?.click();
+  casillas[6]?.click();
   // Con #cerrar en la URL se abre además el cierre en lote
   if (location.hash === '#cerrar') {
     setTimeout(() => {

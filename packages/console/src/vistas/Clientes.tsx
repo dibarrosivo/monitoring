@@ -28,7 +28,7 @@ import {
 import type { Cliente, Contacto, EstadoCliente, EstadoPanel, Sitio, TipoSitio } from '../tipos.js';
 import { Modal } from '../Modal.js';
 import { fechaHora } from '../tiempo.js';
-import { nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
+import { enPrueba, nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
 const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
@@ -816,6 +816,7 @@ function TarjetaSitio({
             {[panel.alias, NOMBRE_TIPO_PANEL[panel.tipo] ?? panel.tipo, panel.marca, panel.modelo].filter(Boolean).join(' · ')}
             {!panel.activo && ' · INACTIVO'}
           </span>
+          {enPrueba(panel) && <span className="text-prio2 text-xs font-semibold">EN PRUEBA</span>}
           <span className="ml-auto text-acento text-xs">Abrir dispositivo →</span>
         </button>
       ))}

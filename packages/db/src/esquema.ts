@@ -157,6 +157,19 @@ export const panel = pgTable(
     /** Minutos esperados entre pruebas periódicas / señales de vida */
     intervaloPruebaMin: integer('intervalo_prueba_min').notNull().default(1440),
     ultimaSenalEn: timestamp('ultima_senal_en', { withTimezone: true }),
+    /**
+     * Cuenta en prueba: mientras no venza, sus señales se registran pero no
+     * abren alarma ni se supervisan horarios ni silencio. Es lo que se pone
+     * cuando un técnico está trabajando en el sitio, y vence sola.
+     */
+    enPruebaHasta: timestamp('en_prueba_hasta', { withTimezone: true }),
+    enPruebaMotivo: text('en_prueba_motivo'),
+    /**
+     * Ventana de cancelación por el usuario, en segundos: una alarma de robo
+     * espera este tiempo antes de presentarse; si en ese lapso el usuario
+     * desarma, se cierra sola como cancelada. 0 = sin ventana.
+     */
+    ventanaCancelacionSeg: integer('ventana_cancelacion_seg').notNull().default(45),
     // Facturación por cuenta monitoreada: solo vencimiento y monto, sin facturas
     montoAbono: numeric('monto_abono', { precision: 12, scale: 2 }),
     frecuenciaMeses: integer('frecuencia_meses').notNull().default(1),
@@ -398,6 +411,12 @@ export const alarma = pgTable(
      * verificar, pero ya sabe que en el sitio la situación cambió.
      */
     restauradaEn: timestamp('restaurada_en', { withTimezone: true }),
+    /**
+     * Hasta cuándo la alarma está en verificación: existe, pero la consola no
+     * la presenta ni suena, esperando el desarmado del usuario que la
+     * cancelaría. Pasado el plazo se presenta como cualquier otra.
+     */
+    enVerificacionHasta: timestamp('en_verificacion_hasta', { withTimezone: true }),
     desenlace: desenlaceAlarmaEnum('desenlace'),
     /**
      * Motivo predefinido del cierre (ver MOTIVOS_CIERRE en shared). El

@@ -104,3 +104,13 @@ export function tipoDe(evento: { tipo?: TipoSenal; categoria: CategoriaEvento; p
       return 'sistema';
   }
 }
+
+/** ¿La alarma sigue en verificación (esperando el desarmado del usuario)? */
+export function enVerificacion(alarma: { estado: string; enVerificacionHasta?: string | null }, ahora: number = Date.now()): boolean {
+  return alarma.estado === 'nueva' && Boolean(alarma.enVerificacionHasta) && new Date(alarma.enVerificacionHasta!).getTime() > ahora;
+}
+
+/** ¿La cuenta está en prueba en este momento? */
+export function enPrueba(panel: { enPruebaHasta?: string | null } | null | undefined, ahora: number = Date.now()): boolean {
+  return Boolean(panel?.enPruebaHasta) && new Date(panel!.enPruebaHasta!).getTime() > ahora;
+}

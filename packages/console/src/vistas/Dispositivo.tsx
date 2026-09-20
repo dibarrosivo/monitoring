@@ -7,6 +7,8 @@ import {
   crearUsuarioPanel,
   crearZona,
   editarPanel,
+  ponerEnPrueba,
+  quitarPrueba,
   editarZona,
   eliminarContacto,
   eliminarHorario,
@@ -19,7 +21,8 @@ import {
   verCliente,
 } from '../api.js';
 import type { EstadoPanel } from '../tipos.js';
-import { transcurrido } from '../tiempo.js';
+import { fechaHora, transcurrido } from '../tiempo.js';
+import { enPrueba } from '../ui.js';
 import { Modal } from '../Modal.js';
 import { CampoSugerido } from '../CampoSugerido.js';
 import { ControlPanel } from '../ControlPanel.js';
@@ -54,6 +57,11 @@ export function DetalleDispositivo({
   const { data: paneles } = useQuery({ queryKey: ['paneles'], queryFn: listarPaneles });
   const panel = (paneles ?? []).find((p) => p.id === panelId);
   const [editando, setEditando] = useState(false);
+  const [poniendoEnPrueba, setPoniendoEnPrueba] = useState(false);
+  const sacarDePrueba = useMutation({
+    mutationFn: () => quitarPrueba(panelId),
+    onSuccess: () => void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] }),
+  });
 
   const alternarActivo = useMutation({
     mutationFn: () => editarPanel(panelId, { activo: !panel?.activo }),
@@ -83,12 +91,26 @@ export function DetalleDispositivo({
             )}
           </h2>
           {!panel.activo && <span className="text-prio2 text-xs font-semibold">INACTIVO</span>}
+          {enPrueba(panel) && (
+            <span className="text-prio2 text-xs font-semibold" title={panel.enPruebaMotivo ?? ''}>
+              EN PRUEBA hasta {fechaHora(panel.enPruebaHasta!)}
+            </span>
+          )}
           <button onClick={() => setEditando(true)} className={BOTON_MINI} title="Editar dispositivo">
             ✎ Editar
           </button>
           <button onClick={() => alternarActivo.mutate()} className={panel.activo ? BOTON_MINI_ROJO : BOTON_MINI}>
             {panel.activo ? 'Desactivar' : 'Reactivar'}
           </button>
+          {enPrueba(panel) ? (
+            <button onClick={() => sacarDePrueba.mutate()} disabled={sacarDePrueba.isPending} className={BOTON_MINI}>
+              Terminar la prueba
+            </button>
+          ) : (
+            <button onClick={() => setPoniendoEnPrueba(true)} className={BOTON_MINI} title="El técnico va a disparar señales: registrar sin abrir alarma">
+              Poner en prueba…
+            </button>
+          )}
           <span className="ml-auto font-datos text-xs text-tenue">
             {panel.ultimaSenalEn ? `última señal ${transcurrido(panel.ultimaSenalEn)}` : 'nunca transmitió'}
           </span>
@@ -97,6 +119,7 @@ export function DetalleDispositivo({
           {[panel.alias, panel.tipo, panel.marca, panel.modelo].filter(Boolean).join(' · ')} · prueba cada{' '}
           {panel.intervaloPruebaMin} min
           {!panel.supervisado && ' · sin supervisión'}
+          {panel.ventanaCancelacionSeg !== undefined && (panel.ventanaCancelacionSeg > 0 ? ` · robo espera ${panel.ventanaCancelacionSeg} s el desarmado` : ' · sin ventana de cancelación')}
           {panel.propiedad && panel.propiedad !== 'propio' && ` · ${panel.propiedad}`}
         </p>
         <p className="text-sm mt-1 flex flex-wrap items-center gap-x-3">
@@ -124,6 +147,7 @@ export function DetalleDispositivo({
       </header>
 
       <ControlPanel panel={panel} />
+      {poniendoEnPrueba && <ModalPonerEnPrueba panelId={panelId} alCerrar={() => setPoniendoEnPrueba(false)} />}
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         <section className="bg-superficie border border-borde rounded-sm p-4">
@@ -148,6 +172,76 @@ export function DetalleDispositivo({
 }
 
 /** Edición completa del dispositivo en un solo formulario (un solo PUT). */
+/**
+ * Cuenta en prueba: el técnico está en el sitio y va a disparar de todo. Por
+ * las horas indicadas las señales se registran sin abrir alarma ni supervisar
+ * silencio u horarios. Vence sola; queda en auditoría quién la puso y por qué.
+ */
+function ModalPonerEnPrueba({ panelId, alCerrar }: { panelId: number; alCerrar: () => void }) {
+  const clienteConsultas = useQueryClient();
+  const [horas, setHoras] = useState('2');
+  const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const poner = useMutation({
+    mutationFn: () => ponerEnPrueba(panelId, { horas: Number(horas), motivo: motivo.trim() }),
+    onSuccess: () => {
+      void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] });
+      alCerrar();
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'No se pudo poner en prueba'),
+  });
+  const listo = Number(horas) > 0 && motivo.trim().length > 0;
+  return (
+    <Modal titulo="Poner la cuenta en prueba" alCerrar={alCerrar}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (listo) poner.mutate();
+        }}
+        className="flex flex-col gap-3 text-sm"
+      >
+        <p className="text-tenue">
+          Mientras dure, las señales de este dispositivo se registran pero no abren alarma, y no se supervisan el silencio ni los horarios. Termina sola.
+        </p>
+        <label className="flex flex-col gap-1">
+          <span className="text-tenue text-xs uppercase tracking-wider">Duración</span>
+          <div className="flex gap-1">
+            {['1', '2', '4', '8', '24'].map((h) => (
+              <button
+                type="button"
+                key={h}
+                onClick={() => setHoras(h)}
+                className={`flex-1 rounded-sm border px-2 py-1 text-xs ${horas === h ? 'border-acento bg-acento/15 text-acento font-semibold' : 'border-borde text-tenue hover:text-texto'}`}
+              >
+                {h} h
+              </button>
+            ))}
+          </div>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-tenue text-xs uppercase tracking-wider">Motivo (obligatorio)</span>
+          <input
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Técnico Frank revisando sensores"
+            className={CAMPO}
+            autoFocus
+          />
+        </label>
+        {error && <p className="text-prio1">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={alCerrar} className="text-tenue hover:text-texto">
+            Cancelar
+          </button>
+          <button type="submit" disabled={!listo || poner.isPending} className={BOTON}>
+            Poner en prueba {horas} h
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCerrar: () => void }) {
   const clienteConsultas = useQueryClient();
   const [datos, setDatos] = useState({
@@ -165,6 +259,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
     propiedad: panel.propiedad ?? 'propio',
     supervisado: panel.supervisado,
     intervaloPruebaMin: String(panel.intervaloPruebaMin),
+    ventanaCancelacionSeg: String(panel.ventanaCancelacionSeg ?? 45),
     montoAbono: panel.montoAbono ?? '',
     frecuenciaMeses: String(panel.frecuenciaMeses ?? 1),
     proximoVencimiento: panel.proximoVencimiento ?? '',
@@ -188,6 +283,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
         propiedad: datos.propiedad,
         supervisado: datos.supervisado,
         intervaloPruebaMin: Number(datos.intervaloPruebaMin),
+        ventanaCancelacionSeg: Math.max(0, Number(datos.ventanaCancelacionSeg) || 0),
         montoAbono: datos.montoAbono || undefined,
         frecuenciaMeses: Number(datos.frecuenciaMeses) || 1,
         proximoVencimiento: datos.proximoVencimiento || null,
@@ -348,6 +444,18 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
             onChange={(e) => setDatos({ ...datos, supervisado: e.target.checked })}
           />
           Supervisado (el silencio genera alarma de sistema)
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-tenue">Un robo espera</span>
+          <input
+            type="number"
+            min={0}
+            max={300}
+            value={datos.ventanaCancelacionSeg}
+            onChange={(e) => setDatos({ ...datos, ventanaCancelacionSeg: e.target.value })}
+            className={`${CAMPO} w-20`}
+          />
+          <span className="text-tenue">segundos el desarmado del usuario antes de presentarse (0 = ninguno)</span>
         </label>
         {error && <p className="text-prio1">{error}</p>}
         <div className="flex justify-end gap-2">

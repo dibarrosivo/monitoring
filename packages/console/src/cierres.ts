@@ -21,6 +21,7 @@ export const MOTIVOS_CIERRE: Record<DesenlaceAlarma, MotivoCierre[]> = {
   ],
   falsa_alarma: [
     { clave: 'error_usuario', etiqueta: 'Error del usuario al operar el panel' },
+    { clave: 'cancelada_usuario', etiqueta: 'Cancelada por el usuario (desarmó a tiempo)' },
     { clave: 'mascota_objeto', etiqueta: 'Mascota u objeto en movimiento' },
     { clave: 'falla_equipo', etiqueta: 'Falla del equipo o del sensor' },
     { clave: 'prueba', etiqueta: 'Prueba del instalador o del cliente' },

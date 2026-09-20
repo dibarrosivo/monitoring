@@ -126,6 +126,7 @@ const camposPanel = {
   propiedad: z.enum(['propio', 'comodato', 'prestamo']).optional(),
   supervisado: z.boolean().default(true),
   intervaloPruebaMin: z.number().int().positive().default(1440),
+  ventanaCancelacionSeg: z.number().int().min(0).max(300).default(45),
   montoAbono: z.union([z.number(), z.string()]).transform(String).optional(),
   frecuenciaMeses: z.number().int().min(1).max(24).optional(),
   proximoVencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -292,6 +293,30 @@ export function registrarClientes(app: App) {
   });
 
   app.get('/paneles', async () => db.select().from(panel).orderBy(panel.numeroCuenta));
+
+  /**
+   * Cuenta en prueba: el técnico está en el sitio y va a disparar de todo.
+   * Por N horas las señales se registran sin abrir alarma ni supervisar
+   * silencio u horarios; vence sola. Queda en auditoría quién la puso.
+   */
+  const esquemaPrueba = z.object({ horas: z.number().min(0.25).max(72), motivo: z.string().trim().min(1).max(200) });
+  app.post('/paneles/:id/prueba', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const datos = esquemaPrueba.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    const hasta = new Date(Date.now() + datos.data.horas * 3_600_000);
+    const [fila] = await db.update(panel).set({ enPruebaHasta: hasta, enPruebaMotivo: datos.data.motivo }).where(eq(panel.id, id)).returning();
+    if (!fila) return reply.code(404).send({ error: 'Panel no encontrado' });
+    await auditar(request, 'panel', id, 'editar', { enPrueba: true, hasta: hasta.toISOString(), motivo: datos.data.motivo });
+    return fila;
+  });
+  app.delete('/paneles/:id/prueba', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const [fila] = await db.update(panel).set({ enPruebaHasta: null, enPruebaMotivo: null }).where(eq(panel.id, id)).returning();
+    if (!fila) return reply.code(404).send({ error: 'Panel no encontrado' });
+    await auditar(request, 'panel', id, 'editar', { enPrueba: false });
+    return fila;
+  });
 
   app.post('/paneles', async (request, reply) => {
     const datos = esquemaPanel.safeParse(request.body);
