@@ -78,6 +78,14 @@ export function registrarClienteApp(app: App) {
     return { paneles: conEstado };
   });
 
+  /** Zonas del panel con su descripción, para la pantalla del panel en la app. */
+  app.get('/cliente/paneles/:id/zonas', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const paneles = await panelesDelUsuario(request.user.id);
+    if (!paneles.some((p) => p.id === id)) return reply.code(404).send({ error: 'Panel no encontrado' });
+    return db.select({ numero: zona.numero, descripcion: zona.descripcion }).from(zona).where(eq(zona.panelId, id)).orderBy(zona.numero);
+  });
+
   app.get('/cliente/eventos', async (request) => {
     const { limite, panelId } = request.query as { limite?: string; panelId?: string };
     const max = Math.min(Number(limite ?? 50), 200);

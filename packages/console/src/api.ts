@@ -299,6 +299,7 @@ export const cambiarClave = (actual: string, nueva: string) =>
 
 // ---- Vista de clientes (rol 'cliente') ----
 export const verResumenCliente = () => pedir<ResumenCliente>('/cliente/resumen');
+export const verZonasCliente = (panelId: number) => pedir<{ numero: string; descripcion: string | null }[]>(`/cliente/paneles/${panelId}/zonas`);
 export const verEventosCliente = (panelId?: number) =>
   pedir<EventoCliente[]>(panelId ? `/cliente/eventos?limite=50&panelId=${panelId}` : '/cliente/eventos?limite=100');
 export const verAlarmasCliente = () => pedir<AlarmaCliente[]>('/cliente/alarmas');

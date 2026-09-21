@@ -7,13 +7,16 @@ import { PanicoCliente } from './PanicoCliente.js';
 import { AvisosCliente, ControlesAviso, useAvisosCliente } from './Avisos.js';
 import { ActualizacionApp } from './ActualizacionApp.js';
 import { PanelHikvision } from './PanelHikvision.js';
+import { PanelGenerico } from './PanelGenerico.js';
+import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
 import { SelectorTema } from '../SelectorTema.js';
 import { nombreCuenta } from '../ui.js';
 
-type Pestana = 'inicio' | 'eventos' | 'panico';
+type Pestana = 'inicio' | 'avisos' | 'eventos' | 'panico';
 
 const PESTANAS: { clave: Pestana; nombre: string; icono: string }[] = [
   { clave: 'inicio', nombre: 'Inicio', icono: '🏠' },
+  { clave: 'avisos', nombre: 'Avisos', icono: '🔔' },
   { clave: 'eventos', nombre: 'Eventos', icono: '📋' },
   { clave: 'panico', nombre: 'Pánico', icono: '🆘' },
 ];
@@ -31,13 +34,18 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
   // Con más de un sitio, los avisos nombran dónde pasó
   const sitios = new Set((resumen?.paneles ?? []).map((p) => p.sitioId)).size;
   const avisos = useAvisosCliente({ nombrarSitio: sitios > 1 });
-  // Un panel Hikvision abre su propia pantalla, con el estilo de la app del fabricante
+  const noLeidos = useNoLeidos(resumen?.paneles, pestana === 'avisos');
+  // Cada panel abre su propia pantalla: la Hikvision con control, las demás solo estado
   const [panelAbierto, setPanelAbierto] = useState<number | null>(null);
-  const panelHik = resumen?.paneles.find((p) => p.id === panelAbierto && p.tipo === 'hikvision');
-  if (panelHik) {
+  const panelElegido = resumen?.paneles.find((p) => p.id === panelAbierto);
+  if (panelElegido) {
     return (
       <>
-        <PanelHikvision panel={panelHik} alVolver={() => setPanelAbierto(null)} />
+        {panelElegido.tipo === 'hikvision' ? (
+          <PanelHikvision panel={panelElegido} alVolver={() => setPanelAbierto(null)} />
+        ) : (
+          <PanelGenerico panel={panelElegido} alarmas={alarmas ?? []} alVolver={() => setPanelAbierto(null)} />
+        )}
         <AvisosCliente avisos={avisos.avisos} alDescartar={avisos.descartar} />
       </>
     );
@@ -72,6 +80,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
               } ${p.clave === 'panico' ? 'text-prio1' : ''}`}
             >
               {p.nombre}
+              {p.clave === 'avisos' && noLeidos > 0 && <Contador n={noLeidos} />}
             </button>
           ))}
         </nav>
@@ -111,6 +120,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
 
       <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4 w-full max-w-5xl mx-auto">
         {pestana === 'inicio' && <InicioCliente paneles={resumen?.paneles} alarmas={alarmas ?? []} alAbrirPanel={setPanelAbierto} />}
+        {pestana === 'avisos' && <HistorialAvisos paneles={resumen?.paneles} />}
         {pestana === 'eventos' && <EventosCliente />}
         {pestana === 'panico' && <PanicoCliente sitios={resumen?.paneles ?? []} />}
       </main>
@@ -125,8 +135,9 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
               pestana === p.clave ? 'text-acento font-semibold' : 'text-tenue'
             } ${p.clave === 'panico' ? 'text-prio1' : ''}`}
           >
-            <span className="text-lg leading-none" aria-hidden>
+            <span className="text-lg leading-none relative" aria-hidden>
               {p.icono}
+              {p.clave === 'avisos' && noLeidos > 0 && <Contador n={noLeidos} flotante />}
             </span>
             {p.nombre}
           </button>
@@ -136,6 +147,19 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
       <AvisosCliente avisos={avisos.avisos} alDescartar={avisos.descartar} />
       {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
     </div>
+  );
+}
+
+/** Globo con la cantidad de avisos no leídos. */
+function Contador({ n, flotante = false }: { n: number; flotante?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-prio1 text-white text-[10px] font-semibold leading-none ${
+        flotante ? 'absolute -top-1.5 -right-2.5' : 'ml-1.5 align-middle'
+      }`}
+    >
+      {n > 99 ? '99+' : n}
+    </span>
   );
 }
 
@@ -180,7 +204,7 @@ function InicioCliente({
             {paneles
               .filter((p) => p.clienteNombre === nombre)
               .map((panel) => (
-                <TarjetaSitio key={panel.id} panel={panel} alarmas={alarmas} alAbrir={panel.tipo === 'hikvision' ? () => alAbrirPanel(panel.id) : undefined} />
+                <TarjetaSitio key={panel.id} panel={panel} alarmas={alarmas} alAbrir={() => alAbrirPanel(panel.id)} />
               ))}
           </div>
         </section>
@@ -214,7 +238,11 @@ function TarjetaSitio({ panel, alarmas, alAbrir }: { panel: PanelResumenCliente;
         {panel.ultimoMovimientoEn && <span>último movimiento {transcurrido(panel.ultimoMovimientoEn)}</span>}
         <span>{panel.ultimaSenalEn ? `en línea · señal ${transcurrido(panel.ultimaSenalEn)}` : 'sin señales aún'}</span>
       </div>
-      {alAbrir && <p className="text-acento text-xs font-semibold">Abrir el panel: armar, desarmar y ver zonas ›</p>}
+      {alAbrir && (
+        <p className="text-acento text-xs font-semibold">
+          {panel.tipo === 'hikvision' ? 'Abrir el panel: armar, desarmar y ver zonas ›' : 'Abrir el panel: estado, zonas y actividad ›'}
+        </p>
+      )}
     </section>
   );
 }
