@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  crearFeriado,
   crearUsuario,
   editarUsuario,
-  eliminarFeriado,
   guardarHombreMuerto,
-  listarFeriados,
   listarUsuarios,
   verConfiguracion,
 } from '../api.js';
@@ -25,7 +22,6 @@ export function Usuarios({ usuarioActualId }: { usuarioActualId: number }) {
   return (
     <div className="max-w-3xl flex flex-col gap-4">
       <ConfigPresencia />
-      <Feriados />
       <FormularioUsuario />
       <ul className="bg-superficie border border-borde rounded-sm">
         {(usuarios ?? []).map((usuario) => (
@@ -33,73 +29,6 @@ export function Usuarios({ usuarioActualId }: { usuarioActualId: number }) {
         ))}
       </ul>
     </div>
-  );
-}
-
-/**
- * Calendario de feriados: en esos días el vigilante no supervisa aperturas ni
- * cierres, así un comercio cerrado por feriado no dispara falsas alarmas.
- */
-function Feriados() {
-  const clienteConsultas = useQueryClient();
-  const { data: feriados } = useQuery({ queryKey: ['feriados'], queryFn: listarFeriados });
-  const [fecha, setFecha] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const refrescar = () => void clienteConsultas.invalidateQueries({ queryKey: ['feriados'] });
-  const crear = useMutation({
-    mutationFn: () => crearFeriado({ fecha, descripcion: descripcion || undefined }),
-    onSuccess: () => {
-      setFecha('');
-      setDescripcion('');
-      setError(null);
-      refrescar();
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : 'No se pudo agregar'),
-  });
-  const borrar = useMutation({ mutationFn: eliminarFeriado, onSuccess: refrescar });
-
-  const hoy = new Date().toISOString().slice(0, 10);
-  const proximos = (feriados ?? []).filter((f) => f.fecha >= hoy);
-
-  return (
-    <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-3">
-      <h2 className="text-tenue text-xs uppercase tracking-wider">
-        Feriados (no se supervisan aperturas ni cierres)
-      </h2>
-      <ul className="text-sm flex flex-wrap gap-2">
-        {proximos.map((f) => (
-          <li key={f.id} className="flex items-center gap-1.5 bg-superficie-2 border border-borde rounded-sm px-2 py-0.5">
-            <span className="font-datos">{f.fecha}</span>
-            {f.descripcion && <span className="text-tenue text-xs">{f.descripcion}</span>}
-            <button onClick={() => borrar.mutate(f.id)} className="text-tenue hover:text-prio1" aria-label="Quitar feriado">
-              ✕
-            </button>
-          </li>
-        ))}
-        {proximos.length === 0 && <li className="text-tenue">Sin feriados próximos cargados.</li>}
-      </ul>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          crear.mutate();
-        }}
-        className="flex flex-wrap gap-2 items-center"
-      >
-        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required className={`${CAMPO} font-datos`} />
-        <input
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
-          placeholder="Descripción (opcional)"
-          className={CAMPO}
-        />
-        <button type="submit" disabled={!fecha || crear.isPending} className={BOTON}>
-          Agregar feriado
-        </button>
-        {error && <span className="text-prio1 text-xs">{error}</span>}
-      </form>
-    </section>
   );
 }
 

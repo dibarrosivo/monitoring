@@ -12,6 +12,7 @@ import { Puentes } from './vistas/Puentes.js';
 import { Supervision } from './vistas/Supervision.js';
 import { Clientes } from './vistas/Clientes.js';
 import { Usuarios } from './vistas/Usuarios.js';
+import { Calendario } from './vistas/Calendario.js';
 import { Reportes } from './vistas/Reportes.js';
 import { ColaMovil } from './vistas/ColaMovil.js';
 import { ModalClave } from './ModalClave.js';
@@ -21,7 +22,7 @@ import { Buscador } from './Buscador.js';
 import { SelectorTema } from './SelectorTema.js';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
-type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'usuarios';
+type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'calendario' | 'usuarios';
 
 /** Vistas por rol: sin `roles`, la ven todos los de la central. */
 const VISTAS: { clave: Vista; nombre: string; roles?: Usuario['rol'][] }[] = [
@@ -33,6 +34,7 @@ const VISTAS: { clave: Vista; nombre: string; roles?: Usuario['rol'][] }[] = [
   { clave: 'clientes', nombre: 'Clientes' },
   { clave: 'reportes', nombre: 'Reportes' },
   { clave: 'supervision', nombre: 'Supervisión', roles: ['admin', 'supervisor'] },
+  { clave: 'calendario', nombre: 'Calendario', roles: ['admin', 'supervisor'] },
   { clave: 'usuarios', nombre: 'Usuarios', roles: ['admin'] },
 ];
 
@@ -227,6 +229,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
           {vista === 'supervision' && <Supervision />}
+          {vista === 'calendario' && <Calendario />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
         {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
@@ -332,6 +335,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
           {vista === 'supervision' && <Supervision />}
+          {vista === 'calendario' && <Calendario />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
       </div>
