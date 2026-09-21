@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { bridge, db, evento, feriado, horario, panel, sitio } from '@monitoring/db';
 import { abrirAlarma, tieneAlarmaSistemaAbierta } from './procesador.js';
-import { ahoraEnZona, evaluarPendientesDia } from './horarios.js';
+import { enZona, evaluarPendientesDia, fechaIsoLocal } from './horarios.js';
 
 /**
  * Vigilante de paneles silenciosos: en este rubro el silencio es en sí una emergencia
@@ -129,18 +129,22 @@ export async function revisarHorarios(): Promise<number> {
   }
 
   const ahora = new Date();
-  const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  // Un aviso por día y por tipo: se mira lo abierto en las últimas 20 h
+  const desdeAviso = new Date(ahora.getTime() - 20 * 3_600_000);
+  // Las jornadas nocturnas necesitan los movimientos de ayer
+  const desdeMovimientos = new Date(ahora.getTime() - 36 * 3_600_000);
 
-  // En feriado el comercio no abre: no se supervisan aperturas ni cierres
-  const hoyIso = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
-  const feriados = await db.select({ fecha: feriado.fecha }).from(feriado).where(eq(feriado.fecha, hoyIso)).limit(1);
-  if (feriados.length > 0) return 0;
+  // En feriado el comercio no abre: no se supervisan aperturas ni cierres.
+  // Cada sitio decide con su propia fecha local (un feriado empieza a
+  // medianoche de Venezuela, no de UTC).
+  const feriados = new Set((await db.select({ fecha: feriado.fecha }).from(feriado)).map((f) => f.fecha));
 
   let abiertas = 0;
 
   for (const [panelId, { numeroCuenta, zonaHoraria, horarios }] of porPanel) {
     // Cada sitio se evalúa con su propia hora local
-    const ahoraLocal = ahoraEnZona(zonaHoraria, ahora);
+    const ahoraLocal = enZona(zonaHoraria, ahora);
+    if (feriados.has(fechaIsoLocal(ahoraLocal))) continue;
     const movimientos = await db
       .select({ categoria: evento.categoria, ocurridoEn: evento.ocurridoEn })
       .from(evento)
@@ -148,19 +152,20 @@ export async function revisarHorarios(): Promise<number> {
         and(
           eq(evento.panelId, panelId),
           inArray(evento.categoria, ['apertura', 'cierre']),
-          gte(evento.ocurridoEn, inicioDia),
+          gte(evento.ocurridoEn, desdeMovimientos),
         ),
       );
-    const aperturas = movimientos.filter((m) => m.categoria === 'apertura').map((m) => m.ocurridoEn);
-    const cierres = movimientos.filter((m) => m.categoria === 'cierre').map((m) => m.ocurridoEn);
+    // Los movimientos pasan a la misma hora local que "ahora"
+    const aperturas = movimientos.filter((m) => m.categoria === 'apertura').map((m) => enZona(zonaHoraria, m.ocurridoEn));
+    const cierres = movimientos.filter((m) => m.categoria === 'cierre').map((m) => enZona(zonaHoraria, m.ocurridoEn));
 
     const pendientes = evaluarPendientesDia(horarios, aperturas, cierres, ahoraLocal);
 
-    if (pendientes.aperturaTarde && !(await yaAvisadoHoy(panelId, 'HOR-AT', inicioDia))) {
+    if (pendientes.aperturaTarde && !(await yaAvisadoHoy(panelId, 'HOR-AT', desdeAviso))) {
       await abrirAlarmaHorario(panelId, numeroCuenta, 'HOR-AT', `Apertura tarde: cuenta ${numeroCuenta} no abrió a horario`);
       abiertas++;
     }
-    if (pendientes.sinCierre && !(await yaAvisadoHoy(panelId, 'HOR-SC', inicioDia))) {
+    if (pendientes.sinCierre && !(await yaAvisadoHoy(panelId, 'HOR-SC', desdeAviso))) {
       await abrirAlarmaHorario(panelId, numeroCuenta, 'HOR-SC', `Sin cierre: cuenta ${numeroCuenta} sigue abierta pasado el horario`);
       abiertas++;
     }

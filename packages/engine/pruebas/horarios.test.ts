@@ -5,6 +5,7 @@ import {
   horarioDelDia,
   type DefinicionHorario,
   ahoraEnZona,
+  enZona,
 } from '../src/horarios.js';
 
 // Lunes 24/08/2026 (getDay=1). Horario comercial L-V 09:00-18:00, tolerancia 30.
@@ -102,5 +103,54 @@ describe('ahoraEnZona', () => {
     const madrugadaSabado = new Date(Date.UTC(2026, 8, 5, 3, 0, 0));
     expect(madrugadaSabado.getUTCDay()).toBe(6);
     expect(ahoraEnZona('America/Caracas', madrugadaSabado).getDay()).toBe(5);
+  });
+});
+
+// Bar nocturno: abre 18:00 y cierra 04:00 del día siguiente, tolerancia 15
+const nocturno: DefinicionHorario = { dias: 'LMXJVS-', apertura: '18:00', cierre: '04:00', toleranciaMin: 15 };
+const martes = (hora: string) => new Date(`2026-08-25T${hora}:00`);
+
+describe('jornadas nocturnas', () => {
+  it('marca apertura tarde pasada la hora de apertura sin apertura de esa tarde', () => {
+    expect(evaluarPendientesDia([nocturno], [], [], lunes('18:20')).aperturaTarde).toBe(true);
+    expect(evaluarPendientesDia([nocturno], [lunes('17:50')], [], lunes('18:20')).aperturaTarde).toBe(false);
+  });
+
+  it('una apertura de la madrugada anterior no cuenta para la jornada de hoy', () => {
+    // Reingreso a las 02:00 (jornada de anoche) no exime la apertura de las 18:00
+    expect(evaluarPendientesDia([nocturno], [lunes('02:00')], [lunes('03:50')], lunes('18:20')).aperturaTarde).toBe(true);
+  });
+
+  it('no marca sin cierre a medianoche: la jornada sigue', () => {
+    expect(evaluarPendientesDia([nocturno], [lunes('18:05')], [], martes('00:30')).sinCierre).toBe(false);
+    expect(evaluarPendientesDia([nocturno], [lunes('18:05')], [], martes('04:10')).sinCierre).toBe(false);
+  });
+
+  it('marca sin cierre pasada la hora de cierre de la madrugada si nadie cerró', () => {
+    expect(evaluarPendientesDia([nocturno], [lunes('18:05')], [], martes('04:20')).sinCierre).toBe(true);
+    expect(evaluarPendientesDia([nocturno], [lunes('18:05')], [martes('03:55')], martes('04:20')).sinCierre).toBe(false);
+  });
+
+  it('el cierre de anoche se evalúa aunque hoy sea día libre', () => {
+    // Sábado abre; domingo es libre pero a las 04:20 del domingo se revisa el cierre del sábado
+    const sab = (h: string) => new Date(`2026-08-29T${h}:00`);
+    const dom = (h: string) => new Date(`2026-08-30T${h}:00`);
+    const r = evaluarPendientesDia([nocturno], [sab('18:10')], [], dom('04:30'));
+    expect(r).toEqual({ aperturaTarde: false, sinCierre: true });
+  });
+
+  it('la apertura de hoy no tapa el cierre pendiente de anoche', () => {
+    // Abrió ayer 18:05, nunca cerró, hoy volvió a abrir 18:10: a las 18:30 el cierre de anoche sigue faltando
+    const r = evaluarPendientesDia([nocturno], [lunes('18:05'), martes('18:10')], [], martes('18:30'));
+    expect(r).toEqual({ aperturaTarde: false, sinCierre: true });
+  });
+});
+
+describe('enZona', () => {
+  it('sin huso del sitio usa el de la central (Venezuela), no el del servidor', () => {
+    // 15:20 UTC son las 11:20 en Caracas
+    const local = enZona(null, new Date('2026-09-21T15:20:00Z'));
+    expect(local.getHours()).toBe(11);
+    expect(local.getMinutes()).toBe(20);
   });
 });

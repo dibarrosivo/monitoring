@@ -15,7 +15,7 @@ import {
   zona,
 } from '@monitoring/db';
 import { abreAlarma, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
-import { esAperturaFueraDeHorario } from './horarios.js';
+import { enZona, esAperturaFueraDeHorario } from './horarios.js';
 import { esCancelacionDelUsuario, estaEnPrueba, ventanaDeVerificacion } from './verificacion.js';
 import { etiquetaMotivo } from '@monitoring/shared';
 import { confirmarPorEvento } from './control/comandos.js';
@@ -215,7 +215,10 @@ export async function procesarEvento(entrada: {
       .select()
       .from(horario)
       .where(and(eq(horario.panelId, panelEncontrado.id), eq(horario.activo, true)));
-    if (esAperturaFueraDeHorario(horarios, recibidaEn)) {
+    const [sitioDelPanel] = panelEncontrado.sitioId
+      ? await db.select({ zonaHoraria: sitio.zonaHoraria }).from(sitio).where(eq(sitio.id, panelEncontrado.sitioId)).limit(1)
+      : [];
+    if (esAperturaFueraDeHorario(horarios, enZona(sitioDelPanel?.zonaHoraria, recibidaEn))) {
       const descripcionFuera = `Apertura fuera de horario (cuenta ${normalizado.numeroCuenta})`;
       const [filaFuera] = await db
         .insert(evento)
