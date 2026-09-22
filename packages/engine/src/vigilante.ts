@@ -139,9 +139,25 @@ export async function revisarHorarios(): Promise<number> {
   // medianoche de Venezuela, no de UTC).
   const feriados = new Set((await db.select({ fecha: feriado.fecha }).from(feriado)).map((f) => f.fecha));
 
+  /*
+   * Solo se supervisa a quien reporta aperturas y cierres. Muchos paneles
+   * tienen horario cargado pero no transmiten esos eventos (no están
+   * programados para eso): reclamarles "no abrió" todos los días es ruido,
+   * no supervisión. Con 30 días sin un solo movimiento, el horario se ignora.
+   */
+  const reportan = new Set(
+    (
+      await db
+        .selectDistinct({ panelId: evento.panelId })
+        .from(evento)
+        .where(and(inArray(evento.categoria, ['apertura', 'cierre']), gte(evento.ocurridoEn, new Date(ahora.getTime() - 30 * 86_400_000))))
+    ).map((f) => f.panelId),
+  );
+
   let abiertas = 0;
 
   for (const [panelId, { numeroCuenta, zonaHoraria, horarios }] of porPanel) {
+    if (!reportan.has(panelId)) continue;
     // Cada sitio se evalúa con su propia hora local
     const ahoraLocal = enZona(zonaHoraria, ahora);
     if (feriados.has(fechaIsoLocal(ahoraLocal))) continue;
