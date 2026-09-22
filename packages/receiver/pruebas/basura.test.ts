@@ -8,6 +8,9 @@ describe('esTraficoAjeno', () => {
     expect(esTraficoAjeno('*1\r\n$4\r\nINFO\r\n')).toBe('sondeo Redis');
     expect(esTraficoAjeno('SSH-2.0-OpenSSH_9.6\r\n')).toBe('sondeo SSH');
     expect(esTraficoAjeno(Buffer.from([0x16, 0x03, 0x01, 0x02, 0x00, 0x01]))).toBe('saludo TLS');
+    expect(esTraficoAjeno('EHLO 37.60.234.77\r\n')).toBe('sondeo SMTP');
+    expect(esTraficoAjeno('version\n')).toBe('sondeo genérico');
+    expect(esTraficoAjeno('ZBXD\x01')).toBe('sondeo Zabbix');
   });
   it('deja pasar lo que mandan los paneles y receptores', () => {
     expect(esTraficoAjeno('\n8A3B0019"ADM-CID"0001L0#7001[#7001|1130 01 003]\r')).toBeNull(); // DC-09

@@ -20,6 +20,10 @@ const FIRMAS: [RegExp, string][] = [
   [/^SSH-\d/, 'sondeo SSH'],
   [/^\x16\x03[\x00-\x03]/, 'saludo TLS'],
   [/^\x05[\x01-\x03]/, 'sondeo SOCKS'],
+  [/^(EHLO|HELO|STARTTLS|QUIT)\b/i, 'sondeo SMTP'],
+  [/^(PING|version|help|stats)\r?\n/i, 'sondeo genérico'],
+  [/^ZBXD/, 'sondeo Zabbix'],
+  [/^<\?xml|^<policy-file-request/i, 'sondeo XML'],
 ];
 
 /** Motivo por el que estos bytes no son de un panel, o null si podrían serlo. */
