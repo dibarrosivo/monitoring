@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import { ACK_SERIE, parsearLineaSurgard, separarTramasPegadas } from '@monitoring/protocols';
 import { interpretarCid } from '@monitoring/shared';
 import { buscarPanelPorCuenta, procesarEvento, registrarSenal, registrarVida } from '@monitoring/engine';
+import { esTraficoAjeno, registrarEscaneo } from './basura.js';
 
 /**
  * Escucha TCP para receptores que entregan Sur-Gard MLR2 por red y esperan ACK.
@@ -47,8 +48,18 @@ export function iniciarSurgardTcp(puerto: string | number, log: Logger): net.Ser
     log.info({ remoto }, 'Receptor Sur-Gard conectado');
     let resto = '';
     let ultimoLatidoGuardado = 0;
+    let primerTrozo = true;
 
     socket.on('data', (datos) => {
+      if (primerTrozo) {
+        primerTrozo = false;
+        const motivo = esTraficoAjeno(datos);
+        if (motivo) {
+          void registrarEscaneo({ fuente: 'surgard-tcp', remoto, motivo, datos, log });
+          socket.destroy();
+          return;
+        }
+      }
       const troceado = trocearSurgard(resto, datos.toString('latin1'));
       resto = troceado.resto;
       for (const trama of troceado.tramas) {

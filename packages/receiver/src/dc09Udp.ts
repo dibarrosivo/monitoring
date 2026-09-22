@@ -1,6 +1,7 @@
 import dgram from 'node:dgram';
 import type { Logger } from 'pino';
 import { manejarTramaDc09 } from './dc09Manejador.js';
+import { esTraficoAjeno, registrarEscaneo } from './basura.js';
 
 /** Servidor UDP para SIA DC-09: un datagrama = una trama. */
 export function iniciarDc09Udp(puerto: string | number, log: Logger, claveAes?: Buffer): dgram.Socket {
@@ -8,6 +9,11 @@ export function iniciarDc09Udp(puerto: string | number, log: Logger, claveAes?: 
 
   socket.on('message', async (datos, rinfo) => {
     const remoto = `${rinfo.address}:${rinfo.port}`;
+    const motivo = esTraficoAjeno(datos);
+    if (motivo) {
+      void registrarEscaneo({ fuente: 'dc09-udp', remoto, motivo, datos, log });
+      return;
+    }
     const respuesta = await manejarTramaDc09(datos, 'dc09-udp', remoto, log, claveAes);
     socket.send(respuesta, rinfo.port, rinfo.address);
   });

@@ -1,6 +1,7 @@
 import net from 'node:net';
 import type { Logger } from 'pino';
 import { manejarTramaDc09 } from './dc09Manejador.js';
+import { esTraficoAjeno, registrarEscaneo } from './basura.js';
 
 const TIMEOUT_SOCKET_MS = 5 * 60_000;
 
@@ -12,10 +13,21 @@ export function iniciarDc09Tcp(puerto: string | number, log: Logger, claveAes?: 
     socket.setTimeout(TIMEOUT_SOCKET_MS, () => socket.destroy());
 
     let resto = Buffer.alloc(0);
+    let primerTrozo = true;
     // Las tramas de una misma conexión se procesan en orden.
     let cola: Promise<void> = Promise.resolve();
 
     socket.on('data', (datos) => {
+      // Un escáner de internet se reconoce por sus primeros bytes: se anota una vez y se corta
+      if (primerTrozo) {
+        primerTrozo = false;
+        const motivo = esTraficoAjeno(datos);
+        if (motivo) {
+          void registrarEscaneo({ fuente: 'dc09-tcp', remoto, motivo, datos, log });
+          socket.destroy();
+          return;
+        }
+      }
       resto = Buffer.concat([resto, datos]);
       let indice: number;
       while ((indice = resto.indexOf(0x0d)) !== -1) {

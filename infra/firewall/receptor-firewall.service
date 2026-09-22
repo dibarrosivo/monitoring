@@ -1,0 +1,12 @@
+[Unit]
+Description=Cortafuegos de los puertos del receptor de alarmas (cadena DOCKER-USER)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/monitoring/infra/firewall/receptor.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

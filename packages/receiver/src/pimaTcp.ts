@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import { parsearLineaPima, parsearLineaSurgard } from '@monitoring/protocols';
 import { interpretarCid, interpretarPima } from '@monitoring/shared';
 import { buscarPanelPorCuenta, procesarEvento, registrarSenal, registrarVida } from '@monitoring/engine';
+import { esTraficoAjeno, registrarEscaneo } from './basura.js';
 
 /**
  * Escucha TCP para el formato del receptor PIMA.
@@ -30,8 +31,18 @@ export function iniciarPimaTcp(puerto: string | number, log: Logger): net.Server
     const remoto = `${socket.remoteAddress}:${socket.remotePort}`;
     log.info({ remoto }, 'Puente PIMA conectado');
     let resto = '';
+    let primerTrozo = true;
 
     socket.on('data', (datos) => {
+      if (primerTrozo) {
+        primerTrozo = false;
+        const motivo = esTraficoAjeno(datos);
+        if (motivo) {
+          void registrarEscaneo({ fuente: 'pima-bridge', remoto, motivo, datos, log });
+          socket.destroy();
+          return;
+        }
+      }
       resto += datos.toString('latin1');
       const partes = resto.split(SEPARADORES);
       resto = partes.pop() ?? '';

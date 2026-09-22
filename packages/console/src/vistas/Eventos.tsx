@@ -4,6 +4,7 @@ import { listarEventos, listarSenales } from '../api.js';
 import { fechaHora } from '../tiempo.js';
 import { CLASES_TIPO, NOMBRE_TIPO_SENAL, nombreCuenta, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
+import type { Senal } from '../tipos.js';
 
 /**
  * Dos solapas, como en toda central: "Eventos" (lo decodificado y clasificado)
@@ -127,16 +128,29 @@ const ESTADO_PARSE: Record<string, { nombre: string; clase: string }> = {
   cifrada: { nombre: 'CIFRADA', clase: 'text-prio2' },
 };
 
+/** Latidos y escaneos de internet: existen, pero no son señales de nadie */
+function esRuido(senal: Senal): boolean {
+  return senal.estadoParse === 'ignorada' && /^(latido|escaneo)/.test(senal.detalleError ?? '');
+}
+
 function TablaSenales({ alVerSenal }: { alVerSenal: (id: number) => void }) {
   const { data: senales, isLoading } = useQuery({
     queryKey: ['senales'],
-    queryFn: () => listarSenales(200),
+    queryFn: () => listarSenales(300),
     refetchInterval: 15_000,
   });
+  const [verRuido, setVerRuido] = useState(false);
 
   if (isLoading) return <p className="text-tenue">Cargando señales…</p>;
+  const ruido = (senales ?? []).filter(esRuido).length;
+  const visibles = (senales ?? []).filter((s) => verRuido || !esRuido(s));
 
   return (
+    <div className="flex flex-col gap-2">
+    <label className="flex items-center gap-2 text-xs text-tenue font-ui self-start cursor-pointer">
+      <input type="checkbox" checked={verRuido} onChange={(e) => setVerRuido(e.target.checked)} className="accent-[var(--color-acento)]" />
+      Mostrar latidos y escaneos de internet ({ruido})
+    </label>
     <div className="bg-superficie border border-borde rounded-sm overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
@@ -150,8 +164,10 @@ function TablaSenales({ alVerSenal }: { alVerSenal: (id: number) => void }) {
           </tr>
         </thead>
         <tbody className="font-datos">
-          {(senales ?? []).map((senal) => {
-            const estado = ESTADO_PARSE[senal.estadoParse] ?? { nombre: senal.estadoParse, clase: 'text-tenue' };
+          {visibles.map((senal) => {
+            const estado = /^escaneo/.test(senal.detalleError ?? '')
+              ? { nombre: 'ESCANEO', clase: 'text-tenue' }
+              : (ESTADO_PARSE[senal.estadoParse] ?? { nombre: senal.estadoParse, clase: 'text-tenue' });
             return (
               <tr key={senal.id} className="border-b border-borde/50 last:border-0">
                 <td className="px-3 py-1.5 text-tenue whitespace-nowrap">{fechaHora(senal.recibidaEn)}</td>
@@ -174,7 +190,7 @@ function TablaSenales({ alVerSenal }: { alVerSenal: (id: number) => void }) {
               </tr>
             );
           })}
-          {(senales ?? []).length === 0 && (
+          {visibles.length === 0 && (
             <tr>
               <td colSpan={6} className="px-4 py-6 text-center text-tenue font-ui">
                 Sin señales recibidas todavía.
@@ -183,6 +199,7 @@ function TablaSenales({ alVerSenal }: { alVerSenal: (id: number) => void }) {
           )}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
