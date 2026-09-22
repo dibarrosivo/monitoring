@@ -128,6 +128,32 @@ const ESTADO_PARSE: Record<string, { nombre: string; clase: string }> = {
   cifrada: { nombre: 'CIFRADA', clase: 'text-prio2' },
 };
 
+/**
+ * Qué es una trama que no es un evento, dicho en palabras: de quién viene el
+ * latido, o qué sondeo de internet fue. Así la fila se entiende sin leer la
+ * trama cruda.
+ */
+function queEs(senal: Senal): { etiqueta: string; descripcion: string; clase: string } | null {
+  const detalle = senal.detalleError ?? '';
+  if (/^escaneo/.test(detalle)) {
+    const motivo = detalle.replace(/^escaneo de internet:?\s*/, '').replace(/^\(reclasificada\)$/, 'sondeo');
+    return { etiqueta: 'ESCANEO', descripcion: `Sondeo de internet: ${motivo || 'tráfico ajeno'}. Descartado.`, clase: 'text-tenue' };
+  }
+  if (/^latido/.test(detalle)) {
+    const quien =
+      senal.fuente === 'surgard-tcp'
+        ? 'Latido del OSM de EBS en la central: el enlace está vivo'
+        : senal.fuente === 'pima-bridge'
+          ? 'Latido del receptor PIMA: el enlace está vivo'
+          : senal.numeroCuenta
+            ? `Latido del panel ${nombreCuenta(senal.prefijo, senal.numeroCuenta)}: sigue en línea`
+            : 'Latido de un panel: sigue en línea';
+    return { etiqueta: 'LATIDO', descripcion: quien, clase: 'text-tenue' };
+  }
+  if (senal.estadoParse === 'ignorada') return { etiqueta: 'IGNORADA', descripcion: detalle, clase: 'text-tenue' };
+  return null;
+}
+
 /** Latidos y escaneos de internet: existen, pero no son señales de nadie */
 function esRuido(senal: Senal): boolean {
   return senal.estadoParse === 'ignorada' && /^(latido|escaneo)/.test(senal.detalleError ?? '');
@@ -165,8 +191,9 @@ function TablaSenales({ alVerSenal }: { alVerSenal: (id: number) => void }) {
         </thead>
         <tbody className="font-datos">
           {visibles.map((senal) => {
-            const estado = /^escaneo/.test(senal.detalleError ?? '')
-              ? { nombre: 'ESCANEO', clase: 'text-tenue' }
+            const ruido = queEs(senal);
+            const estado = ruido
+              ? { nombre: ruido.etiqueta, clase: ruido.clase }
               : (ESTADO_PARSE[senal.estadoParse] ?? { nombre: senal.estadoParse, clase: 'text-tenue' });
             return (
               <tr key={senal.id} className="border-b border-borde/50 last:border-0">
@@ -177,8 +204,10 @@ function TablaSenales({ alVerSenal }: { alVerSenal: (id: number) => void }) {
                   {nombreCuenta(senal.prefijo, senal.numeroCuenta)}
                   {senal.clienteNombre && <span className="font-ui text-texto"> {senal.clienteNombre}</span>}
                 </td>
-                <td className={`px-3 py-1.5 text-xs ${estado.clase}`}>{estado.nombre}</td>
+                <td className={`px-3 py-1.5 text-xs whitespace-nowrap ${estado.clase}`}>{estado.nombre}</td>
                 <td className="px-3 py-1.5 max-w-md">
+                  {ruido && <span className="block font-ui text-xs text-texto/80">{ruido.descripcion}</span>}
+                  {senal.estadoParse === 'error' && senal.detalleError && <span className="block font-ui text-xs text-prio2">{senal.detalleError}</span>}
                   <button
                     onClick={() => alVerSenal(senal.id)}
                     className="block w-full text-left truncate text-tenue hover:text-acento text-xs"
