@@ -1,5 +1,5 @@
-import { and, eq, gte, inArray, sql } from 'drizzle-orm';
-import { bridge, db, evento, feriado, horario, panel, sitio } from '@monitoring/db';
+import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { accionAlarma, alarma, bridge, db, evento, feriado, horario, panel, senal, sitio } from '@monitoring/db';
 import { abrirAlarma, tieneAlarmaSistemaAbierta } from './procesador.js';
 import { enZona, evaluarPendientesDia, fechaIsoLocal } from './horarios.js';
 
@@ -229,6 +229,53 @@ export async function revisarPuentes(): Promise<number> {
   return abiertas;
 }
 
+/** Minutos sin recibir NADA (de ningún receptor) para dar la central por muda. */
+export const SILENCIO_GENERAL_MIN = Number(process.env.SILENCIO_GENERAL_MIN ?? 20);
+const CODIGO_SILENCIO_GENERAL = 'SIS-GEN';
+
+/** ¿La última señal es demasiado vieja? Sin señales nunca, también. */
+export function haySilencioGeneral(ultima: Date | null, ahora: Date, limiteMin: number = SILENCIO_GENERAL_MIN): boolean {
+  return ultima === null || ahora.getTime() - ultima.getTime() > limiteMin * 60_000;
+}
+
+/**
+ * Silencio general: si en 20 minutos no entró ni una trama por ningún
+ * receptor (ni latidos), lo más probable es que se haya caído el enlace, el
+ * puente o el propio receptor, y la central está ciega sin saberlo. Abre una
+ * alarma de prioridad máxima sin cuenta; cuando vuelven las señales queda
+ * marcada como restaurada con la hora, y el operador la cierra.
+ */
+export async function revisarSilencioGeneral(ahora: Date = new Date()): Promise<boolean> {
+  const [ultimaFila] = await db.select({ recibidaEn: senal.recibidaEn }).from(senal).orderBy(desc(senal.recibidaEn)).limit(1);
+  const ultima = ultimaFila?.recibidaEn ?? null;
+  const [abierta] = await db
+    .select({ id: alarma.id, restauradaEn: alarma.restauradaEn })
+    .from(alarma)
+    .innerJoin(evento, eq(alarma.eventoId, evento.id))
+    .where(and(eq(evento.codigo, CODIGO_SILENCIO_GENERAL), ne(alarma.estado, 'cerrada')))
+    .orderBy(desc(alarma.id))
+    .limit(1);
+
+  if (haySilencioGeneral(ultima, ahora)) {
+    if (abierta) return false;
+    const hora = ultima ? ultima.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', timeZone: process.env.ZONA_HORARIA_CENTRAL ?? 'America/Caracas' }) : 'nunca';
+    const descripcion = `SIN SEÑALES EN LA CENTRAL: ningún receptor recibió nada hace más de ${SILENCIO_GENERAL_MIN} min (última ${hora})`;
+    const [filaEvento] = await db
+      .insert(evento)
+      .values({ categoria: 'sistema', codigo: CODIGO_SILENCIO_GENERAL, descripcion, prioridad: 1, ocurridoEn: ahora })
+      .returning({ id: evento.id });
+    await abrirAlarma({ eventoId: filaEvento!.id, prioridad: 1, descripcion });
+    return true;
+  }
+
+  // Volvieron las señales: la alarma abierta queda restaurada, no cerrada
+  if (abierta && !abierta.restauradaEn) {
+    await db.update(alarma).set({ restauradaEn: ahora }).where(and(eq(alarma.id, abierta.id), isNull(alarma.restauradaEn)));
+    await db.insert(accionAlarma).values({ alarmaId: abierta.id, operadorId: null, tipo: 'sistema', detalle: 'Volvieron a entrar señales a la central' });
+  }
+  return false;
+}
+
 /** Arranca el vigilante periódico. Devuelve una función para detenerlo. */
 export function iniciarVigilante(opciones: {
   intervaloMs?: number;
@@ -240,6 +287,7 @@ export function iniciarVigilante(opciones: {
     if (corriendo) return;
     corriendo = true;
     try {
+      await revisarSilencioGeneral();
       await revisarPanelesSilenciosos();
       await revisarHorarios();
       await revisarPuentes();

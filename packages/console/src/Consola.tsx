@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cerrarSesion, listarAlarmas, listarEventos } from './api.js';
 import { useTiempoReal } from './tiempoReal.js';
 import { sonarAlarma, sonarSirena } from './sonido.js';
+import { listarSenales } from './api.js';
 import type { MensajeTiempoReal, Usuario } from './tipos.js';
 import { Cola, type FiltroCola } from './vistas/Cola.js';
 import { Tablero } from './vistas/Tablero.js';
@@ -23,6 +24,40 @@ import { SelectorTema } from './SelectorTema.js';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'calendario' | 'usuarios';
+
+/** Minutos sin ninguna señal para dar la central por muda (igual que SILENCIO_GENERAL_MIN en el servidor). */
+const LIMITE_SILENCIO_MIN = 20;
+
+/** Notificación del sistema (fuera de la pestaña) cuando el navegador la permite. */
+function notificarSistema(titulo: string, cuerpo: string): void {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(titulo, { body: cuerpo, tag: `central-${titulo}`, requireInteraction: true });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch {
+    // algunos navegadores solo permiten notificaciones desde un service worker
+  }
+}
+
+/** Franja roja fija: la central no recibe señales. Se ve en cualquier vista. */
+function FranjaSilencio({ minutos, ultima }: { minutos: number | null; ultima: string | undefined }) {
+  return (
+    <div className="bg-prio1 text-white px-4 py-2 text-sm font-ui flex items-center gap-3 alarma-nueva" role="alert">
+      <span className="text-lg leading-none" aria-hidden>
+        🚨
+      </span>
+      <span className="font-semibold uppercase tracking-wider">Sin señales en la central</span>
+      <span>
+        ningún receptor recibe nada{minutos !== null ? ` hace ${minutos} min` : ''}
+        {ultima && ` · última trama ${new Date(ultima).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`}. Revisar internet, el puente de la
+        PC y el receptor.
+      </span>
+    </div>
+  );
+}
 
 /** Vistas por rol: sin `roles`, la ven todos los de la central. */
 const VISTAS: { clave: Vista; nombre: string; roles?: Usuario['rol'][] }[] = [
@@ -113,6 +148,9 @@ export function Consola({ usuario }: { usuario: Usuario }) {
     if (mensaje.canal === 'nueva_alarma') {
       void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
       if (mensaje.carga.alarmaId) setAlarmaReciente(mensaje.carga.alarmaId);
+      // Emergencias y fallas de la central también como notificación del sistema,
+      // para que se vean aunque la consola esté en otra pestaña o minimizada
+      if (mensaje.carga.prioridad <= 1) notificarSistema('EMERGENCIA', mensaje.carga.descripcion);
       // Retenida en verificación: todavía no es del operador, no suena
       const retenida = mensaje.carga.enVerificacionHasta && new Date(mensaje.carga.enVerificacionHasta).getTime() > Date.now();
       // Una emergencia entra con sirena; el resto, con el bip de siempre
@@ -140,6 +178,47 @@ export function Consola({ usuario }: { usuario: Usuario }) {
     const temporizador = setInterval(() => sonarAlarma(urgencia), 12_000);
     return () => clearInterval(temporizador);
   }, [sonido, alarmas]);
+
+  /*
+   * Silencio general: si hace más de 20 min no entra ninguna señal por ningún
+   * receptor, la central está ciega. El servidor abre la alarma (SIS-GEN);
+   * la consola además lo calcula sola con la última trama, por si lo que se
+   * cayó es justamente el vigilante, y lo muestra como franja fija.
+   */
+  const { data: ultimaTrama } = useQuery({ queryKey: ['ultima-trama'], queryFn: () => listarSenales(1), refetchInterval: 60_000 });
+  const [minutosSinSenal, setMinutosSinSenal] = useState<number | null>(null);
+  useEffect(() => {
+    const calcular = () => {
+      const recibida = ultimaTrama?.[0]?.recibidaEn;
+      setMinutosSinSenal(recibida ? Math.floor((Date.now() - new Date(recibida).getTime()) / 60_000) : null);
+    };
+    calcular();
+    const t = setInterval(calcular, 30_000);
+    return () => clearInterval(t);
+  }, [ultimaTrama]);
+  const alarmaSilencio = (alarmas ?? []).find((a) => a.evento.codigo === 'SIS-GEN' && !a.restauradaEn);
+  const silencioGeneral = Boolean(alarmaSilencio) || (minutosSinSenal !== null && minutosSinSenal >= LIMITE_SILENCIO_MIN);
+  const [notificaciones, setNotificaciones] = useState<NotificationPermission | 'no-disponible'>(() =>
+    typeof Notification === 'undefined' ? 'no-disponible' : Notification.permission,
+  );
+  const pedirNotificaciones = () => {
+    if (typeof Notification === 'undefined') return;
+    void Notification.requestPermission().then((permiso) => setNotificaciones(permiso));
+  };
+  useEffect(() => {
+    if (silencioGeneral) notificarSistema('SIN SEÑALES EN LA CENTRAL', `Ningún receptor recibe nada hace ${minutosSinSenal ?? LIMITE_SILENCIO_MIN} min`);
+  }, [silencioGeneral]); // eslint-disable-line react-hooks/exhaustive-deps
+  const franjaSilencio = silencioGeneral ? <FranjaSilencio minutos={minutosSinSenal} ultima={ultimaTrama?.[0]?.recibidaEn} /> : null;
+  const botonNotificaciones =
+    notificaciones === 'default' ? (
+      <button
+        onClick={pedirNotificaciones}
+        title="Recibir emergencias como notificación del sistema aunque la consola esté minimizada"
+        className="text-xs border border-borde rounded-sm px-2 py-0.5 text-tenue hover:text-texto"
+      >
+        🔔 Activar avisos
+      </button>
+    ) : null;
 
   // Semilla del ticker: la última señal registrada, hasta que llegue una en vivo.
   const { data: ultimoEvento } = useQuery({
@@ -181,6 +260,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
             <span className={`led ${enlace === 'conectado' ? 'led-verde' : 'led-rojo'}`} aria-hidden />
           </span>
         </header>
+        {franjaSilencio}
 
         {menuAbierto && (
           <nav className="bg-superficie border-b border-borde flex flex-col text-sm sticky top-10 z-30">
@@ -295,6 +375,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
               >
                 {sonido ? '🔊' : '🔇'}
               </button>
+              {botonNotificaciones}
             </>
           )}
           <span className="w-64 shrink-0">
@@ -317,6 +398,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
             </span>
           </span>
         </header>
+        {franjaSilencio}
 
         {/* La cola es una pantalla de comando: sin scroll de página, la grilla scrollea sola. */}
         <main className={vista === 'cola' ? 'flex-1 min-h-0 p-4 flex flex-col' : 'flex-1 overflow-y-auto p-4'}>
