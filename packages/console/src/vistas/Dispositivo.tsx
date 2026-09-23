@@ -14,19 +14,21 @@ import {
   eliminarHorario,
   eliminarUsuarioPanel,
   eliminarZona,
+  listarEventosDePanel,
   listarHorarios,
   listarPaneles,
   listarUsuariosPanel,
   listarZonas,
   verCliente,
 } from '../api.js';
-import type { EstadoPanel } from '../tipos.js';
+import type { EstadoPanel, TipoSenal } from '../tipos.js';
 import { fechaHora, transcurrido } from '../tiempo.js';
 import { enPrueba } from '../ui.js';
 import { Modal } from '../Modal.js';
 import { CampoSugerido } from '../CampoSugerido.js';
 import { ControlPanel } from '../ControlPanel.js';
-import { nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
+import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, tipoDe } from '../ui.js';
+import { ModalSenal } from '../ModalSenal.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
 const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
@@ -166,8 +168,108 @@ export function DetalleDispositivo({
         )}
       </div>
 
+      <HistorialSenales panelId={panelId} />
+
       {editando && <ModalEditarDispositivo panel={panel} alCerrar={() => setEditando(false)} />}
     </div>
+  );
+}
+
+/**
+ * Todo lo que transmitió este equipo, con el mismo código de color de la
+ * cola. Las pruebas periódicas se ocultan por defecto porque son la mayoría
+ * y no dicen nada; los chips de tipo filtran igual que en la central.
+ */
+function HistorialSenales({ panelId }: { panelId: number }) {
+  const { data: eventos, isLoading } = useQuery({
+    queryKey: ['eventos', 'panel', panelId],
+    queryFn: () => listarEventosDePanel(panelId, 500),
+    refetchInterval: 30_000,
+  });
+  const [tipo, setTipo] = useState<TipoSenal | null>(null);
+  const [conPruebas, setConPruebas] = useState(false);
+  const [senalVisible, setSenalVisible] = useState<number | null>(null);
+
+  const todos = eventos ?? [];
+  const conteo = new Map<TipoSenal, number>();
+  for (const e of todos) conteo.set(tipoDe(e), (conteo.get(tipoDe(e)) ?? 0) + 1);
+  const visibles = todos.filter((e) => (tipo ? tipoDe(e) === tipo : conPruebas || tipoDe(e) !== 'prueba'));
+
+  return (
+    <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <h3 className="text-tenue text-xs uppercase tracking-wider">Historial de señales</h3>
+        <div className="flex items-center gap-1 flex-wrap">
+          {ORDEN_TIPOS_SENAL.filter((t) => (conteo.get(t) ?? 0) > 0).map((t) => {
+            const activo = tipo === t;
+            const c = CLASES_TIPO[t];
+            return (
+              <button
+                key={t}
+                onClick={() => setTipo(activo ? null : t)}
+                className={`flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-xs font-ui ${activo ? `${c.borde} ${c.fondo} ${c.texto} font-semibold` : 'border-borde text-tenue hover:text-texto'}`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full ${c.barra}`} aria-hidden />
+                {NOMBRE_TIPO_SENAL[t]} <span className="font-datos">{conteo.get(t)}</span>
+              </button>
+            );
+          })}
+        </div>
+        {!tipo && (
+          <label className="ml-auto flex items-center gap-1.5 text-xs text-tenue cursor-pointer">
+            <input type="checkbox" checked={conPruebas} onChange={(e) => setConPruebas(e.target.checked)} className="accent-[var(--color-acento)]" />
+            Mostrar pruebas periódicas
+          </label>
+        )}
+      </div>
+      {isLoading && <p className="text-tenue text-sm">Cargando…</p>}
+      <div className="max-h-[28rem] overflow-y-auto border border-borde/60 rounded-sm">
+        <table className="w-full text-sm border-collapse">
+          <thead className="sticky top-0 bg-superficie-2">
+            <tr className="text-left text-tenue text-xs uppercase tracking-wider">
+              <th className="w-1 p-0" aria-hidden />
+              <th className="px-3 py-1.5 font-medium">Hora</th>
+              <th className="px-3 py-1.5 font-medium">Código</th>
+              <th className="px-3 py-1.5 font-medium">Descripción</th>
+              <th className="px-3 py-1.5 font-medium">Usuario / Zona</th>
+              <th className="px-3 py-1.5" aria-label="Trama" />
+            </tr>
+          </thead>
+          <tbody className="font-datos">
+            {visibles.map((e) => {
+              const c = CLASES_TIPO[tipoDe(e)];
+              return (
+                <tr key={e.id} className="border-t border-borde/40">
+                  <td className={`p-0 ${c.barra}`} aria-hidden />
+                  <td className="px-3 py-1 text-tenue whitespace-nowrap">{fechaHora(e.ocurridoEn)}</td>
+                  <td className={`px-3 py-1 font-semibold whitespace-nowrap ${c.texto}`}>{e.codigo}</td>
+                  <td className="px-3 py-1 font-ui">{e.descripcion}</td>
+                  <td className="px-3 py-1 text-tenue whitespace-nowrap">
+                    {e.zona ?? '—'}
+                    {e.zonaDescripcion && <span className="font-ui text-texto"> - {e.zonaDescripcion}</span>}
+                  </td>
+                  <td className="px-3 py-1">
+                    {e.senalId && (
+                      <button onClick={() => setSenalVisible(e.senalId!)} className="text-tenue hover:text-acento text-xs underline underline-offset-2">
+                        trama
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {!isLoading && visibles.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-3 py-6 text-center text-tenue font-ui">
+                  {todos.length === 0 ? 'Este equipo todavía no transmitió nada.' : 'Solo hay pruebas periódicas. Márquelas arriba para verlas.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {senalVisible !== null && <ModalSenal senalId={senalVisible} alCerrar={() => setSenalVisible(null)} />}
+    </section>
   );
 }
 
