@@ -40,8 +40,17 @@ function anotar(etapa: EstadoPush['etapa'], detalle?: string): void {
   window.dispatchEvent(new CustomEvent('push-estado', { detail: estado }));
   // El servidor lo anota en su registro: es la única forma de ver qué pasó en un teléfono ajeno
   if (etapa !== 'no-nativo') {
-    void pedir('/cliente/dispositivos/diagnostico', { method: 'POST', body: JSON.stringify({ etapa, detalle: detalle ?? null }) }).catch(() => undefined);
+    void pedir('/cliente/dispositivos/diagnostico', {
+      method: 'POST',
+      body: JSON.stringify({ etapa, detalle: `[v${__VERSION_APP__}] ${detalle ?? ''}`.slice(0, 400) }),
+    }).catch(() => undefined);
   }
+}
+
+// Cualquier error suelto de la app también llega al servidor mientras se diagnostica el push
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) => anotar('error', `js: ${e.message} @ ${e.filename}:${e.lineno}`));
+  window.addEventListener('unhandledrejection', (e) => anotar('error', `promesa: ${e.reason instanceof Error ? e.reason.message : String(e.reason)}`));
 }
 
 type Plugin = typeof PushNotifications;
@@ -82,7 +91,13 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
     return;
   }
   anotar('iniciando');
-  const push = await plugin();
+  let push: Plugin | null = null;
+  try {
+    push = await plugin();
+  } catch (e) {
+    anotar('error', `plugin(): ${e instanceof Error ? e.message : String(e)}`);
+    return;
+  }
   if (!push) return;
   iniciado = true;
   anotar('plugin-cargado');

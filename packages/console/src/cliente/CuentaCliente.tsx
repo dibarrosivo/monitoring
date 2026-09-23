@@ -273,7 +273,9 @@ function EstadoNotificaciones() {
         <span className={`led ${bien ? 'led-verde' : 'led-rojo'}`} aria-hidden />
         <span className="font-semibold">Avisos con la app cerrada</span>
       </span>
-      <span className="text-tenue text-xs">{TEXTO_ESTADO[etapa]}</span>
+      <span className="text-tenue text-xs">
+        {TEXTO_ESTADO[etapa]} <span className="font-datos">(app {__VERSION_APP__})</span>
+      </span>
       {estado?.detalle && etapa !== 'registrado' && <span className="text-prio2 text-xs font-datos break-all">{estado.detalle}</span>}
       {!bien && (
         <button onClick={() => void reintentarPush(() => undefined)} className={`${BOTON_MINI} self-start`}>
