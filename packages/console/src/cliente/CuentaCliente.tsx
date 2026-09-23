@@ -245,6 +245,10 @@ function ListaLlamadas({ clientes, paneles }: { clientes: [number, string][]; pa
 
 const TEXTO_ESTADO: Record<EstadoPush['etapa'], string> = {
   'no-nativo': 'Este es el navegador: los avisos con la app cerrada solo llegan en la app instalada.',
+  iniciando: 'Iniciando el módulo de notificaciones…',
+  'plugin-cargado': 'Módulo cargado; creando los canales de aviso…',
+  'canales-listos': 'Canales listos; consultando el permiso…',
+  'pidiendo-permiso': 'Pidiendo permiso de notificaciones…',
   'sin-plugin': 'La app no pudo cargar el módulo de notificaciones.',
   'permiso-negado': 'Sin permiso de notificaciones. Actívelo en Ajustes del teléfono → Apps → Falcon Alarma → Notificaciones.',
   registrando: 'Registrando el teléfono en Firebase…',

@@ -15,7 +15,7 @@ const CLAVE_ESTADO = 'monitoring.pushEstado';
 let iniciado = false;
 
 export interface EstadoPush {
-  etapa: 'no-nativo' | 'sin-plugin' | 'permiso-negado' | 'registrando' | 'registrado' | 'error';
+  etapa: 'no-nativo' | 'iniciando' | 'sin-plugin' | 'plugin-cargado' | 'canales-listos' | 'pidiendo-permiso' | 'permiso-negado' | 'registrando' | 'registrado' | 'error';
   detalle?: string;
   cuando: number;
 }
@@ -45,10 +45,27 @@ function anotar(etapa: EstadoPush['etapa'], detalle?: string): void {
 
 type Plugin = typeof import('@capacitor/push-notifications').PushNotifications;
 
+/** Una llamada nativa que no responde en 15 s se da por colgada y queda anotada. */
+function conTope<T>(nombre: string, promesa: Promise<T>): Promise<T> {
+  return new Promise<T>((resolver, rechazar) => {
+    const t = setTimeout(() => rechazar(new Error(`${nombre}: sin respuesta en 15 s`)), 15_000);
+    promesa.then(
+      (v) => {
+        clearTimeout(t);
+        resolver(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        rechazar(e);
+      },
+    );
+  });
+}
+
 async function plugin(): Promise<Plugin | null> {
   if (!esNativo()) return null;
   try {
-    return (await import('@capacitor/push-notifications')).PushNotifications;
+    return (await conTope('cargar plugin', import('@capacitor/push-notifications'))).PushNotifications;
   } catch (e) {
     anotar('sin-plugin', e instanceof Error ? e.message : String(e));
     return null;
@@ -61,16 +78,19 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
     anotar('no-nativo');
     return;
   }
+  anotar('iniciando');
   const push = await plugin();
   if (!push) return;
   iniciado = true;
+  anotar('plugin-cargado');
 
   try {
     // Canales de Android: el de alarmas suena con sirena y pasa el modo silencio del teléfono.
     // Android no deja cambiar un canal ya creado: si cambia el sonido, cambia el id (y el servidor lo acompaña).
-    await push.createChannel({ id: 'alarmas-v2', name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan con sirena, siempre.', importance: 5, sound: 'sirena.wav', vibration: true, visibility: 1, lights: true });
-    await push.createChannel({ id: 'avisos-v2', name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 4, sound: 'default', vibration: true, visibility: 1 });
+    await conTope('canal alarmas', push.createChannel({ id: 'alarmas-v2', name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan con sirena, siempre.', importance: 5, sound: 'sirena.wav', vibration: true, visibility: 1, lights: true }));
+    await conTope('canal avisos', push.createChannel({ id: 'avisos-v2', name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 4, sound: 'default', vibration: true, visibility: 1 }));
     for (const viejo of ['alarmas', 'avisos']) await push.deleteChannel({ id: viejo }).catch(() => undefined);
+    anotar('canales-listos');
   } catch (e) {
     // Un canal mal creado no puede impedir el registro: la notificación sale por el canal por defecto
     anotar('error', `canales: ${e instanceof Error ? e.message : String(e)}`);
@@ -92,14 +112,15 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
     await push.addListener('pushNotificationReceived', () => undefined);
     await push.addListener('pushNotificationActionPerformed', () => alTocarAviso());
 
-    let permiso = await push.checkPermissions();
+    let permiso = await conTope('checkPermissions', push.checkPermissions());
+    anotar('pidiendo-permiso', permiso.receive);
     if (permiso.receive === 'prompt' || permiso.receive === 'prompt-with-rationale') permiso = await push.requestPermissions();
     if (permiso.receive !== 'granted') {
       anotar('permiso-negado', permiso.receive);
       return;
     }
     anotar('registrando');
-    await push.register();
+    await conTope('register', push.register());
   } catch (e) {
     anotar('error', e instanceof Error ? e.message : String(e));
   }
