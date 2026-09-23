@@ -1,3 +1,4 @@
+import { PushNotifications } from '@capacitor/push-notifications';
 import { esNativo, pedir } from '../api.js';
 
 /**
@@ -43,7 +44,7 @@ function anotar(etapa: EstadoPush['etapa'], detalle?: string): void {
   }
 }
 
-type Plugin = typeof import('@capacitor/push-notifications').PushNotifications;
+type Plugin = typeof PushNotifications;
 
 /** Una llamada nativa que no responde en 15 s se da por colgada y queda anotada. */
 function conTope<T>(nombre: string, promesa: Promise<T>): Promise<T> {
@@ -62,10 +63,12 @@ function conTope<T>(nombre: string, promesa: Promise<T>): Promise<T> {
   });
 }
 
+/** El plugin viene en el paquete principal: la carga diferida no terminaba en algunos WebView. */
 async function plugin(): Promise<Plugin | null> {
   if (!esNativo()) return null;
   try {
-    return (await conTope('cargar plugin', import('@capacitor/push-notifications'))).PushNotifications;
+    if (!PushNotifications) throw new Error('módulo vacío');
+    return PushNotifications;
   } catch (e) {
     anotar('sin-plugin', e instanceof Error ? e.message : String(e));
     return null;
