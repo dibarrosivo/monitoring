@@ -538,6 +538,8 @@ export const preferenciaAviso = pgTable('preferencia_aviso', {
   /** Franja de silencio (hora local del usuario) para lo que no es alarma; ambas o ninguna */
   silencioDesde: time('silencio_desde'),
   silencioHasta: time('silencio_hasta'),
+  /** Voz en los avisos con la app cerrada: 'siempre', 'solo_alarmas' o 'nunca' (la notificación llega igual) */
+  vozPush: varchar('voz_push', { length: 16 }).notNull().default('siempre'),
   actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
 });
 

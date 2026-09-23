@@ -176,6 +176,13 @@
       "when": 1790173206926,
       "tag": "0024_last_venus",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790188837690,
+      "tag": "0025_groovy_vindicator",
+      "breakpoints": true
     }
   ]
 }

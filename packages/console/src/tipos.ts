@@ -448,6 +448,8 @@ export interface PreferenciasAviso {
   /** 'HH:MM' ambas, o null ambas */
   silencioDesde: string | null;
   silencioHasta: string | null;
+  /** Voz en los avisos con la app cerrada; la notificación llega igual */
+  vozPush?: 'siempre' | 'solo_alarmas' | 'nunca';
 }
 
 export interface AlarmaCliente {

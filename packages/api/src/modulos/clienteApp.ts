@@ -352,7 +352,7 @@ export function registrarClienteApp(app: App) {
    * Preferencias de avisos del usuario. Las lee la app al arrancar y las
    * usará el envío push: lo que el usuario apagó no le llega por ningún canal.
    */
-  const PREFERENCIAS_POR_DEFECTO = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null };
+  const PREFERENCIAS_POR_DEFECTO = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null, vozPush: 'siempre' as const };
   const hora = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/);
   const esquemaPreferencias = z
     .object({
@@ -361,6 +361,7 @@ export function registrarClienteApp(app: App) {
       sistema: z.boolean(),
       silencioDesde: hora.nullable(),
       silencioHasta: hora.nullable(),
+      vozPush: z.enum(['siempre', 'solo_alarmas', 'nunca']).default('siempre'),
     })
     .refine((p) => (p.silencioDesde === null) === (p.silencioHasta === null), { message: 'La franja de silencio necesita inicio y fin' });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mensajeParaEvento, quiereRecibir } from './avisos.js';
+import { conVoz, mensajeParaEvento, quiereRecibir } from './avisos.js';
 
 const base = { eventoId: 1, panelId: 5, prioridad: 2, descripcion: '', sitioNombre: 'Geralds Café' };
 
@@ -38,5 +38,16 @@ describe('quiereRecibir', () => {
     expect(quiereRecibir(noche, 'armadoDesarmado', new Date('2026-09-23T03:00:00Z'))).toBe(false);
     // 15:00 UTC = 11:00 en Caracas: pasa
     expect(quiereRecibir(noche, 'armadoDesarmado', new Date('2026-09-23T15:00:00Z'))).toBe(true);
+  });
+});
+
+describe('conVoz', () => {
+  const base = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null };
+  it('siempre, solo alarmas o nunca', () => {
+    expect(conVoz({ ...base, vozPush: 'siempre' }, 'avisos')).toBe(true);
+    expect(conVoz({ ...base, vozPush: 'solo_alarmas' }, 'avisos')).toBe(false);
+    expect(conVoz({ ...base, vozPush: 'solo_alarmas' }, 'alarmas')).toBe(true);
+    expect(conVoz({ ...base, vozPush: 'nunca' }, 'alarmas')).toBe(false);
+    expect(conVoz(base, 'avisos')).toBe(true);
   });
 });

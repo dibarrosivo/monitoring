@@ -87,7 +87,7 @@ export async function enviarPush(token: string, mensaje: MensajePush): Promise<R
     body: JSON.stringify({
       message: {
         token,
-        data: { ...(mensaje.datos ?? {}), titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, habla: mensaje.habla ?? mensaje.cuerpo, canal: mensaje.canal },
+        data: { ...(mensaje.datos ?? {}), titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, habla: mensaje.habla === undefined ? mensaje.cuerpo : mensaje.habla, canal: mensaje.canal },
         android: { priority: 'high', ttl: '3600s' },
       },
     }),

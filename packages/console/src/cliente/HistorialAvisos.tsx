@@ -237,6 +237,28 @@ function PreferenciasAvisos({ prefs }: { prefs: PreferenciasAviso }) {
           </div>
         )}
       </div>
+      <div className="border-t border-borde/60 pt-3 flex flex-col gap-2">
+        <span className="font-semibold">Voz con la app cerrada</span>
+        <span className="text-tenue text-xs">El teléfono dice el aviso en voz alta al llegar la notificación. Con la app abierta manda el altavoz de arriba.</span>
+        <div className="flex gap-1">
+          {(
+            [
+              ['siempre', 'Siempre'],
+              ['solo_alarmas', 'Solo alarmas'],
+              ['nunca', 'Nunca'],
+            ] as const
+          ).map(([valor, etiqueta]) => (
+            <button
+              key={valor}
+              type="button"
+              onClick={() => cambiar({ vozPush: valor })}
+              className={`flex-1 rounded-lg border px-2 py-1.5 text-xs ${(prefs.vozPush ?? 'siempre') === valor ? 'border-acento bg-acento/15 text-acento font-semibold' : 'border-borde text-tenue hover:text-texto'}`}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+      </div>
       {guardar.isError && <p className="text-prio1 text-xs">No se pudo guardar. Revise la conexión.</p>}
       {guardar.isSuccess && <p className="text-ok text-xs">Guardado. Aplica en todos sus teléfonos.</p>}
     </section>

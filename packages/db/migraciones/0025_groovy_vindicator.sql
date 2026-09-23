@@ -1,0 +1,1 @@
+ALTER TABLE "preferencia_aviso" ADD COLUMN "voz_push" varchar(16) DEFAULT 'siempre' NOT NULL;

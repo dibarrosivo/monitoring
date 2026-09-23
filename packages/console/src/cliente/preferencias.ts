@@ -1,7 +1,7 @@
 import type { CategoriaEvento, PreferenciasAviso } from '../tipos.js';
 import type { Tono } from './frases.js';
 
-export const PREFERENCIAS_POR_DEFECTO: PreferenciasAviso = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null };
+export const PREFERENCIAS_POR_DEFECTO: PreferenciasAviso = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null, vozPush: 'siempre' };
 
 /** Grupo de preferencia al que pertenece un evento, o null si es alarma/emergencia (siempre pasa). */
 export function grupoDeAviso(categoria: CategoriaEvento | undefined, tono: Tono): 'armadoDesarmado' | 'averias' | 'sistema' | null {

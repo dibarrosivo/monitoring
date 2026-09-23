@@ -28,8 +28,15 @@ interface Preferencias {
   sistema: boolean;
   silencioDesde: string | null;
   silencioHasta: string | null;
+  vozPush?: string;
 }
-const POR_DEFECTO: Preferencias = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null };
+const POR_DEFECTO: Preferencias = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null, vozPush: 'siempre' };
+
+/** ¿Este aviso se dice en voz alta en el teléfono? La notificación llega igual. */
+export function conVoz(prefs: Preferencias, canal: 'alarmas' | 'avisos'): boolean {
+  const v = prefs.vozPush ?? 'siempre';
+  return v === 'siempre' || (v === 'solo_alarmas' && canal === 'alarmas');
+}
 
 const EMERGENCIAS: Record<string, string> = {
   '100': 'emergencia médica',
@@ -169,9 +176,10 @@ export async function enviarAvisosPush(carga: CargaEvento, log: { info: (o: obje
       if (!mensaje) continue;
       const p = prefs.find((x) => x.usuarioId === g.usuarioId) ?? POR_DEFECTO;
       if (!quiereRecibir(p, mensaje.grupo)) continue;
+      const paraEste = conVoz(p, mensaje.canal) ? mensaje : { ...mensaje, habla: '' };
       for (const t of tokens.filter((x) => x.usuarioId === g.usuarioId)) {
         try {
-          const r = await enviarPush(t.token, mensaje);
+          const r = await enviarPush(t.token, paraEste);
           if (r === 'enviado') enviados++;
           if (r === 'token-invalido') await db.delete(dispositivoPush).where(eq(dispositivoPush.id, t.id));
         } catch (err) {
