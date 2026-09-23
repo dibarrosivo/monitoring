@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { esNativo } from '../api.js';
+import { estadoPush, reintentarPush, type EstadoPush } from './push.js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   cambiarEstadoUsuarioCliente,
@@ -43,6 +45,7 @@ export function CuentaCliente({ usuario, paneles, propietarioDe, alCambiarClave 
         <button onClick={alCambiarClave} className={`${BOTON_MINI} self-start mt-1`}>
           Cambiar mi clave
         </button>
+        <EstadoNotificaciones />
       </section>
 
       {esPropietario ? (
@@ -237,5 +240,42 @@ function ListaLlamadas({ clientes, paneles }: { clientes: [number, string][]; pa
         </form>
       )}
     </section>
+  );
+}
+
+const TEXTO_ESTADO: Record<EstadoPush['etapa'], string> = {
+  'no-nativo': 'Este es el navegador: los avisos con la app cerrada solo llegan en la app instalada.',
+  'sin-plugin': 'La app no pudo cargar el módulo de notificaciones.',
+  'permiso-negado': 'Sin permiso de notificaciones. Actívelo en Ajustes del teléfono → Apps → Falcon Alarma → Notificaciones.',
+  registrando: 'Registrando el teléfono en Firebase…',
+  registrado: 'Este teléfono recibe avisos aunque la app esté cerrada.',
+  error: 'No se pudo registrar el teléfono.',
+};
+
+/** Diagnóstico a la vista: si un teléfono no recibe avisos, acá dice por qué. */
+function EstadoNotificaciones() {
+  const [estado, setEstado] = useState<EstadoPush | null>(() => estadoPush());
+  useEffect(() => {
+    const alCambiar = (e: Event) => setEstado((e as CustomEvent<EstadoPush>).detail);
+    window.addEventListener('push-estado', alCambiar);
+    return () => window.removeEventListener('push-estado', alCambiar);
+  }, []);
+  if (!esNativo()) return null;
+  const etapa = estado?.etapa ?? 'registrando';
+  const bien = etapa === 'registrado';
+  return (
+    <div className="mt-2 border-t border-borde/60 pt-2 text-sm flex flex-col gap-1">
+      <span className="flex items-center gap-2">
+        <span className={`led ${bien ? 'led-verde' : 'led-rojo'}`} aria-hidden />
+        <span className="font-semibold">Avisos con la app cerrada</span>
+      </span>
+      <span className="text-tenue text-xs">{TEXTO_ESTADO[etapa]}</span>
+      {estado?.detalle && etapa !== 'registrado' && <span className="text-prio2 text-xs font-datos break-all">{estado.detalle}</span>}
+      {!bien && (
+        <button onClick={() => void reintentarPush(() => undefined)} className={`${BOTON_MINI} self-start`}>
+          Reintentar
+        </button>
+      )}
+    </div>
   );
 }

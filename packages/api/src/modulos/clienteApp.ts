@@ -395,6 +395,13 @@ export function registrarClienteApp(app: App) {
       .onConflictDoUpdate({ target: dispositivoPush.token, set: { usuarioId: request.user.id, ultimoUsoEn: new Date() } });
     return reply.code(201).send({ registrado: true });
   });
+  /** Qué pasó con el alta de push en un teléfono: queda en el registro del servidor para diagnosticar a distancia. */
+  app.post('/cliente/dispositivos/diagnostico', async (request) => {
+    const datos = z.object({ etapa: z.string().max(40), detalle: z.string().max(400).nullable() }).safeParse(request.body);
+    if (datos.success) request.log.warn({ push: datos.data, usuario: request.user.email }, 'Diagnóstico de push del teléfono');
+    return { ok: true };
+  });
+
   app.delete('/cliente/dispositivos', async (request, reply) => {
     const datos = z.object({ token: z.string().min(1) }).safeParse(request.body);
     if (!datos.success) return reply.code(400).send({ error: 'token requerido' });
