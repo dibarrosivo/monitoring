@@ -28,8 +28,10 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
   iniciado = true;
 
   // Canales de Android: el de alarmas suena fuerte y pasa el modo silencio del teléfono
-  await push.createChannel({ id: 'alarmas', name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan siempre.', importance: 5, sound: 'default', vibration: true, visibility: 1 });
-  await push.createChannel({ id: 'avisos', name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 3, vibration: true });
+  // Android no deja cambiar un canal ya creado: si cambia el sonido, cambia el id (y el servidor lo acompaña)
+  await push.createChannel({ id: 'alarmas-v2', name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan con sirena, siempre.', importance: 5, sound: 'sirena.wav', vibration: true, visibility: 1, lights: true });
+  await push.createChannel({ id: 'avisos-v2', name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 4, sound: 'default', vibration: true, visibility: 1 });
+  for (const viejo of ['alarmas', 'avisos']) await push.deleteChannel({ id: viejo }).catch(() => undefined);
 
   await push.addListener('registration', (registro) => {
     try {

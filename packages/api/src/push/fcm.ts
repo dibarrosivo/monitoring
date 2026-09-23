@@ -85,7 +85,12 @@ export async function enviarPush(token: string, mensaje: MensajePush): Promise<R
         data: mensaje.datos ?? {},
         android: {
           priority: 'high',
-          notification: { channel_id: mensaje.canal, sound: 'default', default_vibrate_timings: true, notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_DEFAULT' },
+          notification: {
+            channel_id: mensaje.canal === 'alarmas' ? 'alarmas-v2' : 'avisos-v2',
+            sound: mensaje.canal === 'alarmas' ? 'sirena.wav' : 'default',
+            default_vibrate_timings: true,
+            notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
+          },
         },
       },
     }),
