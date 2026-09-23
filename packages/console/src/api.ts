@@ -2,41 +2,42 @@ import type { ResultadoLlamada } from './cierres.js';
 import type {
   Acceso,
   AccionAlarma,
+  AccionComando,
+  ActividadOperador,
   Alarma,
   AlarmaCliente,
   Cliente,
   ClienteDetalle,
   ClienteResumen,
+  Comando,
   ConfigHombreMuerto,
   Contacto,
   ContextoAlarma,
   DesenlaceAlarma,
-  AccionComando,
-  Comando,
+  DiarioPuente,
   EntradaCatalogo,
-  EstadoParticion,
-  EstadoDetalladoPanel,
   EstadoCliente,
+  EstadoDetalladoPanel,
   EstadoPanel,
+  EstadoParticion,
   Evento,
   EventoCliente,
   Feriado,
   Horario,
+  PreferenciasAviso,
   Puente,
-  DiarioPuente,
   RegistroAuditoria,
   Reporte,
   ResultadoBusqueda,
   ResumenCliente,
   Senal,
   Sitio,
+  Supervision,
   Tablero,
   Usuario,
   UsuarioAdmin,
   UsuarioPanel,
   Zona,
-  Supervision,
-  ActividadOperador,
 } from './tipos.js';
 
 const CLAVE_TOKEN = 'monitoring.token';
@@ -299,6 +300,8 @@ export const cambiarClave = (actual: string, nueva: string) =>
 
 // ---- Vista de clientes (rol 'cliente') ----
 export const verResumenCliente = () => pedir<ResumenCliente>('/cliente/resumen');
+export const verPreferenciasCliente = () => pedir<PreferenciasAviso>('/cliente/preferencias');
+export const guardarPreferenciasCliente = (datos: PreferenciasAviso) => editar<PreferenciasAviso>('/cliente/preferencias', datos);
 export const verZonasCliente = (panelId: number) => pedir<{ numero: string; descripcion: string | null }[]>(`/cliente/paneles/${panelId}/zonas`);
 export const verEventosCliente = (panelId?: number) =>
   pedir<EventoCliente[]>(panelId ? `/cliente/eventos?limite=50&panelId=${panelId}` : '/cliente/eventos?limite=100');

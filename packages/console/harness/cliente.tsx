@@ -18,6 +18,7 @@ const panel = {
 const respuestas: Record<string, unknown> = {
   'cliente/resumen': { paneles: [panel] },
   'cliente/alarmas': [],
+  'cliente/preferencias': { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: '22:00', silencioHasta: '07:00' },
   'paneles/50/zonas': [
     { numero: '001', descripcion: 'Cocina - Atención al cliente INFRA' }, { numero: '002', descripcion: 'Oficina principal - Pasillo INFRA' },
     { numero: '003', descripcion: 'Gerencia Oficina Gerardo INFRA' }, { numero: '005', descripcion: 'Puerta trasera MAG' },
@@ -47,6 +48,7 @@ createRoot(document.getElementById('raiz')!).render(
 );
 // #avisos abre la pestaña de avisos; #panel abre la pantalla del panel
 setTimeout(() => {
-  if (location.hash === '#avisos') [...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('Avisos'))?.click();
+  if (location.hash === '#avisos' || location.hash === '#prefs') [...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('Avisos'))?.click();
+  if (location.hash === '#prefs') setTimeout(() => [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Qué recibir'))?.click(), 300);
   if (location.hash === '#panel') (document.querySelector('section[role=button]') as HTMLElement | null)?.click();
 }, 800);

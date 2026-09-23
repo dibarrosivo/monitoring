@@ -409,6 +409,16 @@ export interface EventoCliente {
   ocurridoEn: string;
 }
 
+/** Qué quiere recibir el usuario de la app; emergencias y alarmas no se apagan */
+export interface PreferenciasAviso {
+  armadoDesarmado: boolean;
+  averias: boolean;
+  sistema: boolean;
+  /** 'HH:MM' ambas, o null ambas */
+  silencioDesde: string | null;
+  silencioHasta: string | null;
+}
+
 export interface AlarmaCliente {
   id: number;
   estado: string;

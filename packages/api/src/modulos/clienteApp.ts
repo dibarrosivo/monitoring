@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { acceso, alarma, cliente, db, evento, panel, sitio, zona } from '@monitoring/db';
+import { acceso, alarma, cliente, db, evento, panel, preferenciaAviso, sitio, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
@@ -148,6 +148,41 @@ export function registrarClienteApp(app: App) {
         ),
       )
       .orderBy(alarma.prioridad, desc(alarma.creadoEn));
+  });
+
+  /**
+   * Preferencias de avisos del usuario. Las lee la app al arrancar y las
+   * usará el envío push: lo que el usuario apagó no le llega por ningún canal.
+   */
+  const PREFERENCIAS_POR_DEFECTO = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null };
+  const hora = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/);
+  const esquemaPreferencias = z
+    .object({
+      armadoDesarmado: z.boolean(),
+      averias: z.boolean(),
+      sistema: z.boolean(),
+      silencioDesde: hora.nullable(),
+      silencioHasta: hora.nullable(),
+    })
+    .refine((p) => (p.silencioDesde === null) === (p.silencioHasta === null), { message: 'La franja de silencio necesita inicio y fin' });
+
+  app.get('/cliente/preferencias', async (request) => {
+    const [fila] = await db.select().from(preferenciaAviso).where(eq(preferenciaAviso.usuarioId, request.user.id)).limit(1);
+    if (!fila) return PREFERENCIAS_POR_DEFECTO;
+    const { usuarioId: _u, actualizadoEn: _a, ...resto } = fila;
+    return resto;
+  });
+
+  app.put('/cliente/preferencias', async (request, reply) => {
+    const datos = esquemaPreferencias.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    const [fila] = await db
+      .insert(preferenciaAviso)
+      .values({ usuarioId: request.user.id, ...datos.data, actualizadoEn: new Date() })
+      .onConflictDoUpdate({ target: preferenciaAviso.usuarioId, set: { ...datos.data, actualizadoEn: new Date() } })
+      .returning();
+    const { usuarioId: _u, actualizadoEn: _a, ...resto } = fila!;
+    return resto;
   });
 
   const esquemaPanico = z.object({ sitioId: z.number().int() });

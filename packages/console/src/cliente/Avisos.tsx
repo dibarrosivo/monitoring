@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { verPreferenciasCliente } from '../api.js';
+import { PREFERENCIAS_POR_DEFECTO, quiereRecibir } from './preferencias.js';
 import { useTiempoReal } from '../tiempoReal.js';
 import type { MensajeTiempoReal } from '../tipos.js';
 import { fraseParaEvento, type Frase, type Tono } from './frases.js';
@@ -41,6 +43,10 @@ export function useAvisosCliente(opciones: { nombrarSitio: boolean }): {
   );
   const nombrarSitio = useRef(opciones.nombrarSitio);
   nombrarSitio.current = opciones.nombrarSitio;
+  // Lo que el usuario eligió recibir; emergencias y alarmas pasan igual
+  const { data: preferencias } = useQuery({ queryKey: ['preferencias-cli'], queryFn: verPreferenciasCliente, staleTime: 60_000 });
+  const prefsRef = useRef(preferencias ?? PREFERENCIAS_POR_DEFECTO);
+  prefsRef.current = preferencias ?? PREFERENCIAS_POR_DEFECTO;
   const vozRef = useRef(voz);
   vozRef.current = voz;
 
@@ -60,6 +66,7 @@ export function useAvisosCliente(opciones: { nombrarSitio: boolean }): {
 
       const frase = fraseParaEvento(mensaje.carga, { nombrarSitio: nombrarSitio.current });
       if (!frase) return;
+      if (!quiereRecibir(prefsRef.current, { categoria: mensaje.carga.categoria, tono: frase.tono })) return;
 
       const aviso: Aviso = { ...frase, id: mensaje.carga.eventoId, recibidoEn: Date.now() };
       setAvisos((lista) => [aviso, ...lista.filter((a) => a.id !== aviso.id)].slice(0, 5));

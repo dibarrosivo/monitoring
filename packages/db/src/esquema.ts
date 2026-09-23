@@ -513,3 +513,23 @@ export const auditoria = pgTable(
   },
   (t) => [index('auditoria_entidad').on(t.entidad, t.entidadId), index('auditoria_fecha').on(t.creadoEn)],
 );
+
+/**
+ * Qué quiere recibir cada usuario de la app. Emergencias y alarmas llegan
+ * siempre: no se pueden apagar, porque para eso existe la central. Lo demás
+ * (armados y desarmados, fallas y restablecimientos, avisos de la central)
+ * lo elige el usuario, y puede pedir silencio en una franja horaria para
+ * todo lo que no sea alarma. Una fila por usuario; sin fila, todo activado.
+ */
+export const preferenciaAviso = pgTable('preferencia_aviso', {
+  usuarioId: integer('id_usuario')
+    .primaryKey()
+    .references(() => usuario.id),
+  armadoDesarmado: boolean('armado_desarmado').notNull().default(true),
+  averias: boolean('averias').notNull().default(true),
+  sistema: boolean('sistema').notNull().default(true),
+  /** Franja de silencio (hora local del usuario) para lo que no es alarma; ambas o ninguna */
+  silencioDesde: time('silencio_desde'),
+  silencioHasta: time('silencio_hasta'),
+  actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
+});
