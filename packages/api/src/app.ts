@@ -92,6 +92,15 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       });
 
       registrarAuth(api);
+      // Acuse de recibo del push desde el servicio nativo del teléfono (sin sesión; la clave va firmada)
+      api.post('/push/eco', async (request, reply) => {
+        const { verificarEco } = await import('./push/fcm.js');
+        const cuerpo = (request.body ?? {}) as { eco?: string; estado?: string };
+        const datos = typeof cuerpo.eco === 'string' ? verificarEco(cuerpo.eco) : null;
+        if (!datos) return reply.code(400).send({ error: 'eco inválido' });
+        request.log.warn({ eco: datos, estado: String(cuerpo.estado ?? '').slice(0, 500) }, 'Acuse de push del teléfono');
+        return { ok: true };
+      });
       await api.register(async (sub) => registrarClientes(sub));
       await api.register(async (sub) => registrarAlarmas(sub));
       await api.register(async (sub) => registrarComandos(sub));

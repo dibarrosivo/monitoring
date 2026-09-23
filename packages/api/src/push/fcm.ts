@@ -1,4 +1,4 @@
-import { createSign } from 'node:crypto';
+import { createHmac, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 /**
@@ -60,6 +60,23 @@ async function obtenerTokenAcceso(): Promise<string> {
   return tokenAcceso.valor;
 }
 
+/** Clave de acuse firmada: el teléfono la devuelve con el estado de entrega y de la voz, sin sesión. */
+export function claveEco(usuarioId: number, eventoId: string | undefined): string {
+  const cuerpo = `${usuarioId}.${eventoId ?? '0'}.${Math.floor(Date.now() / 1000)}`;
+  const firma = createHmac('sha256', process.env.JWT_SECRETO ?? 'solo-desarrollo').update(cuerpo).digest('hex').slice(0, 24);
+  return `${cuerpo}.${firma}`;
+}
+
+export function verificarEco(clave: string): { usuarioId: number; eventoId: string } | null {
+  const partes = clave.split('.');
+  if (partes.length !== 4) return null;
+  const cuerpo = partes.slice(0, 3).join('.');
+  const firma = createHmac('sha256', process.env.JWT_SECRETO ?? 'solo-desarrollo').update(cuerpo).digest('hex').slice(0, 24);
+  if (firma !== partes[3]) return null;
+  if (Math.floor(Date.now() / 1000) - Number(partes[2]) > 3600) return null;
+  return { usuarioId: Number(partes[0]), eventoId: partes[1]! };
+}
+
 export interface MensajePush {
   titulo: string;
   cuerpo: string;
@@ -73,7 +90,7 @@ export interface MensajePush {
 export type ResultadoPush = 'enviado' | 'token-invalido' | 'error';
 
 /** Manda un mensaje a un teléfono. 'token-invalido' significa que hay que borrar ese token. */
-export async function enviarPush(token: string, mensaje: MensajePush): Promise<ResultadoPush> {
+export async function enviarPush(token: string, mensaje: MensajePush, usuarioId = 0): Promise<ResultadoPush> {
   const c = cargarCuenta();
   if (!c) return 'error';
   const acceso = await obtenerTokenAcceso();
@@ -87,7 +104,7 @@ export async function enviarPush(token: string, mensaje: MensajePush): Promise<R
     body: JSON.stringify({
       message: {
         token,
-        data: { ...(mensaje.datos ?? {}), titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, habla: mensaje.habla === undefined ? mensaje.cuerpo : mensaje.habla, canal: mensaje.canal },
+        data: { ...(mensaje.datos ?? {}), titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, habla: mensaje.habla === undefined ? mensaje.cuerpo : mensaje.habla, canal: mensaje.canal, eco: claveEco(usuarioId, mensaje.datos?.eventoId) },
         android: { priority: 'high', ttl: '3600s' },
       },
     }),

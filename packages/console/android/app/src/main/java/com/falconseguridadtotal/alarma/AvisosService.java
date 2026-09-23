@@ -44,8 +44,34 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
         if (MainActivity.enPrimerPlano) return;
         boolean alarma = "alarmas".equals(d.get("canal"));
         String habla = d.get("habla");
+        String eco = d.get("eco");
         mostrar(titulo, cuerpo, alarma, d.get("eventoId"));
-        if (habla != null && !habla.isEmpty()) hablar(getApplicationContext(), habla, alarma);
+        if (habla != null && !habla.isEmpty()) hablar(getApplicationContext(), habla, alarma, eco);
+        else acusar(eco, "recibido sin voz (habla vacía)");
+    }
+
+    /** Le cuenta al servidor qué pasó con este aviso: llegó, y si la voz habló o por qué no. */
+    static void acusar(String eco, String estado) {
+        if (eco == null) return;
+        new Thread(() -> {
+            try {
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL("https://monitoreo.falconseguridadtotal.com/api/push/eco").openConnection();
+                c.setRequestMethod("POST");
+                c.setRequestProperty("Content-Type", "application/json");
+                c.setDoOutput(true);
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(8000);
+                org.json.JSONObject j = new org.json.JSONObject();
+                j.put("eco", eco);
+                j.put("estado", estado + " | " + Build.MANUFACTURER + " " + Build.MODEL + " Android " + Build.VERSION.RELEASE);
+                byte[] cuerpo = j.toString().getBytes("UTF-8");
+                c.getOutputStream().write(cuerpo);
+                c.getResponseCode();
+                c.disconnect();
+            } catch (Exception e) {
+                Log.w(TAG, "No se pudo acusar el push: " + e.getMessage());
+            }
+        }).start();
     }
 
     private void mostrar(String titulo, String cuerpo, boolean alarma, String eventoId) {
@@ -96,35 +122,64 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
     }
 
     /** Dice el texto con el motor de voz; si todavía no está listo, lo encola y lo dice al iniciar. */
-    static synchronized void hablar(Context ctx, String texto, boolean alarma) {
+    private static String motorInfo = "";
+    private static Context appCtx;
+
+    /** Volúmenes actuales del teléfono, para saber si la voz salió por un canal en silencio. */
+    private static String volumenes() {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) appCtx.getSystemService(Context.AUDIO_SERVICE);
+            return "vol(notif=" + am.getStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION) + "/" + am.getStreamMaxVolume(android.media.AudioManager.STREAM_NOTIFICATION)
+                + " alarma=" + am.getStreamVolume(android.media.AudioManager.STREAM_ALARM) + "/" + am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM)
+                + " media=" + am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) + "/" + am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                + " modo=" + am.getRingerMode() + ")";
+        } catch (Exception e) {
+            return "vol=?";
+        }
+    }
+
+    static synchronized void hablar(Context ctx, String texto, boolean alarma, String eco) {
+        appCtx = ctx.getApplicationContext();
         if (voz == null) {
-            pendientes.add(new String[] { texto, alarma ? "1" : "0" });
+            pendientes.add(new String[] { texto, alarma ? "1" : "0", eco });
             voz = new TextToSpeech(ctx.getApplicationContext(), estado -> {
                 synchronized (AvisosService.class) {
                     if (estado != TextToSpeech.SUCCESS) {
                         Log.w(TAG, "Motor de voz no disponible");
+                        for (String[] p : pendientes) acusar(p[2], "voz: motor no disponible (estado " + estado + ")");
                         voz = null;
                         pendientes.clear();
                         return;
                     }
                     int r = voz.setLanguage(new Locale("es", "VE"));
-                    if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) voz.setLanguage(new Locale("es", "ES"));
+                    String idioma = "es-VE=" + r;
+                    if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        r = voz.setLanguage(new Locale("es", "ES"));
+                        idioma += " es-ES=" + r;
+                        if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                            r = voz.setLanguage(new Locale("es"));
+                            idioma += " es=" + r;
+                        }
+                    }
+                    String motor = "";
+                    try { motor = voz.getDefaultEngine(); } catch (Exception e) { motor = "?"; }
+                    motorInfo = "motor=" + motor + " " + idioma;
                     voz.setSpeechRate(0.95f);
                     vozLista = true;
-                    for (String[] p : pendientes) decir(p[0], "1".equals(p[1]));
+                    for (String[] p : pendientes) decir(p[0], "1".equals(p[1]), p[2]);
                     pendientes.clear();
                 }
             });
             return;
         }
         if (!vozLista) {
-            pendientes.add(new String[] { texto, alarma ? "1" : "0" });
+            pendientes.add(new String[] { texto, alarma ? "1" : "0", eco });
             return;
         }
-        decir(texto, alarma);
+        decir(texto, alarma, eco);
     }
 
-    private static void decir(String texto, boolean alarma) {
+    private static void decir(String texto, boolean alarma, String eco) {
         Bundle params = new Bundle();
         // Las alarmas salen por el volumen de alarma (suena aunque el teléfono esté en silencio); el resto como notificación
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, alarma ? android.media.AudioManager.STREAM_ALARM : android.media.AudioManager.STREAM_NOTIFICATION);
@@ -135,10 +190,11 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
             .build());
         // La sirena del canal suena primero; la voz espera un momento para no pisarla
         voz.playSilentUtterance(alarma ? 1500 : 400, TextToSpeech.QUEUE_ADD, "pausa-" + System.nanoTime());
-        voz.speak(texto, TextToSpeech.QUEUE_ADD, params, "aviso-" + System.nanoTime());
+        int r = voz.speak(texto, TextToSpeech.QUEUE_ADD, params, "aviso-" + System.nanoTime());
         if (alarma) {
             voz.playSilentUtterance(700, TextToSpeech.QUEUE_ADD, "pausa2-" + System.nanoTime());
             voz.speak(texto, TextToSpeech.QUEUE_ADD, params, "aviso2-" + System.nanoTime());
         }
+        acusar(eco, "voz: speak=" + r + " " + motorInfo + " alarma=" + alarma + " " + volumenes());
     }
 }

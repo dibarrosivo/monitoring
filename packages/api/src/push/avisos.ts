@@ -179,7 +179,7 @@ export async function enviarAvisosPush(carga: CargaEvento, log: { info: (o: obje
       const paraEste = conVoz(p, mensaje.canal) ? mensaje : { ...mensaje, habla: '' };
       for (const t of tokens.filter((x) => x.usuarioId === g.usuarioId)) {
         try {
-          const r = await enviarPush(t.token, paraEste);
+          const r = await enviarPush(t.token, paraEste, g.usuarioId);
           if (r === 'enviado') enviados++;
           if (r === 'token-invalido') await db.delete(dispositivoPush).where(eq(dispositivoPush.id, t.id));
         } catch (err) {
