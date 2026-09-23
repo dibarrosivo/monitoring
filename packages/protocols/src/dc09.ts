@@ -75,7 +75,9 @@ export function parsearTramaDc09(entrada: Buffer | string, opciones: OpcionesPar
       return { ok: false, error: 'descifrado-fallido', detalle: 'el campo cifrado no es un bloque AES válido' };
     }
     const separado = separarRelleno(textoPlano);
-    if (!separado) {
+    // Con la clave equivocada sale basura: puede traer un '[' y un ']' por
+    // casualidad, pero no va a ser texto ASCII imprimible de punta a punta.
+    if (!separado || !/^[\x20-\x7E]*$/.test(separado.datos) || !/^[\x20-\x7E]*$/.test(separado.resto)) {
       return { ok: false, error: 'descifrado-fallido', detalle: 'clave incorrecta o relleno no reconocido' };
     }
     datos = separado.datos;
