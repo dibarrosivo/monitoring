@@ -365,6 +365,13 @@ export const acceso = pgTable(
       .references(() => cliente.id),
     sitioId: integer('id_sitio').references(() => sitio.id),
     panelId: integer('id_panel').references(() => panel.id),
+    /**
+     * Propietario del cliente: la persona a la que la central le cree. Es el
+     * único que administra desde la app a los demás usuarios y la lista de
+     * llamadas. Lo asigna la central; solo tiene sentido con acceso a todo el
+     * cliente (sitio y panel en NULL).
+     */
+    propietario: boolean('propietario').notNull().default(false),
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('acceso_usuario').on(t.usuarioId)],

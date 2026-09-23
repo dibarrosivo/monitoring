@@ -86,6 +86,8 @@ export interface UsuarioAdmin {
   rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
   activo: boolean;
   creadoEn: string;
+  /** Solo en la lista por cliente: si administra la cuenta desde la app */
+  propietario?: boolean;
 }
 
 /** Permiso de un usuario de app: cliente entero, un sitio o un panel puntual. */
@@ -396,6 +398,35 @@ export interface PanelResumenCliente {
 
 export interface ResumenCliente {
   paneles: PanelResumenCliente[];
+  /** Clientes de los que este usuario es propietario: administra usuarios y lista de llamadas */
+  propietarioDe: number[];
+}
+
+/** Persona con acceso a la app, vista por el propietario */
+export interface UsuarioApp {
+  id: number;
+  nombre: string;
+  email: string;
+  activo: boolean;
+  clienteId: number;
+  clienteNombre: string;
+  propietario: boolean;
+  sitioId: number | null;
+  sitioNombre: string | null;
+  panelId: number | null;
+}
+
+/** Contacto de la lista de llamadas, como lo administra el propietario */
+export interface ContactoApp {
+  id: number;
+  clienteId: number;
+  sitioId: number | null;
+  nombre: string;
+  rol: string | null;
+  telefono: string;
+  telefonoAlternativo: string | null;
+  orden: number;
+  autorizadoCancelar: boolean;
 }
 
 export interface EventoCliente {

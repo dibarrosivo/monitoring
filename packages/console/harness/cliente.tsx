@@ -16,7 +16,17 @@ const panel = {
   estadoArmado: 'desarmado' as const, ultimoMovimientoEn: h(0, '11:22'),
 };
 const respuestas: Record<string, unknown> = {
-  'cliente/resumen': { paneles: [panel] },
+  'cliente/resumen': { paneles: [panel], propietarioDe: [50] },
+  'cliente/usuarios': [
+    { id: 9, nombre: 'Gerardo García', email: 'gerald@example.com', activo: true, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: true, sitioId: null, sitioNombre: null, panelId: null },
+    { id: 12, nombre: 'Crisbelys Herrera', email: 'crisbelys@example.com', activo: true, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: false, sitioId: null, sitioNombre: null, panelId: null },
+    { id: 14, nombre: 'Luis Alberto García', email: 'luis@example.com', activo: false, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: false, sitioId: null, sitioNombre: null, panelId: null },
+  ],
+  'cliente/contactos': [
+    { id: 1, clienteId: 50, sitioId: 50, nombre: 'Enmanuel Chirinos', rol: 'Encargado', telefono: '04246009387', telefonoAlternativo: null, orden: 1, autorizadoCancelar: false },
+    { id: 2, clienteId: 50, sitioId: 50, nombre: 'Luis Alberto García', rol: 'Propietario', telefono: '04146835616', telefonoAlternativo: null, orden: 2, autorizadoCancelar: true },
+    { id: 3, clienteId: 50, sitioId: 50, nombre: 'Crisbelys Herrera', rol: 'Empleado', telefono: '04146780878', telefonoAlternativo: null, orden: 3, autorizadoCancelar: false },
+  ],
   'cliente/alarmas': [],
   'cliente/preferencias': { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: '22:00', silencioHasta: '07:00' },
   'paneles/50/zonas': [
@@ -51,4 +61,5 @@ setTimeout(() => {
   if (location.hash === '#avisos' || location.hash === '#prefs') [...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('Avisos'))?.click();
   if (location.hash === '#prefs') setTimeout(() => [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Qué recibir'))?.click(), 300);
   if (location.hash === '#panel') (document.querySelector('section[role=button]') as HTMLElement | null)?.click();
+  if (location.hash === '#cuenta') [...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('Cuenta'))?.click();
 }, 800);

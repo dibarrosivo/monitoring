@@ -16,6 +16,7 @@ import {
   eliminarContacto,
   eliminarSitio,
   impersonar,
+  asignarPropietario,
   iniciarImpersonacion,
   listarAccesos,
   listarAuditoria,
@@ -1203,6 +1204,10 @@ function UsuariosApp({ clienteId, sitios, paneles }: { clienteId: number; sitios
     onSuccess: refrescar,
   });
   const verComo = useMutation({ mutationFn: (id: number) => impersonar(id), onSuccess: iniciarImpersonacion });
+  const propietario = useMutation({
+    mutationFn: ({ id, propietario }: { id: number; propietario: boolean }) => asignarPropietario(id, { clienteId, propietario }),
+    onSuccess: refrescar,
+  });
 
   return (
     <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-3">
@@ -1213,7 +1218,19 @@ function UsuariosApp({ clienteId, sitios, paneles }: { clienteId: number; sitios
             <div className="flex gap-3 items-center flex-wrap">
               <span className="font-semibold">{u.nombre}</span>
               <span className="font-datos text-tenue">{u.email}</span>
+              {u.propietario && (
+                <span className="text-ok text-xs font-semibold uppercase" title="Administra desde la app a los demás usuarios y la lista de llamadas">
+                  Propietario
+                </span>
+              )}
               {!u.activo && <span className="text-prio2 text-xs">INACTIVO</span>}
+              <button
+                onClick={() => propietario.mutate({ id: u.id, propietario: !u.propietario })}
+                className={BOTON_MINI}
+                title="El propietario administra desde la app a los demás usuarios y la lista de llamadas"
+              >
+                {u.propietario ? 'Quitar propietario' : 'Hacer propietario'}
+              </button>
               {u.activo && (
                 <button onClick={() => verComo.mutate(u.id)} disabled={verComo.isPending} className={BOTON_MINI}>
                   Ver como este usuario

@@ -1,0 +1,1 @@
+ALTER TABLE "acceso" ADD COLUMN "propietario" boolean DEFAULT false NOT NULL;

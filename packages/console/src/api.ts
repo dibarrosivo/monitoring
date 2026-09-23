@@ -12,6 +12,7 @@ import type {
   Comando,
   ConfigHombreMuerto,
   Contacto,
+  ContactoApp,
   ContextoAlarma,
   DesenlaceAlarma,
   DiarioPuente,
@@ -36,6 +37,7 @@ import type {
   Tablero,
   Usuario,
   UsuarioAdmin,
+  UsuarioApp,
   UsuarioPanel,
   Zona,
 } from './tipos.js';
@@ -300,6 +302,19 @@ export const cambiarClave = (actual: string, nueva: string) =>
 
 // ---- Vista de clientes (rol 'cliente') ----
 export const verResumenCliente = () => pedir<ResumenCliente>('/cliente/resumen');
+export const verUsuariosCliente = () => pedir<UsuarioApp[]>('/cliente/usuarios');
+export const crearUsuarioCliente = (datos: { clienteId: number; nombre: string; email: string; clave: string; sitioId?: number }) =>
+  pedir<{ id: number }>('/cliente/usuarios', { method: 'POST', body: JSON.stringify(datos) });
+export const cambiarEstadoUsuarioCliente = (id: number, datos: { clienteId: number; activo: boolean }) =>
+  editar<{ id: number; activo: boolean }>(`/cliente/usuarios/${id}`, datos);
+export const verContactosCliente = () => pedir<ContactoApp[]>('/cliente/contactos');
+export const crearContactoCliente = (datos: Omit<ContactoApp, 'id' | 'autorizadoCancelar' | 'orden'> & { orden?: number }) =>
+  pedir<ContactoApp>('/cliente/contactos', { method: 'POST', body: JSON.stringify(datos) });
+export const editarContactoCliente = (id: number, datos: Partial<Omit<ContactoApp, 'id' | 'clienteId'>>) =>
+  editar<ContactoApp>(`/cliente/contactos/${id}`, datos);
+export const eliminarContactoCliente = (id: number) => eliminar(`/cliente/contactos/${id}`);
+export const asignarPropietario = (usuarioId: number, datos: { clienteId: number; propietario: boolean }) =>
+  editar<{ propietario: boolean }>(`/usuarios/${usuarioId}/propietario`, datos);
 export const verPreferenciasCliente = () => pedir<PreferenciasAviso>('/cliente/preferencias');
 export const guardarPreferenciasCliente = (datos: PreferenciasAviso) => editar<PreferenciasAviso>('/cliente/preferencias', datos);
 export const verZonasCliente = (panelId: number) => pedir<{ numero: string; descripcion: string | null }[]>(`/cliente/paneles/${panelId}/zonas`);

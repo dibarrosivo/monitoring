@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { acceso, cliente, db, hashearClave, panel, sitio, usuario } from '@monitoring/db';
 import type { App } from '../tipos.js';
@@ -52,9 +52,10 @@ export function registrarUsuarios(app: App) {
     if (clienteId) {
       // Usuarios con algún acceso sobre este cliente, con el alcance de cada acceso
       return db
-        .selectDistinctOn([usuario.id], COLUMNAS_PUBLICAS)
+        .selectDistinctOn([usuario.id], { ...COLUMNAS_PUBLICAS, propietario: acceso.propietario })
         .from(usuario)
-        .innerJoin(acceso, and(eq(acceso.usuarioId, usuario.id), eq(acceso.clienteId, Number(clienteId))));
+        .innerJoin(acceso, and(eq(acceso.usuarioId, usuario.id), eq(acceso.clienteId, Number(clienteId))))
+        .orderBy(usuario.id, desc(acceso.propietario));
     }
     return db.select(COLUMNAS_PUBLICAS).from(usuario).orderBy(usuario.nombre);
   });
@@ -169,6 +170,31 @@ export function registrarUsuarios(app: App) {
 
     const [fila] = await db.insert(acceso).values({ usuarioId, clienteId, sitioId, panelId }).returning();
     return reply.code(201).send(fila);
+  });
+
+  /**
+   * Propietario del cliente: quien administra desde la app a los demás
+   * usuarios y la lista de llamadas. Lo decide la central. Se marca sobre el
+   * acceso a todo el cliente; si el usuario no lo tiene, se le crea.
+   */
+  const esquemaPropietario = z.object({ clienteId: z.number().int(), propietario: z.boolean() });
+  app.put('/usuarios/:id/propietario', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const datos = esquemaPropietario.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    const [objetivo] = await db.select({ rol: usuario.rol }).from(usuario).where(eq(usuario.id, id)).limit(1);
+    if (!objetivo || objetivo.rol !== 'cliente') return reply.code(400).send({ error: 'Solo un usuario de la app puede ser propietario' });
+    const [total] = await db
+      .select({ id: acceso.id })
+      .from(acceso)
+      .where(and(eq(acceso.usuarioId, id), eq(acceso.clienteId, datos.data.clienteId), isNull(acceso.sitioId), isNull(acceso.panelId)))
+      .limit(1);
+    if (total) {
+      await db.update(acceso).set({ propietario: datos.data.propietario }).where(eq(acceso.id, total.id));
+    } else if (datos.data.propietario) {
+      await db.insert(acceso).values({ usuarioId: id, clienteId: datos.data.clienteId, propietario: true });
+    }
+    return { usuarioId: id, clienteId: datos.data.clienteId, propietario: datos.data.propietario };
   });
 
   app.delete('/accesos/:id', async (request, reply) => {

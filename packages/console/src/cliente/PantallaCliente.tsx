@@ -9,16 +9,18 @@ import { ActualizacionApp } from './ActualizacionApp.js';
 import { PanelHikvision } from './PanelHikvision.js';
 import { PanelGenerico } from './PanelGenerico.js';
 import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
+import { CuentaCliente } from './CuentaCliente.js';
 import { SelectorTema } from '../SelectorTema.js';
 import { nombreCuenta } from '../ui.js';
 
-type Pestana = 'inicio' | 'avisos' | 'eventos' | 'panico';
+type Pestana = 'inicio' | 'avisos' | 'eventos' | 'panico' | 'cuenta';
 
 const PESTANAS: { clave: Pestana; nombre: string; icono: string }[] = [
   { clave: 'inicio', nombre: 'Inicio', icono: '🏠' },
   { clave: 'avisos', nombre: 'Avisos', icono: '🔔' },
   { clave: 'eventos', nombre: 'Eventos', icono: '📋' },
   { clave: 'panico', nombre: 'Pánico', icono: '🆘' },
+  { clave: 'cuenta', nombre: 'Cuenta', icono: '👤' },
 ];
 
 /**
@@ -123,6 +125,9 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
         {pestana === 'avisos' && <HistorialAvisos paneles={resumen?.paneles} />}
         {pestana === 'eventos' && <EventosCliente />}
         {pestana === 'panico' && <PanicoCliente sitios={resumen?.paneles ?? []} />}
+        {pestana === 'cuenta' && (
+          <CuentaCliente usuario={usuario} paneles={resumen?.paneles ?? []} propietarioDe={resumen?.propietarioDe ?? []} alCambiarClave={() => setClaveVisible(true)} />
+        )}
       </main>
 
       {/* Barra inferior solo en el teléfono */}

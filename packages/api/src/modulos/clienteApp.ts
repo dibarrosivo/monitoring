@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { acceso, alarma, cliente, db, evento, panel, preferenciaAviso, sitio, zona } from '@monitoring/db';
+import { acceso, alarma, auditoria, cliente, contacto, db, evento, hashearClave, panel, preferenciaAviso, sitio, usuario, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
@@ -75,7 +75,205 @@ export function registrarClienteApp(app: App) {
       }),
     );
 
-    return { paneles: conEstado };
+    return { paneles: conEstado, propietarioDe: await clientesPropietario(request.user.id) };
+  });
+
+  // ---- Autogestión del propietario: usuarios de la app y lista de llamadas ----
+
+  /** Clientes de los que este usuario es propietario (acceso a todo el cliente marcado como tal). */
+  async function clientesPropietario(usuarioId: number): Promise<number[]> {
+    const filas = await db
+      .select({ clienteId: acceso.clienteId })
+      .from(acceso)
+      .where(and(eq(acceso.usuarioId, usuarioId), eq(acceso.propietario, true), isNull(acceso.sitioId), isNull(acceso.panelId)));
+    return [...new Set(filas.map((f) => f.clienteId))];
+  }
+
+  /** 403 si el usuario no es propietario de ese cliente. */
+  async function exigirPropietario(request: { user: { id: number } }, reply: { code: (n: number) => { send: (b: unknown) => unknown } }, clienteId: number) {
+    const propios = await clientesPropietario(request.user.id);
+    if (!propios.includes(clienteId)) {
+      reply.code(403).send({ error: 'Solo el propietario de la cuenta puede hacer esto' });
+      return false;
+    }
+    return true;
+  }
+
+  async function registrarAuditoria(usuarioId: number, entidad: string, entidadId: number | null, accion: 'crear' | 'editar' | 'eliminar', cambios: unknown) {
+    await db.insert(auditoria).values({ usuarioId, entidad, entidadId, accion, cambios: cambios as never });
+  }
+
+  /**
+   * Un cambio en la lista de llamadas hecho por el cliente le llega a la
+   * central como evento de sistema (sin alarma): queda en el diario y en el
+   * historial de la cuenta, para que un operador lo revise si quiere.
+   */
+  async function avisarCentralLlamadas(clienteId: number, quien: string, detalle: string) {
+    const [p] = await db
+      .select({ id: panel.id, numeroCuenta: panel.numeroCuenta })
+      .from(panel)
+      .innerJoin(sitio, eq(panel.sitioId, sitio.id))
+      .where(and(eq(sitio.clienteId, clienteId), eq(panel.activo, true)))
+      .orderBy(panel.id)
+      .limit(1);
+    await db.insert(evento).values({
+      panelId: p?.id,
+      numeroCuenta: p?.numeroCuenta,
+      categoria: 'sistema',
+      codigo: 'CLI-LLAM',
+      descripcion: `Lista de llamadas modificada desde la app por ${quien}: ${detalle}`,
+      prioridad: 4,
+      ocurridoEn: new Date(),
+    });
+  }
+
+  app.get('/cliente/usuarios', async (request) => {
+    const propios = await clientesPropietario(request.user.id);
+    if (propios.length === 0) return [];
+    return db
+      .select({
+        id: usuario.id,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        activo: usuario.activo,
+        clienteId: acceso.clienteId,
+        clienteNombre: cliente.nombre,
+        propietario: acceso.propietario,
+        sitioId: acceso.sitioId,
+        sitioNombre: sitio.nombre,
+        panelId: acceso.panelId,
+      })
+      .from(acceso)
+      .innerJoin(usuario, eq(acceso.usuarioId, usuario.id))
+      .innerJoin(cliente, eq(acceso.clienteId, cliente.id))
+      .leftJoin(sitio, eq(acceso.sitioId, sitio.id))
+      .where(and(inArray(acceso.clienteId, propios), eq(usuario.rol, 'cliente')))
+      .orderBy(desc(acceso.propietario), usuario.nombre);
+  });
+
+  const esquemaAltaUsuario = z.object({
+    clienteId: z.number().int(),
+    nombre: z.string().trim().min(2).max(80),
+    email: z.string().trim().toLowerCase().email(),
+    clave: z.string().min(6).max(100),
+    sitioId: z.number().int().optional(),
+  });
+  app.post('/cliente/usuarios', async (request, reply) => {
+    const datos = esquemaAltaUsuario.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    if (!(await exigirPropietario(request, reply, datos.data.clienteId))) return;
+    if (datos.data.sitioId) {
+      const [s] = await db.select({ id: sitio.id }).from(sitio).where(and(eq(sitio.id, datos.data.sitioId), eq(sitio.clienteId, datos.data.clienteId))).limit(1);
+      if (!s) return reply.code(400).send({ error: 'Ese sitio no es de su cuenta' });
+    }
+    // Si el correo ya tiene cuenta de la app, solo se le da acceso; nunca a personal de la central
+    const [existente] = await db.select({ id: usuario.id, rol: usuario.rol }).from(usuario).where(eq(usuario.email, datos.data.email)).limit(1);
+    let usuarioId: number;
+    if (existente) {
+      if (existente.rol !== 'cliente') return reply.code(409).send({ error: 'Ese correo no se puede usar' });
+      usuarioId = existente.id;
+    } else {
+      const [nuevo] = await db
+        .insert(usuario)
+        .values({ email: datos.data.email, nombre: datos.data.nombre, rol: 'cliente', hashClave: hashearClave(datos.data.clave) })
+        .returning({ id: usuario.id });
+      usuarioId = nuevo!.id;
+    }
+    const [ya] = await db
+      .select({ id: acceso.id })
+      .from(acceso)
+      .where(and(eq(acceso.usuarioId, usuarioId), eq(acceso.clienteId, datos.data.clienteId)))
+      .limit(1);
+    if (!ya) await db.insert(acceso).values({ usuarioId, clienteId: datos.data.clienteId, sitioId: datos.data.sitioId ?? null, propietario: false });
+    await registrarAuditoria(request.user.id, 'usuario', usuarioId, 'crear', { desdeApp: true, clienteId: datos.data.clienteId, email: datos.data.email, sitioId: datos.data.sitioId ?? null });
+    return reply.code(201).send({ id: usuarioId, nombre: datos.data.nombre, email: datos.data.email, activo: true });
+  });
+
+  const esquemaEstadoUsuario = z.object({ clienteId: z.number().int(), activo: z.boolean() });
+  app.put('/cliente/usuarios/:id', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const datos = esquemaEstadoUsuario.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    if (!(await exigirPropietario(request, reply, datos.data.clienteId))) return;
+    if (id === request.user.id) return reply.code(400).send({ error: 'No puede desactivar su propio usuario' });
+    const [vinculo] = await db
+      .select({ propietario: acceso.propietario, rol: usuario.rol })
+      .from(acceso)
+      .innerJoin(usuario, eq(acceso.usuarioId, usuario.id))
+      .where(and(eq(acceso.usuarioId, id), eq(acceso.clienteId, datos.data.clienteId)))
+      .limit(1);
+    if (!vinculo || vinculo.rol !== 'cliente') return reply.code(404).send({ error: 'Usuario no encontrado en su cuenta' });
+    if (vinculo.propietario) return reply.code(400).send({ error: 'A un propietario solo lo cambia la central' });
+    await db.update(usuario).set({ activo: datos.data.activo }).where(eq(usuario.id, id));
+    await registrarAuditoria(request.user.id, 'usuario', id, 'editar', { desdeApp: true, activo: datos.data.activo });
+    return { id, activo: datos.data.activo };
+  });
+
+  app.get('/cliente/contactos', async (request) => {
+    const propios = await clientesPropietario(request.user.id);
+    if (propios.length === 0) return [];
+    return db
+      .select({
+        id: contacto.id,
+        clienteId: contacto.clienteId,
+        sitioId: contacto.sitioId,
+        nombre: contacto.nombre,
+        rol: contacto.rol,
+        telefono: contacto.telefono,
+        telefonoAlternativo: contacto.telefonoAlternativo,
+        orden: contacto.orden,
+        autorizadoCancelar: contacto.autorizadoCancelar,
+      })
+      .from(contacto)
+      .where(inArray(contacto.clienteId, propios))
+      .orderBy(contacto.clienteId, contacto.orden, contacto.id);
+  });
+
+  const esquemaContactoApp = z.object({
+    clienteId: z.number().int(),
+    sitioId: z.number().int().nullable().optional(),
+    nombre: z.string().trim().min(2).max(80),
+    rol: z.string().trim().max(40).nullable().optional(),
+    telefono: z.string().trim().min(6).max(30),
+    telefonoAlternativo: z.string().trim().max(30).nullable().optional(),
+    orden: z.number().int().min(1).max(99).optional(),
+  });
+  app.post('/cliente/contactos', async (request, reply) => {
+    const datos = esquemaContactoApp.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    if (!(await exigirPropietario(request, reply, datos.data.clienteId))) return;
+    const [fila] = await db
+      .insert(contacto)
+      .values({ ...datos.data, sitioId: datos.data.sitioId ?? null, rol: datos.data.rol ?? null, telefonoAlternativo: datos.data.telefonoAlternativo ?? null, orden: datos.data.orden ?? 1 })
+      .returning();
+    await registrarAuditoria(request.user.id, 'contacto', fila!.id, 'crear', { desdeApp: true, ...datos.data });
+    await avisarCentralLlamadas(datos.data.clienteId, request.user.email, `agregó a ${datos.data.nombre} (${datos.data.telefono})`);
+    return reply.code(201).send(fila);
+  });
+
+  app.put('/cliente/contactos/:id', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const datos = esquemaContactoApp.partial().safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    const [actual] = await db.select().from(contacto).where(eq(contacto.id, id)).limit(1);
+    if (!actual) return reply.code(404).send({ error: 'Contacto no encontrado' });
+    if (!(await exigirPropietario(request, reply, actual.clienteId))) return;
+    const { clienteId: _c, ...cambios } = datos.data;
+    const [fila] = await db.update(contacto).set(cambios).where(eq(contacto.id, id)).returning();
+    await registrarAuditoria(request.user.id, 'contacto', id, 'editar', { desdeApp: true, antes: actual, despues: cambios });
+    await avisarCentralLlamadas(actual.clienteId, request.user.email, `cambió a ${actual.nombre}${cambios.telefono && cambios.telefono !== actual.telefono ? ` (teléfono ${actual.telefono} → ${cambios.telefono})` : ''}`);
+    return fila;
+  });
+
+  app.delete('/cliente/contactos/:id', async (request, reply) => {
+    const id = Number((request.params as { id: string }).id);
+    const [actual] = await db.select().from(contacto).where(eq(contacto.id, id)).limit(1);
+    if (!actual) return reply.code(404).send({ error: 'Contacto no encontrado' });
+    if (!(await exigirPropietario(request, reply, actual.clienteId))) return;
+    await db.delete(contacto).where(eq(contacto.id, id));
+    await registrarAuditoria(request.user.id, 'contacto', id, 'eliminar', { desdeApp: true, ...actual });
+    await avisarCentralLlamadas(actual.clienteId, request.user.email, `quitó a ${actual.nombre} (${actual.telefono})`);
+    return { eliminado: true };
   });
 
   /** Zonas del panel con su descripción, para la pantalla del panel en la app. */
