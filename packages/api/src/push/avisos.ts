@@ -64,27 +64,37 @@ export function mensajeParaEvento(carga: CargaEvento, nombrarSitio: boolean): (M
     case 'alarma': {
       const cid = /^[ER](\d{3})$/.exec(carga.codigo ?? '')?.[1] ?? '';
       if (EMERGENCIAS[cid] || carga.prioridad <= 1) {
-        return { titulo: 'EMERGENCIA', cuerpo: `${EMERGENCIAS[cid] ?? sinPrefijo(carga.descripcion)}${lugar}`, canal: 'alarmas', datos, grupo: null };
+        const que = `${EMERGENCIAS[cid] ?? sinPrefijo(carga.descripcion)}${lugar}`;
+        return { titulo: 'EMERGENCIA', cuerpo: que, habla: `Emergencia: ${que}`, canal: 'alarmas', datos, grupo: null };
       }
-      return { titulo: 'ALARMA', cuerpo: `Alarma${zona}${lugar}${zona ? '' : `: ${sinPrefijo(carga.descripcion)}`}`, canal: 'alarmas', datos, grupo: null };
+      const que = `Alarma${zona}${lugar}${zona ? '' : `: ${sinPrefijo(carga.descripcion)}`}`;
+      return { titulo: 'ALARMA', cuerpo: que, habla: que, canal: 'alarmas', datos, grupo: null };
     }
     case 'cierre': {
       const quien = persona(carga.descripcion);
-      return { titulo: 'Sistema armado', cuerpo: `${carga.codigo === 'R441' ? 'Armado en casa' : 'Armado'}${lugar}${quien ? ` por ${quien}` : ''}`, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
+      const que = `${carga.codigo === 'R441' ? 'Sistema armado en casa' : 'Sistema armado'}${lugar}${quien ? ` por ${quien}` : ''}`;
+      return { titulo: 'Sistema armado', cuerpo: que.replace(/^Sistema armado( en casa)?/, (m) => m.replace('Sistema a', 'A')), habla: que, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
     }
     case 'apertura': {
       const quien = persona(carga.descripcion);
-      return { titulo: 'Sistema desarmado', cuerpo: `Desarmado${lugar}${quien ? ` por ${quien}` : ''}`, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
+      const que = `Sistema desarmado${lugar}${quien ? ` por ${quien}` : ''}`;
+      return { titulo: 'Sistema desarmado', cuerpo: que.replace(/^Sistema d/, 'D'), habla: que, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
     }
     case 'cancelacion':
-      return { titulo: 'Alarma cancelada', cuerpo: `Alarma cancelada${lugar}`, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
-    case 'restauracion':
-      return { titulo: 'Restablecido', cuerpo: `${sinPrefijo(carga.descripcion)}${zona}${lugar}`, canal: 'avisos', datos, grupo: 'averias' };
+      return { titulo: 'Alarma cancelada', cuerpo: `Alarma cancelada${lugar}`, habla: `Alarma cancelada${lugar}`, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
+    case 'restauracion': {
+      const que = `${sinPrefijo(carga.descripcion)}${zona}${lugar}`;
+      return { titulo: 'Restablecido', cuerpo: que, habla: `Restablecido: ${que}`, canal: 'avisos', datos, grupo: 'averias' };
+    }
     case 'averia':
-    case 'anulacion':
-      return { titulo: 'Aviso', cuerpo: `${carga.descripcion}${zona}${lugar}`, canal: 'avisos', datos, grupo: 'averias' };
-    default:
-      return { titulo: 'Aviso de la central', cuerpo: `${carga.descripcion}${lugar}`, canal: carga.prioridad <= 1 ? 'alarmas' : 'avisos', datos, grupo: carga.prioridad <= 1 ? null : 'sistema' };
+    case 'anulacion': {
+      const que = `${carga.descripcion}${zona}${lugar}`;
+      return { titulo: 'Aviso', cuerpo: que, habla: `Aviso: ${que}`, canal: 'avisos', datos, grupo: 'averias' };
+    }
+    default: {
+      const que = `${carga.descripcion}${lugar}`;
+      return { titulo: 'Aviso de la central', cuerpo: que, habla: `Aviso de la central: ${que}`, canal: carga.prioridad <= 1 ? 'alarmas' : 'avisos', datos, grupo: carga.prioridad <= 1 ? null : 'sistema' };
+    }
   }
 }
 

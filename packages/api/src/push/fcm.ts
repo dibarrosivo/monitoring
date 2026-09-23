@@ -63,6 +63,8 @@ async function obtenerTokenAcceso(): Promise<string> {
 export interface MensajePush {
   titulo: string;
   cuerpo: string;
+  /** Lo que el teléfono dice en voz alta (motor de voz de Android) con la app cerrada */
+  habla?: string;
   /** 'alarmas' suena fuerte y pasa el modo silencio; 'avisos' es una notificación normal */
   canal: 'alarmas' | 'avisos';
   datos?: Record<string, string>;
@@ -78,20 +80,15 @@ export async function enviarPush(token: string, mensaje: MensajePush): Promise<R
   const respuesta = await fetch(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, {
     method: 'POST',
     headers: { authorization: `Bearer ${acceso}`, 'content-type': 'application/json' },
+    // Solo datos, sin bloque "notification": así Android entrega el mensaje al
+    // servicio nativo de la app aunque esté cerrada, y es la app la que arma la
+    // notificación y la dice en voz alta. Con "notification" el sistema la
+    // mostraría solo, muda y sin contexto.
     body: JSON.stringify({
       message: {
         token,
-        notification: { title: mensaje.titulo, body: mensaje.cuerpo },
-        data: mensaje.datos ?? {},
-        android: {
-          priority: 'high',
-          notification: {
-            channel_id: mensaje.canal === 'alarmas' ? 'alarmas-v2' : 'avisos-v2',
-            sound: mensaje.canal === 'alarmas' ? 'sirena.wav' : 'default',
-            default_vibrate_timings: true,
-            notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
-          },
-        },
+        data: { ...(mensaje.datos ?? {}), titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, habla: mensaje.habla ?? mensaje.cuerpo, canal: mensaje.canal },
+        android: { priority: 'high', ttl: '3600s' },
       },
     }),
   });

@@ -6,6 +6,7 @@ import { useTiempoReal } from '../tiempoReal.js';
 import type { MensajeTiempoReal } from '../tipos.js';
 import { fraseParaEvento, type Frase, type Tono } from './frases.js';
 import { guardarVoz, hablar, prepararVoz, vozActiva, vozDisponible } from './voz.js';
+import { esNativo } from '../api.js';
 
 /**
  * El operador dentro de la app: escucha el canal en tiempo real y, ante cada
@@ -72,11 +73,13 @@ export function useAvisosCliente(opciones: { nombrarSitio: boolean }): {
       setAvisos((lista) => [aviso, ...lista.filter((a) => a.id !== aviso.id)].slice(0, 5));
       if (!frase.persistente) setTimeout(() => descartar(aviso.id), DURACION_MS);
 
-      if (vozRef.current) hablar(frase.texto, { urgente: frase.tono === 'emergencia' });
+      // En la app instalada y en segundo plano, Android ya lo dice y lo muestra (push nativo): acá no se duplica
+      const nativoEnFondo = esNativo() && document.visibilityState !== 'visible';
+      if (vozRef.current && !nativoEnFondo) hablar(frase.texto, { urgente: frase.tono === 'emergencia' });
       if (frase.tono === 'emergencia' || frase.tono === 'alarma') {
         if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
       }
-      notificarSistema(frase);
+      if (!nativoEnFondo) notificarSistema(frase);
     },
     [clienteConsultas, descartar],
   );
