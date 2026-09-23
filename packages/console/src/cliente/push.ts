@@ -72,16 +72,19 @@ function conTope<T>(nombre: string, promesa: Promise<T>): Promise<T> {
   });
 }
 
-/** El plugin viene en el paquete principal: la carga diferida no terminaba en algunos WebView. */
-async function plugin(): Promise<Plugin | null> {
+/**
+ * El plugin viene en el paquete principal. OJO: nunca devolver el objeto del
+ * plugin desde una función async ni pasarlo por un await: al resolver la
+ * promesa, JavaScript le pregunta si tiene `.then`, y el puente de Capacitor
+ * lo toma como una llamada nativa que no existe ("then() is not implemented").
+ */
+function plugin(): Plugin | null {
   if (!esNativo()) return null;
-  try {
-    if (!PushNotifications) throw new Error('módulo vacío');
-    return PushNotifications;
-  } catch (e) {
-    anotar('sin-plugin', e instanceof Error ? e.message : String(e));
+  if (!PushNotifications) {
+    anotar('sin-plugin', 'módulo vacío');
     return null;
   }
+  return PushNotifications;
 }
 
 export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
@@ -91,13 +94,7 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
     return;
   }
   anotar('iniciando');
-  let push: Plugin | null = null;
-  try {
-    push = await plugin();
-  } catch (e) {
-    anotar('error', `plugin(): ${e instanceof Error ? e.message : String(e)}`);
-    return;
-  }
+  const push = plugin();
   if (!push) return;
   iniciado = true;
   anotar('plugin-cargado');
