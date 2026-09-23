@@ -46,6 +46,10 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://monitoring:${POSTGRES_PASSWORD}@postgres:5432/monitoring
+      # Clave de servicio de Firebase para los avisos push; sin el archivo, el push queda apagado
+      FIREBASE_CREDENCIALES: /run/secrets/firebase.json
+    volumes:
+      - ./secretos:/run/secrets:ro
     depends_on:
       migraciones:
         condition: service_completed_successfully

@@ -13,3 +13,6 @@ packages/pima-bridge/empaquetado/.cache/
 osm/
 # APK publicado de la app Android (solo en el servidor)
 /app/
+# Claves de servicio (Firebase) y configuración de la app: solo en el servidor y en la máquina de compilación
+secretos/
+packages/console/android/app/google-services.json

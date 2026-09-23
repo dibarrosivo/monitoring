@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cerrarSesion, salirImpersonacion, verAlarmasCliente, verEventosCliente, verResumenCliente } from '../api.js';
 import type { AlarmaCliente, PanelResumenCliente, Usuario } from '../tipos.js';
@@ -10,6 +10,7 @@ import { PanelHikvision } from './PanelHikvision.js';
 import { PanelGenerico } from './PanelGenerico.js';
 import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
 import { CuentaCliente } from './CuentaCliente.js';
+import { detenerPush, iniciarPush } from './push.js';
 import { SelectorTema } from '../SelectorTema.js';
 import { nombreCuenta } from '../ui.js';
 
@@ -37,6 +38,11 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
   const sitios = new Set((resumen?.paneles ?? []).map((p) => p.sitioId)).size;
   const avisos = useAvisosCliente({ nombrarSitio: sitios > 1 });
   const noLeidos = useNoLeidos(resumen?.paneles, pestana === 'avisos');
+  // En la app instalada, el teléfono se registra para recibir avisos con la app cerrada
+  useEffect(() => {
+    if (!impersonado) void iniciarPush(() => setPestana('avisos'));
+  }, [impersonado]);
+  const salir = () => void detenerPush().finally(cerrarSesion);
   // Cada panel abre su propia pantalla: la Hikvision con control, las demás solo estado
   const [panelAbierto, setPanelAbierto] = useState<number | null>(null);
   const panelElegido = resumen?.paneles.find((p) => p.id === panelAbierto);
@@ -104,7 +110,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
             <button onClick={() => setClaveVisible(true)} className="hidden md:block text-tenue hover:text-texto text-sm">
               Cambiar clave
             </button>
-            <button onClick={cerrarSesion} className="text-tenue hover:text-prio1 text-sm">
+            <button onClick={salir} className="text-tenue hover:text-prio1 text-sm">
               Salir
             </button>
           </>

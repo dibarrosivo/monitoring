@@ -540,3 +540,23 @@ export const preferenciaAviso = pgTable('preferencia_aviso', {
   silencioHasta: time('silencio_hasta'),
   actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Teléfonos registrados para avisos push (Firebase Cloud Messaging). Un
+ * usuario puede tener varios; el token lo da el teléfono al iniciar sesión y
+ * se borra al cerrarla o cuando Firebase dice que ya no existe.
+ */
+export const dispositivoPush = pgTable(
+  'dispositivo_push',
+  {
+    id: serial('id').primaryKey(),
+    usuarioId: integer('id_usuario')
+      .notNull()
+      .references(() => usuario.id),
+    token: text('token').notNull().unique(),
+    plataforma: varchar('plataforma', { length: 16 }).notNull().default('android'),
+    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+    ultimoUsoEn: timestamp('ultimo_uso_en', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('dispositivo_push_usuario').on(t.usuarioId)],
+);

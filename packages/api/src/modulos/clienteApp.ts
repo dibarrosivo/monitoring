@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { acceso, alarma, auditoria, cliente, contacto, db, evento, hashearClave, panel, preferenciaAviso, sitio, usuario, zona } from '@monitoring/db';
+import { acceso, alarma, auditoria, cliente, contacto, db, dispositivoPush, evento, hashearClave, panel, preferenciaAviso, sitio, usuario, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
@@ -381,6 +381,24 @@ export function registrarClienteApp(app: App) {
       .returning();
     const { usuarioId: _u, actualizadoEn: _a, ...resto } = fila!;
     return resto;
+  });
+
+  /** El teléfono registra su token de push al iniciar sesión y lo borra al cerrarla. */
+  const esquemaDispositivo = z.object({ token: z.string().min(20).max(4096), plataforma: z.enum(['android', 'ios', 'web']).default('android') });
+  app.post('/cliente/dispositivos', async (request, reply) => {
+    const datos = esquemaDispositivo.safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: datos.error.issues });
+    await db
+      .insert(dispositivoPush)
+      .values({ usuarioId: request.user.id, token: datos.data.token, plataforma: datos.data.plataforma })
+      .onConflictDoUpdate({ target: dispositivoPush.token, set: { usuarioId: request.user.id, ultimoUsoEn: new Date() } });
+    return reply.code(201).send({ registrado: true });
+  });
+  app.delete('/cliente/dispositivos', async (request, reply) => {
+    const datos = z.object({ token: z.string().min(1) }).safeParse(request.body);
+    if (!datos.success) return reply.code(400).send({ error: 'token requerido' });
+    await db.delete(dispositivoPush).where(and(eq(dispositivoPush.token, datos.data.token), eq(dispositivoPush.usuarioId, request.user.id)));
+    return { eliminado: true };
   });
 
   const esquemaPanico = z.object({ sitioId: z.number().int() });

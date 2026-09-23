@@ -103,7 +103,7 @@ export function salirImpersonacion(): void {
   window.location.reload();
 }
 
-async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
+export async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
   // Durante una impersonación, todos los pedidos van con el token del cliente
   const tokenImp = localStorage.getItem(CLAVE_IMP_TOKEN);
   const token = tokenImp ?? tokenGuardado();
