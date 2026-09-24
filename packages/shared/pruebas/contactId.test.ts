@@ -46,3 +46,15 @@ describe('interpretarCid', () => {
     expect(e.descripcion).toContain('199');
   });
 });
+
+describe('textos de fallas y restauraciones', () => {
+  it('la electricidad se llama electricidad, no "red", y la restauración se dice en lenguaje natural', () => {
+    const falla = interpretarCid({ numeroCuenta: '7037', calificador: 1, codigoCid: '301', particion: '01', zona: '000' });
+    const vuelve = interpretarCid({ numeroCuenta: '7037', calificador: 3, codigoCid: '301', particion: '01', zona: '000' });
+    expect(falla.descripcion).toBe('Falla de electricidad (sin corriente)');
+    expect(vuelve.descripcion).toBe('Restauración de electricidad');
+    // Sin frase propia, queda el prefijo genérico
+    const robo = interpretarCid({ numeroCuenta: '7037', calificador: 3, codigoCid: '130', particion: '01', zona: '003' });
+    expect(robo.descripcion).toBe('Restauración: Robo');
+  });
+});

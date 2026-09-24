@@ -90,8 +90,9 @@ export function mensajeParaEvento(carga: CargaEvento, nombrarSitio: boolean): (M
     case 'cancelacion':
       return { titulo: 'Alarma cancelada', cuerpo: `Alarma cancelada${lugar}`, habla: `Alarma cancelada${lugar}`, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
     case 'restauracion': {
-      const que = `${sinPrefijo(carga.descripcion)}${zona}${lugar}`;
-      return { titulo: 'Restablecido', cuerpo: que, habla: `Restablecido: ${que}`, canal: 'avisos', datos, grupo: 'averias' };
+      const natural = !/^[^:]{1,30}:\s/.test(carga.descripcion);
+      const que = natural ? `${carga.descripcion}${zona}${lugar}` : `Restablecido: ${sinPrefijo(carga.descripcion)}${zona}${lugar}`;
+      return { titulo: natural ? carga.descripcion : 'Restablecido', cuerpo: que, habla: que, canal: 'avisos', datos, grupo: 'averias' };
     }
     case 'averia':
     case 'anulacion': {

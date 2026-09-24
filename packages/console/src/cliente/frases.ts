@@ -104,8 +104,15 @@ export function fraseParaEvento(carga: Carga, opciones: { nombrarSitio: boolean 
     }
     case 'cancelacion':
       return { texto: `Alarma cancelada${lugar}`, tono: 'bien', persistente: false };
-    case 'restauracion':
-      return { texto: `Restablecido${lugar}: ${sinPrefijo(carga.descripcion)}${zonaHablada(carga)}`, tono: 'bien', persistente: false };
+    case 'restauracion': {
+      // "Restauración de electricidad en Gerald's Café"; con prefijo genérico ("Restauración: Robo") se dice como restablecido
+      const natural = !/^[^:]{1,30}:\s/.test(carga.descripcion);
+      return {
+        texto: natural ? `${carga.descripcion}${zonaHablada(carga)}${lugar}` : `Restablecido${lugar}: ${sinPrefijo(carga.descripcion)}${zonaHablada(carga)}`,
+        tono: 'bien',
+        persistente: false,
+      };
+    }
     case 'averia':
       return { texto: `Aviso${lugar}: ${carga.descripcion}${zonaHablada(carga)}`, tono: 'aviso', persistente: false };
     case 'anulacion':

@@ -4,6 +4,8 @@ type TipoCodigo = 'alarma' | 'averia' | 'apertura_cierre' | 'anulacion' | 'prueb
 
 interface DefinicionCodigo {
   descripcion: string;
+  /** Frase natural de la restauración ("Volvió la electricidad"); sin ella, "Restablecido: <descripción>" */
+  restauracion?: string;
   tipo: TipoCodigo;
   /** Prioridad del evento nuevo (calificador 1). Si falta, se usa la del tipo. */
   prioridad?: number;
@@ -57,25 +59,25 @@ export const TABLA_CID: Record<string, DefinicionCodigo> = {
   '162': { descripcion: 'Monóxido de carbono', tipo: 'alarma', prioridad: 1 },
 
   '300': { descripcion: 'Avería de sistema', tipo: 'averia' },
-  '301': { descripcion: 'Falla de red eléctrica', tipo: 'averia' },
-  '302': { descripcion: 'Batería baja', tipo: 'averia' },
+  '301': { descripcion: 'Falla de electricidad (sin corriente)', restauracion: 'Restauración de electricidad', tipo: 'averia' },
+  '302': { descripcion: 'Batería baja del panel', restauracion: 'Restauración de batería del panel', tipo: 'averia' },
   '305': { descripcion: 'Reinicio del sistema', tipo: 'averia' },
   '306': { descripcion: 'Cambio de programación', tipo: 'averia' },
-  '311': { descripcion: 'Batería ausente', tipo: 'averia' },
-  '321': { descripcion: 'Avería de sirena', tipo: 'averia' },
+  '311': { descripcion: 'Batería ausente o desconectada', restauracion: 'Restauración de batería (reconectada)', tipo: 'averia' },
+  '321': { descripcion: 'Falla de sirena', restauracion: 'Restauración de sirena', tipo: 'averia' },
   '330': { descripcion: 'Avería de periférico', tipo: 'averia' },
   '333': { descripcion: 'Falla de módulo de expansión', tipo: 'averia' },
-  '344': { descripcion: 'Interferencia RF (jamming)', tipo: 'averia' },
-  '350': { descripcion: 'Avería de comunicación', tipo: 'averia' },
-  '351': { descripcion: 'Falla línea telefónica 1', tipo: 'averia' },
-  '354': { descripcion: 'Falla al comunicar evento', tipo: 'averia' },
+  '344': { descripcion: 'Interferencia de radio (jamming)', restauracion: 'Restauración tras interferencia de radio', tipo: 'averia' },
+  '350': { descripcion: 'Falla de comunicación con la central', restauracion: 'Restauración de comunicación con la central', tipo: 'averia' },
+  '351': { descripcion: 'Falla de línea telefónica', restauracion: 'Restauración de línea telefónica', tipo: 'averia' },
+  '354': { descripcion: 'No pudo comunicar un evento a la central', restauracion: 'Restauración de comunicación de eventos', tipo: 'averia' },
   '370': { descripcion: 'Avería de zona de protección', tipo: 'averia' },
   '373': { descripcion: 'Avería de detector de incendio', tipo: 'averia' },
   '374': { descripcion: 'Error de salida (armado con zona abierta)', tipo: 'averia' },
   '380': { descripcion: 'Avería de sensor', tipo: 'averia' },
-  '381': { descripcion: 'Pérdida de supervisión RF', tipo: 'averia' },
+  '381': { descripcion: 'Sensor inalámbrico sin supervisión', restauracion: 'Restauración de supervisión del sensor inalámbrico', tipo: 'averia' },
   '383': { descripcion: 'Sabotaje de sensor', tipo: 'averia' },
-  '384': { descripcion: 'Batería baja de sensor RF', tipo: 'averia' },
+  '384': { descripcion: 'Batería baja de sensor inalámbrico', restauracion: 'Restauración de batería del sensor inalámbrico', tipo: 'averia' },
 
   '400': { descripcion: 'Apertura/Cierre', tipo: 'apertura_cierre' },
   '401': { descripcion: 'Apertura/Cierre por usuario', tipo: 'apertura_cierre' },
@@ -139,7 +141,8 @@ export function interpretarCid(entrada: {
   const base = def?.descripcion ?? `Código CID ${entrada.codigoCid}`;
 
   let descripcion = base;
-  if (categoria === 'restauracion') descripcion = `Restauración: ${base}`;
+  // La restauración se dice como la diría una persona: "Restauración de electricidad"
+  if (categoria === 'restauracion') descripcion = def?.restauracion ?? `Restauración: ${base}`;
   else if (categoria === 'apertura') descripcion = `Apertura (desarmado): ${base}`;
   else if (categoria === 'cierre') descripcion = `Cierre (armado): ${base}`;
   if (entrada.calificador === 6) descripcion += ' (evento previo aún activo)';
