@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { verEventosCliente, verZonasCliente } from '../api.js';
 import type { AlarmaCliente, PanelResumenCliente } from '../tipos.js';
-import { nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
+import { COLOR_TIPO_CLARO, nombreCuenta, NOMBRE_TIPO_PANEL, tipoDe } from '../ui.js';
 
 /**
  * La pantalla del panel para equipos que no se controlan desde la app
@@ -110,13 +110,14 @@ export function PanelGenerico({ panel, alarmas, alVolver }: { panel: PanelResume
                 <span className="text-xs whitespace-nowrap pt-0.5 tabular-nums" style={{ color: '#6B7280' }}>
                   {horaCorta(ev.ocurridoEn)}
                 </span>
+                <span className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: COLOR_TIPO_CLARO[tipoDe(ev)] }} aria-hidden />
                 <span className="flex-1 min-w-0">
-                  <span className="block" style={{ color: ev.categoria === 'alarma' ? '#D93025' : '#15212E' }}>
+                  <span className="block" style={{ color: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? COLOR_TIPO_CLARO[tipoDe(ev)] : '#15212E', fontWeight: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? 600 : 400 }}>
                     {ev.descripcion}
                   </span>
                   {ev.zona && (
                     <span className="block text-xs" style={{ color: '#6B7280' }}>
-                      zona {ev.zona}
+                      {['apertura', 'cierre', 'cancelacion'].includes(ev.categoria) ? 'usuario' : 'zona'} {Number(ev.zona) || ev.zona}
                       {ev.zonaDescripcion && ` · ${ev.zonaDescripcion}`}
                     </span>
                   )}

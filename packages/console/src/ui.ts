@@ -134,3 +134,29 @@ export function resumenAviso(a: { resultado: string; recibidoEn: string | null; 
       return { texto: 'no entregado', clase: 'text-prio1' };
   }
 }
+
+/** Colores por tipo para superficies siempre claras (pantallas del panel en la app). */
+export const COLOR_TIPO_CLARO: Record<TipoSenal, string> = {
+  emergencia: '#d7372b',
+  robo: '#d95f1a',
+  averia: '#a8780f',
+  horario: '#7b47d1',
+  apertura_cierre: '#1a8f6f',
+  restauracion: '#1e6ef0',
+  anulacion: '#3d7f93',
+  prueba: '#b0308f',
+  sistema: '#5d6f84',
+};
+
+/** Variable CSS del color de cada tipo (sigue el tema claro/oscuro), para estilos en línea. */
+export const VAR_TIPO: Record<TipoSenal, string> = {
+  emergencia: 'var(--color-tipo-emergencia)',
+  robo: 'var(--color-tipo-robo)',
+  averia: 'var(--color-tipo-averia)',
+  horario: 'var(--color-tipo-horario)',
+  apertura_cierre: 'var(--color-tipo-apertura)',
+  restauracion: 'var(--color-tipo-restauracion)',
+  anulacion: 'var(--color-tipo-anulacion)',
+  prueba: 'var(--color-tipo-prueba)',
+  sistema: 'var(--color-tipo-sistema)',
+};

@@ -12,7 +12,7 @@ import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
 import { CuentaCliente } from './CuentaCliente.js';
 import { detenerPush, iniciarPush } from './push.js';
 import { SelectorTema } from '../SelectorTema.js';
-import { nombreCuenta } from '../ui.js';
+import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_SENAL, tipoDe, VAR_TIPO } from '../ui.js';
 
 type Pestana = 'inicio' | 'avisos' | 'eventos' | 'panico' | 'cuenta';
 
@@ -258,27 +258,6 @@ function TarjetaSitio({ panel, alarmas, alAbrir }: { panel: PanelResumenCliente;
   );
 }
 
-const COLOR_CATEGORIA: Record<string, string> = {
-  alarma: 'text-prio1',
-  sistema: 'text-prio2',
-  averia: 'text-prio2',
-  apertura: 'text-acento',
-  cierre: 'text-ok',
-  restauracion: 'text-ok',
-};
-
-const NOMBRE_CAT: Record<string, string> = {
-  alarma: 'Alarma',
-  restauracion: 'Restauración',
-  apertura: 'Apertura',
-  cierre: 'Cierre',
-  averia: 'Avería',
-  anulacion: 'Anulación',
-  cancelacion: 'Cancelación',
-  sistema: 'Aviso',
-  desconocido: 'Evento',
-};
-
 function EventosCliente() {
   const { data: eventos, isLoading } = useQuery({
     queryKey: ['eventos-cli'],
@@ -292,11 +271,10 @@ function EventosCliente() {
   return (
     <ul className="flex flex-col gap-2 max-w-2xl">
       {(eventos ?? []).map((evento) => (
-        <li key={evento.id} className="bg-superficie border border-borde rounded p-3">
+        <li key={evento.id} className="bg-superficie border border-borde rounded p-3 border-l-4" style={{ borderLeftColor: VAR_TIPO[tipoDe(evento)] }}>
           <div className="flex items-center gap-2 text-sm">
-            <span className={`font-semibold ${COLOR_CATEGORIA[evento.categoria] ?? 'text-tenue'}`}>
-              {NOMBRE_CAT[evento.categoria] ?? evento.categoria}
-            </span>
+            <span className={`font-semibold ${CLASES_TIPO[tipoDe(evento)].texto}`}>{NOMBRE_TIPO_SENAL[tipoDe(evento)]}</span>
+            <span className={`font-datos text-xs ${CLASES_TIPO[tipoDe(evento)].texto}`}>{evento.codigo}</span>
             <span className="text-tenue ml-auto font-datos text-xs">
               {new Date(evento.ocurridoEn).toLocaleString('es', {
                 day: '2-digit',
@@ -309,7 +287,7 @@ function EventosCliente() {
           <p className="text-sm mt-0.5">{evento.descripcion}</p>
           {evento.zona && (
             <p className="font-datos text-xs text-tenue mt-0.5">
-              zona {evento.zona}
+              {['apertura', 'cierre', 'cancelacion'].includes(evento.categoria) ? 'usuario' : 'zona'} {Number(evento.zona) || evento.zona}
               {evento.zonaDescripcion && ` - ${evento.zonaDescripcion}`}
             </p>
           )}

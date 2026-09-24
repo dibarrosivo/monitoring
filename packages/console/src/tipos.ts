@@ -435,6 +435,8 @@ export interface EventoCliente {
   categoria: CategoriaEvento;
   codigo: string;
   descripcion: string;
+  prioridad?: number;
+  tipo?: TipoSenal;
   zona: string | null;
   zonaDescripcion: string | null;
   ocurridoEn: string;

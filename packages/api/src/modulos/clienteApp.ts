@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { acceso, alarma, auditoria, cliente, contacto, db, dispositivoPush, evento, hashearClave, panel, preferenciaAviso, sitio, usuario, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
+import { tipoSenal } from '@monitoring/shared';
 
 /**
  * API de la app de clientes. El alcance sale de la tabla `acceso` en CADA
@@ -291,13 +292,14 @@ export function registrarClienteApp(app: App) {
     // Filtro por equipo, siempre dentro de los que el usuario alcanza
     if (panelId) paneles = paneles.filter((p) => p.id === Number(panelId));
     if (paneles.length === 0) return [];
-    return db
+    const filas = await db
       .select({
         id: evento.id,
         panelId: evento.panelId,
         categoria: evento.categoria,
         codigo: evento.codigo,
         descripcion: evento.descripcion,
+        prioridad: evento.prioridad,
         zona: evento.zona,
         ocurridoEn: evento.ocurridoEn,
         zonaDescripcion: zona.descripcion,
@@ -318,6 +320,8 @@ export function registrarClienteApp(app: App) {
       )
       .orderBy(desc(evento.ocurridoEn))
       .limit(max);
+    // El tipo (color) se deriva del evento, igual que en la consola
+    return filas.map((f) => ({ ...f, tipo: tipoSenal(f) }));
   });
 
   /** Alarmas abiertas sobre sus paneles: "la central está atendiendo su alarma". */

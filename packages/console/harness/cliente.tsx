@@ -40,8 +40,8 @@ const respuestas: Record<string, unknown> = {
     { id: 3, panelId: 50, categoria: 'alarma', codigo: 'E130', descripcion: 'Robo: Robo perímetro', zona: '005', zonaDescripcion: 'Puerta trasera MAG', ocurridoEn: h(1, '23:41') },
     { id: 4, panelId: 50, categoria: 'restauracion', codigo: 'R130', descripcion: 'Restauración: Robo perímetro', zona: '005', zonaDescripcion: 'Puerta trasera MAG', ocurridoEn: h(1, '23:43') },
     { id: 5, panelId: 50, categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario — Augusto Hernández (cód. 1)', zona: '001', zonaDescripcion: null, ocurridoEn: h(1, '04:05') },
-    { id: 6, panelId: 50, categoria: 'averia', codigo: 'E301', descripcion: 'Falla de red eléctrica', zona: null, zonaDescripcion: null, ocurridoEn: h(2, '15:10') },
-    { id: 7, panelId: 50, categoria: 'restauracion', codigo: 'R301', descripcion: 'Restauración: Falla de red eléctrica', zona: null, zonaDescripcion: null, ocurridoEn: h(2, '16:48') },
+    { id: 6, panelId: 50, categoria: 'averia', codigo: 'E301', descripcion: 'Falla de electricidad (sin corriente)', zona: null, zonaDescripcion: null, ocurridoEn: h(2, '15:10') },
+    { id: 7, panelId: 50, categoria: 'restauracion', codigo: 'R301', descripcion: 'Restauración de electricidad', zona: null, zonaDescripcion: null, ocurridoEn: h(2, '16:48') },
   ],
 };
 window.fetch = async (entrada: RequestInfo | URL) => {
@@ -61,5 +61,6 @@ setTimeout(() => {
   if (location.hash === '#avisos' || location.hash === '#prefs') [...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('Avisos'))?.click();
   if (location.hash === '#prefs') setTimeout(() => [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Qué recibir'))?.click(), 300);
   if (location.hash === '#panel') (document.querySelector('section[role=button]') as HTMLElement | null)?.click();
+  if (location.hash === '#eventos') [...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('Eventos'))?.click();
   if (location.hash === '#cuenta') [...document.querySelectorAll('button')].find((b) => b.textContent?.trim().startsWith('Cuenta'))?.click();
 }, 800);

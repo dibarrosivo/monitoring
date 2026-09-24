@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { enviarComando, estadoDetallado, listarComandos, verEventosCliente } from '../api.js';
 import type { AccionComando, EstadoDetalladoPanel, EstadoZonaPanel, PanelResumenCliente } from '../tipos.js';
-import { nombreCuenta } from '../ui.js';
+import { COLOR_TIPO_CLARO, nombreCuenta, tipoDe } from '../ui.js';
 
 /**
  * La pantalla del panel para equipos Hikvision, con la lógica de la app del
@@ -252,13 +252,14 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
                 <span className="text-xs whitespace-nowrap pt-0.5 tabular-nums" style={{ color: '#6B7280' }}>
                   {new Date(ev.ocurridoEn).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
+                <span className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: COLOR_TIPO_CLARO[tipoDe(ev)] }} aria-hidden />
                 <span className="flex-1 min-w-0">
-                  <span className="block" style={{ color: ev.categoria === 'alarma' ? '#D93025' : '#15212E' }}>
+                  <span className="block" style={{ color: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? COLOR_TIPO_CLARO[tipoDe(ev)] : '#15212E', fontWeight: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? 600 : 400 }}>
                     {ev.descripcion}
                   </span>
                   {ev.zona && (
                     <span className="block text-xs" style={{ color: '#6B7280' }}>
-                      zona {ev.zona}
+                      {['apertura', 'cierre', 'cancelacion'].includes(ev.categoria) ? 'usuario' : 'zona'} {Number(ev.zona) || ev.zona}
                       {ev.zonaDescripcion && ` · ${ev.zonaDescripcion}`}
                     </span>
                   )}
