@@ -13,7 +13,7 @@ import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
 import { CuentaCliente } from './CuentaCliente.js';
 import { detenerPush, iniciarPush } from './push.js';
 import { AnilloEstado, type EstadoAnillo } from './AnilloEstado.js';
-import { IconoCampana, IconoCasa, IconoFlecha, IconoLista, IconoPersona, IconoSos, MarcaFalcon } from './Iconos.js';
+import { IconoCampana, IconoCasa, IconoFlecha, IconoLista, IconoPersona, IconoSos, MarcaFST } from './Iconos.js';
 import { SelectorTema } from '../SelectorTema.js';
 import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_SENAL, tipoDe, VAR_TIPO } from '../ui.js';
 
@@ -84,11 +84,11 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
         </div>
       )}
       <header className="px-4 py-2.5 border-b border-borde bg-superficie flex items-center gap-3">
-        <span className="flex items-center gap-2 shrink-0">
-          <MarcaFalcon className="text-acento w-7 h-7" />
-          <span className="leading-none">
-            <span className="block font-ui font-bold tracking-[-0.02em] text-base">FALCON</span>
-            <span className="block font-datos text-[10px] tracking-[0.18em] text-tenue uppercase">Mi alarma</span>
+        <span className="flex items-center gap-2.5 min-w-0">
+          <MarcaFST tamano={34} className="shrink-0" />
+          <span className="leading-none min-w-0">
+            <span className="block font-ui font-bold tracking-[-0.01em] text-[15px] truncate">Falcón Seguridad Total</span>
+            <span className="block font-datos text-[10px] tracking-[0.18em] text-tenue uppercase mt-0.5">Mi alarma</span>
           </span>
         </span>
         {/* Pestañas en línea en pantallas anchas */}
@@ -127,7 +127,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
             <button onClick={() => setClaveVisible(true)} className="hidden md:block text-tenue hover:text-texto text-sm">
               Cambiar clave
             </button>
-            <button onClick={salir} className="text-tenue hover:text-prio1 text-sm">
+            <button onClick={salir} className="text-tenue hover:text-prio1 text-sm shrink-0">
               Salir
             </button>
           </>

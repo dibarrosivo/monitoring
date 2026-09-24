@@ -95,9 +95,25 @@ export const IconoAltavoz = (p: Props & { apagado?: boolean }) => (
   </svg>
 );
 
-/** Marca: silueta simple de halcón en trazo, el mismo peso que los íconos. */
-export const MarcaFalcon = (p: Props) => (
-  <svg {...base({ ...p, grueso: 1.7 })} viewBox="0 0 24 24">
-    <path d="M3 13c3-1 5.5-3.5 7-7 1 2 1.5 4 1.5 5.5 2.5-1 5.5-1.5 9.5-1-2.5 1.5-4.5 3.5-5.5 6.5-1.5-.5-3-.5-4.5 0-.5 1.5-1.5 2.5-3 3 .5-1.5.5-3 0-4.5C6.5 15 4.5 14.5 3 13Z" />
+/**
+ * Marca FST: el logo real de Falcón Seguridad Total, círculo blanco con las
+ * siglas en negro e itálica. Colores fijos: es el logo, no sigue el tema.
+ */
+export const MarcaFST = ({ className, tamano = 36 }: { className?: string; tamano?: number }) => (
+  <svg width={tamano} height={tamano} viewBox="0 0 100 100" className={className} role="img" aria-label="FST">
+    <circle cx="50" cy="50" r="48" fill="#ffffff" />
+    <text
+      x="50"
+      y="63"
+      textAnchor="middle"
+      fontFamily="Barlow, 'Arial Black', Arial, sans-serif"
+      fontWeight="800"
+      fontStyle="italic"
+      fontSize="42"
+      letterSpacing="-1"
+      fill="#0b0f14"
+    >
+      FST
+    </text>
   </svg>
 );

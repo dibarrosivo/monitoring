@@ -182,10 +182,6 @@ html {
   position: relative;
   border-radius: 9999px;
 }
-.anillo svg + svg {
-  width: 40%;
-  height: 40%;
-}
 .anillo-armado {
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ok) 35%, transparent);
   animation: anillo-respira 4s ease-in-out infinite;

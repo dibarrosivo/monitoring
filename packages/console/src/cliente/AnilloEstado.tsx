@@ -1,10 +1,10 @@
 import { IconoAlerta, IconoCandado, IconoCandadoAbierto } from './Iconos.js';
 
 /**
- * El anillo de estado: la firma visual de la app. Un solo vistazo dice si el
- * sitio está protegido. Armado: anillo entero con un brillo que respira.
- * Desarmado: anillo abierto (le falta un tramo). Sin datos: punteado. En
- * alarma: rojo y latiendo.
+ * El círculo de estado: un disco entero del color del estado con el candado
+ * adentro. Nada a medio camino, para que no se lea como progreso: verde y
+ * cerrado si está protegido, ámbar y abierto si está desarmado, rojo latiendo
+ * en alarma, gris con candado tenue sin datos. El protegido respira apenas.
  */
 export type EstadoAnillo = 'armado' | 'desarmado' | 'desconocido' | 'alarma';
 
@@ -16,33 +16,15 @@ const COLOR: Record<EstadoAnillo, string> = {
 };
 
 export function AnilloEstado({ estado, tamano = 84 }: { estado: EstadoAnillo; tamano?: number }) {
-  const r = 44;
-  const c = 2 * Math.PI * r;
   const color = COLOR[estado];
-  // Desarmado: el anillo abre un tramo de 70° arriba a la derecha
-  const dash = estado === 'desarmado' ? `${c * 0.8} ${c * 0.2}` : estado === 'desconocido' ? '4 7' : `${c} 0`;
   const Icono = estado === 'alarma' ? IconoAlerta : estado === 'armado' ? IconoCandado : IconoCandadoAbierto;
   return (
     <span
       className={`anillo anillo-${estado} inline-flex items-center justify-center shrink-0`}
-      style={{ width: tamano, height: tamano, color }}
+      style={{ width: tamano, height: tamano, color, background: `color-mix(in srgb, ${color} 16%, transparent)`, border: `3px solid ${color}` }}
       aria-hidden
     >
-      <svg width={tamano} height={tamano} viewBox="0 0 100 100" className="absolute">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="currentColor" strokeOpacity="0.16" strokeWidth="6" />
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={dash}
-          transform="rotate(-125 50 50)"
-        />
-      </svg>
-      <Icono className="relative" grueso={1.8} />
+      <Icono className="w-[44%] h-[44%]" grueso={1.9} />
     </span>
   );
 }

@@ -197,9 +197,9 @@ export function ControlesAviso({
         <button
           onClick={pedirNotificaciones}
           title="Recibir notificaciones del sistema cuando la app no está a la vista"
-          className="text-xs border border-borde rounded-sm px-2 py-1 text-tenue hover:text-texto flex items-center gap-1"
+          className="text-xs border border-borde rounded-sm px-2 py-1 text-tenue hover:text-texto flex items-center gap-1 whitespace-nowrap"
         >
-          <IconoCampana className="w-4 h-4" /> Activar avisos
+          <IconoCampana className="w-4 h-4" /> <span className="hidden sm:inline">Activar avisos</span>
         </button>
       )}
     </span>
