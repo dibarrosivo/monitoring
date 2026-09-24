@@ -32,6 +32,7 @@ window.fetch = async (entrada: RequestInfo | URL) => {
   return new Response(JSON.stringify(respuestas[clave] ?? []), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 localStorage.setItem('monitoring.token', 'x');
+if (new URLSearchParams(location.search).get('tema') === 'claro') document.documentElement.dataset.theme = 'light';
 createRoot(document.getElementById('raiz')!).render(
   <QueryClientProvider client={new QueryClient()}>
     <div className="h-screen p-4 flex flex-col bg-fondo">

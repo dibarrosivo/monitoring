@@ -211,6 +211,13 @@
       "when": 1790285102124,
       "tag": "0029_chilly_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790287941031,
+      "tag": "0030_slimy_tana_nile",
+      "breakpoints": true
     }
   ]
 }

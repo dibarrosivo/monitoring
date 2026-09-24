@@ -711,3 +711,21 @@ export const pagoCuota = pgTable(
   },
   (t) => [index('pago_cuota_pago').on(t.pagoId), index('pago_cuota_cuota').on(t.cuotaId)],
 );
+
+/**
+ * Pedidos de contacto desde la landing pública: quien quiere monitoreo,
+ * pregunta por un plan o por la compatibilidad de su panel, o es instalador.
+ * Sin cliente asociado: son personas que todavía no lo son.
+ */
+export const contactoWeb = pgTable('contacto_web', {
+  id: serial('id').primaryKey(),
+  nombre: text('nombre').notNull(),
+  telefono: text('telefono').notNull(),
+  email: text('email'),
+  mensaje: text('mensaje'),
+  /** monitoreo | plan | compatibilidad | instalador | contacto */
+  motivo: varchar('motivo', { length: 24 }).notNull().default('contacto'),
+  origenIp: varchar('origen_ip', { length: 64 }),
+  atendidoEn: timestamp('atendido_en', { withTimezone: true }),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+});

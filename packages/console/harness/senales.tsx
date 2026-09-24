@@ -43,6 +43,7 @@ window.fetch = async (entrada: RequestInfo | URL) => {
   return new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 localStorage.setItem('monitoring.token', 'x');
+if (new URLSearchParams(location.search).get('tema') === 'claro') document.documentElement.dataset.theme = 'light';
 createRoot(document.getElementById('raiz')!).render(
   <QueryClientProvider client={new QueryClient()}>
     <div className="min-h-screen p-4 bg-fondo">

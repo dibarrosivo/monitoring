@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0a111f" />
+<title>FST - Monitoreo de alarmas 24 horas en Coro</title>
+<meta name="description" content="Falcón Seguridad Total: central de monitoreo de alarmas en Coro. Cada señal de tu panel la atiende un operador que verifica y actúa; en tu teléfono, la app te avisa con voz aunque esté cerrada." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="FST - Monitoreo de alarmas 24 horas en Coro" />
+<meta property="og:description" content="Central de monitoreo de alarmas: operadores 24/7, verificación telefónica, app con avisos hablados y control del panel desde el teléfono." />
+<meta property="og:locale" content="es_VE" />
+<meta property="og:image" content="https://falconseguridadtotal.com/media/claro/og-imagen.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<link rel="icon" type="image/png" sizes="32x32" href="media/favicon-32.png" />
+<link rel="apple-touch-icon" href="media/apple-touch-icon.png" />
+<script>
+  // Tema ANTES de pintar: elección guardada > preferencia del sistema.
+  (function () {
+    var g = null;
+    try { g = localStorage.getItem('landing.tema'); } catch (e) {}
+    // ?tema=claro|oscuro fuerza el tema (capturas y revisión)
+    var q = new URLSearchParams(location.search).get('tema');
+    if (q === 'claro' || q === 'oscuro') g = q;
+    var t = g === 'claro' || g === 'oscuro'
+      ? g
+      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro');
+    document.documentElement.dataset.tema = t;
+    document.documentElement.style.colorScheme = t === 'oscuro' ? 'dark' : 'light';
+  })();
+</script>
+<style>
+  /* Archivo Expanded 800 (OFL, Omnibus-Type) embebida como data URI: display
+     con carácter propio, sin CDN en runtime. Subset latin, 14,5 KB */
+  @font-face {
+    font-family: 'Archivo Exp';
+    src: url(data:font/woff2;base64,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) format('woff2');
+    font-weight: 800;
+    font-display: swap;
+  }
+
+  /*
+   * v6: la dirección v4 (sala de control de noche; consola de monitoreo como
+   * héroe, secciones como paradas) + lo mejor de v5 a pedido del dueño: la
+   * RUTA DE TURNO fija al borde derecho, donde una unidad RECORRE la ruta
+   * conforme haces scroll (CSS scroll-driven, cero JS). El scrollbar es el
+   * acelerador; el resto de la página conserva su estructura clásica.
+   */
+  /* UNA página, dos temas (decisión 2026-08-27): claro en franjas por defecto,
+     y la versión oscura en franjas si el sistema del visitante está en oscuro.
+     Todo lo que difiere entre temas vive en tokens; los componentes no saben
+     en qué tema están. Los mockups también cambian (media/claro/ ↔ media/):
+     imágenes vía <picture>, el video del héroe vía el script del pie. */
+  :root {
+    --tinta: #eef3f9;        /* ground: casi blanco frío */
+    --tinta-2: #ffffff;      /* paneles / bandas alzadas */
+    --tinta-3: #f2f7fd;      /* chrome, cabeceras */
+    --linea: rgba(19, 51, 92, 0.16);
+    --texto: #0f2337;
+    --texto-suave: #54687f;
+    --ruta: #0369a1;         /* acento que lee sobre blanco (4.5:1+) */
+    --ruta-honda: #0284c7;
+    --ok: #0f8a4d;
+    --ambar: #a16207;
+    --rojo: #c81e1e;
+    --gris: #6b7a90;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --display: 'Archivo Exp', system-ui, sans-serif;
+    --curva: cubic-bezier(0.16, 1, 0.3, 1);
+    /* Tokens de tema: en claro el volumen es difusión suave, no pozo negro */
+    --boton-texto: #ffffff;
+    --boton-sombra: 0 8px 20px rgba(2, 132, 199, 0.30);
+    --boton-sombra-hover: 0 10px 26px rgba(2, 132, 199, 0.42);
+    --sombra-marco: 0 30px 70px rgba(15, 35, 62, 0.16), 0 1px 3px rgba(15, 35, 62, 0.08);
+    --sombra-fono-flotante: drop-shadow(0 22px 40px rgba(15, 35, 62, 0.30));
+    --sombra-fono: inset 0 0 0 1.5px rgba(255, 255, 255, 0.10),
+      inset 0 0 0 3.5px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.35),
+      0 40px 80px rgba(15, 35, 62, 0.32);
+    --vidrio-card: rgba(255, 255, 255, 0.90);
+    --sombra-card: 0 14px 34px rgba(15, 35, 62, 0.18);
+    --glow-contorno: none;
+    --peldano-destacado: rgba(3, 105, 161, 0.07);
+  }
+  /* El tema lo fija un data-attribute (script del <head>): por defecto sigue
+     al sistema, y el botón de la barra lo cambia a mano (persistido). Con JS
+     apagado la página queda en claro, coherente con los mockups claros. */
+  :root[data-tema="oscuro"] {
+      --tinta: #0a111f;
+      --tinta-2: #0e1729;
+      --tinta-3: #131f38;
+      --linea: rgba(148, 178, 218, 0.14);
+      --texto: #e7eef8;
+      --texto-suave: #8aa0bf;
+      --ruta: #38bdf8;
+      --ruta-honda: #0ea5e9;
+      --ok: #34d399;
+      --ambar: #fbbf24;
+      --rojo: #f87171;
+      --gris: #64748b;
+      --boton-texto: #051018;
+      --boton-sombra: 0 0 24px rgba(14, 165, 233, 0.35);
+      --boton-sombra-hover: 0 0 34px rgba(14, 165, 233, 0.5);
+      --sombra-marco: 0 40px 100px rgba(2, 8, 20, 0.75), 0 0 70px rgba(14, 165, 233, 0.10);
+      --sombra-fono-flotante: drop-shadow(0 30px 56px rgba(2, 8, 20, 0.75));
+      --sombra-fono: inset 0 0 0 1.5px rgba(255, 255, 255, 0.10),
+        inset 0 0 0 3.5px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.6),
+        0 60px 120px rgba(2, 8, 20, 0.85), 0 0 70px rgba(14, 165, 233, 0.08);
+      --vidrio-card: rgba(10, 17, 31, 0.82);
+      --sombra-card: 0 16px 40px rgba(2, 8, 20, 0.6);
+      --glow-contorno: 0 0 40px rgba(56, 189, 248, 0.25);
+      --peldano-destacado: rgba(56, 189, 248, 0.06);
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  a, button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 2px solid var(--ruta); outline-offset: 3px; border-radius: 4px; }
+
+  .salto {
+    position: absolute; left: 16px; top: -60px; z-index: 100;
+    background: var(--ruta-honda); color: #051018; font-weight: 700;
+    padding: 10px 18px; border-radius: 6px; text-decoration: none;
+    transition: top .15s ease;
+  }
+  .salto:focus-visible { top: 16px; }
+
+  body {
+    background: var(--tinta);
+    color: var(--texto);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  /* Franja por sección (dirección elegida: "bandas"): cada sección pinta su
+     propia banda a sangre completa (el ::before rompe el max-width del
+     contenedor con el truco 50% − 50vw). El corte entre bandas lleva un
+     hairline para que lea como cambio de plancha, no como bug. Los fondos usan
+     tokens, así que las bandas se adaptan solas al tema. */
+  main > section { position: relative; margin-top: 0; padding: 84px 0; }
+  main > section::before {
+    content: ''; position: absolute; z-index: -1;
+    top: 0; bottom: 0; left: calc(50% - 50vw); width: 100vw;
+  }
+  main > section + section::before { border-top: 1px solid var(--linea); }
+  .heroe { padding: 44px 0 84px; }
+  .heroe::before { background: linear-gradient(180deg, var(--tinta-2) 0%, var(--tinta) 100%); }
+  .tesis::before { background: var(--tinta); }
+  #central::before { background: var(--tinta-2); }
+  #monitoreo::before { background: var(--tinta-3); }
+  #control::before { background: var(--tinta); }
+  #planes::before { background: var(--tinta-2); }
+  #preguntas::before { background: var(--tinta); }
+  .cierre { padding: 84px 0 40px; }
+  .cierre::before { background: linear-gradient(180deg, var(--tinta) 0%, var(--tinta-3) 100%); }
+
+  a { color: inherit; }
+  h1, h2 { font-family: var(--display); font-weight: 800; }
+  h1, h2, h3 { line-height: 1.08; text-wrap: balance; }
+  .contenedor { max-width: 1140px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+  /* Revelado al entrar en viewport: CSS scroll-driven, sin JS; doble compuerta */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .compat, .faq .item, .reseller, .cabeza-seccion,
+      .tesis .linea, .flota-navegador, .flota-caps, .as-inset, .peldano,
+      .bolsillo-texto, .bolsillo-fono {
+        animation: aparecer linear both;
+        animation-timeline: view();
+        animation-range: entry 0% entry 55%;
+      }
+    }
+  }
+  @keyframes aparecer {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ════ LA RUTA DE TURNO (de v5, a pedido): el scroll maneja la unidad ════ */
+  /* La ruta de turno ES la barra de navegación/scroll de la página (pedido
+     del dueño): la del navegador se esconde — la página sigue scrolleando
+     con rueda/teclado/touch — y los hitos son LINKS a las secciones, con el
+     camión como "estás aquí". */
+  /* …pero SOLO donde la ruta existe (≥1260px): en pantallas chicas la ruta
+     se oculta y el scrollbar nativo vuelve — ninguna página debe quedar sin
+     indicador de scroll. */
+  @media (min-width: 1261px) {
+    html { scrollbar-width: none; }
+    html::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  }
+  .ruta-turno {
+    position: fixed; z-index: 30; pointer-events: none;
+    right: clamp(16px, 4vw, 54px); top: 96px; bottom: 96px; width: 0;
+    border-left: 2px dashed rgba(56, 189, 248, 0.35);
+  }
+  .ruta-turno .hito {
+    position: absolute; left: -6px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--tinta-2); border: 2px solid rgba(56, 189, 248, 0.5);
+    pointer-events: auto; cursor: pointer;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  }
+  /* zona táctil generosa sin agrandar el punto */
+  .ruta-turno .hito::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; }
+  /* etiqueta al pasar el mouse (o con teclado): sale hacia la izquierda */
+  .ruta-turno .hito::after {
+    content: attr(aria-label);
+    position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+    text-transform: uppercase; white-space: nowrap; color: var(--ruta);
+    background: var(--tinta-2); border: 1px solid var(--linea); border-radius: 6px;
+    padding: 3px 9px; opacity: 0; pointer-events: none; transition: opacity .15s ease;
+  }
+  .ruta-turno .hito:hover, .ruta-turno .hito:focus-visible {
+    transform: scale(1.35); border-color: var(--ruta);
+  }
+  .ruta-turno .hito:hover::after, .ruta-turno .hito:focus-visible::after { opacity: 1; }
+  .ruta-turno .hito.activo { background: var(--ruta); border-color: var(--ruta); }
+  .ruta-turno .hito.origen { top: 0; background: var(--ok); border-color: var(--ok); }
+  .ruta-turno .hito.destino { bottom: 0; }
+  .camion-turno {
+    position: absolute; left: -8px; top: 0;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ok); border: 3px solid var(--tinta);
+    box-shadow: 0 0 14px rgba(52, 211, 153, 0.9);
+  }
+  .camion-turno::before {
+    content: ''; position: absolute; inset: -7px; border-radius: 50%;
+    border: 2px solid var(--ok); opacity: .5; animation: sonar 1.6s ease-out infinite;
+  }
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .camion-turno {
+        animation: conducir linear both;
+        animation-timeline: scroll(root);
+      }
+    }
+  }
+  @keyframes conducir {
+    from { transform: translateY(0); }
+    to   { transform: translateY(calc(100vh - 192px - 14px)); }
+  }
+  @media (max-width: 1260px) { .ruta-turno { display: none; } }
+
+  /* ── Barra ── */
+  .barra { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .marca { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+  .marca .logo-mark { display: block; flex-shrink: 0; filter: drop-shadow(0 2px 6px rgba(15, 35, 62, 0.18)); }
+  .marca .logo { font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: -0.01em; white-space: nowrap; }
+  .marca .logo::after { content: ''; }
+  .marca .sello { font-family: var(--mono); font-size: 10px; color: var(--texto-suave); letter-spacing: 0.14em; }
+  .barra nav { display: flex; gap: 26px; align-items: center; font-size: 14px; }
+  .barra nav a { text-decoration: none; color: var(--texto-suave); }
+  .barra nav a:hover, .barra nav a:focus-visible { color: var(--texto); }
+
+  .boton {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px; border-radius: 6px; font-weight: 600; font-size: 14.5px;
+    text-decoration: none; border: 1px solid transparent; background: transparent;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .boton:hover, .boton:focus-visible { transform: translateY(-1px); }
+  /* Botones que abren el formulario: SOLO se neutraliza la tipografía del UA.
+     GOTCHA aprendido: `button.boton` (0-1-1) le gana a `.boton-primario`
+     (0-1-0) — un `background: transparent` aquí borraba el relleno azul del
+     primario y el texto quedaba ilegible en ambos temas. El fondo lo define
+     la base `.boton` (y `.boton-primario` la pisa por ORDEN, no por peso). */
+  button.boton, button.cta { font: inherit; cursor: pointer; }
+  button.cta { background: none; border: none; padding: 0; }
+  .boton-tema {
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid var(--linea);
+    color: var(--texto-suave); font-size: 17px; line-height: 1;
+  }
+  .boton-tema:hover, .boton-tema:focus-visible { border-color: var(--ruta); color: var(--ruta); }
+
+  /* ── Formulario de contacto (reemplaza al WhatsApp de relleno): un <dialog>
+     nativo que POSTea a /api/contacto — la API vive en este mismo dominio. ── */
+  .dialogo-contacto {
+    /* el reset global `* { margin: 0 }` mata el centrado nativo del <dialog> */
+    margin: auto;
+    border: 1px solid var(--linea); border-radius: 16px; padding: 0;
+    width: min(440px, calc(100vw - 32px));
+    background: var(--tinta-2); color: var(--texto);
+    box-shadow: var(--sombra-marco);
+  }
+  .dialogo-contacto::backdrop { background: rgba(4, 10, 22, 0.55); backdrop-filter: blur(3px); }
+  .dialogo-contacto form { display: flex; flex-direction: column; gap: 12px; padding: 26px; }
+  .dialogo-contacto h3 { font-size: 20px; letter-spacing: -0.01em; }
+  .dialogo-contacto .sub { color: var(--texto-suave); font-size: 13.5px; margin-top: -6px; }
+  .dialogo-contacto label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; }
+  .dialogo-contacto input, .dialogo-contacto textarea {
+    font: inherit; font-size: 14.5px; color: var(--texto);
+    background: var(--tinta); border: 1px solid var(--linea); border-radius: 8px;
+    padding: 10px 12px; outline: none;
+  }
+  .dialogo-contacto input:focus-visible, .dialogo-contacto textarea:focus-visible { border-color: var(--ruta); }
+  .dialogo-contacto textarea { resize: vertical; min-height: 74px; }
+  /* honeypot: fuera de vista para humanos, presente para bots */
+  .dialogo-contacto .np { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .dialogo-contacto .acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+  .dialogo-contacto .estado { font-size: 13.5px; }
+  .dialogo-contacto .estado.ok { color: var(--ok); }
+  .dialogo-contacto .estado.err { color: var(--rojo); }
+  .boton:active { transform: translateY(0) scale(0.98); }
+  .boton-primario {
+    background: var(--ruta-honda); color: var(--boton-texto); font-weight: 700;
+    box-shadow: var(--boton-sombra);
+  }
+  .boton-primario:hover { box-shadow: var(--boton-sombra-hover); }
+  .boton-fantasma { border-color: var(--linea); color: var(--texto); }
+  .boton-fantasma:hover { border-color: var(--ruta); }
+  .boton-entrar { padding: 8px 18px; font-size: 13.5px; }
+
+  /* ── Héroe: UNA declaración a todo lo ancho, la consola debajo ── */
+  .heroe { padding: 52px 0 8px; }
+  .heroe h1 {
+    font-size: clamp(34px, 8vw, 108px); letter-spacing: -0.02em;
+    text-transform: uppercase; line-height: 0.92; margin-top: 16px;
+  }
+  .heroe h1 .contorno {
+    color: transparent; -webkit-text-stroke: 2px var(--ruta);
+    text-shadow: var(--glow-contorno);
+  }
+  .heroe-sub {
+    margin-top: 26px; display: flex; align-items: flex-end;
+    justify-content: space-between; gap: 28px; flex-wrap: wrap;
+  }
+  .heroe .baja { font-size: 16.5px; color: var(--texto-suave); max-width: 52ch; }
+  .heroe .baja strong { color: var(--texto); font-weight: 600; }
+  .heroe .acciones { display: flex; gap: 14px; flex-wrap: wrap; }
+
+  /* El héroe ahora es el recorrido REAL de la plataforma, en marco de navegador */
+  .escena { position: relative; margin-top: 44px; }
+  .navegador {
+    margin: 0; border: 1px solid var(--linea); border-radius: 14px; overflow: hidden;
+    background: var(--tinta-2);
+    box-shadow: var(--sombra-marco);
+  }
+  .nav-barra {
+    display: flex; align-items: center; gap: 12px; padding: 9px 14px;
+    border-bottom: 1px solid var(--linea); background: var(--tinta-3);
+  }
+  .nav-luces { display: flex; gap: 6px; flex-shrink: 0; }
+  .nav-luces span { width: 10px; height: 10px; border-radius: 50%; background: var(--linea); }
+  .nav-url {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; color: var(--texto-suave);
+    background: var(--tinta); border: 1px solid var(--linea); border-radius: 6px;
+    padding: 4px 14px; margin: 0 auto; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .nav-video, .nav-img { display: block; width: 100%; height: auto; background: var(--tinta); }
+  .logo-mark circle { fill: #ffffff; stroke: var(--linea); }
+  .logo-mark text { font-family: var(--display); font-weight: 800; fill: #0b1220; }
+  .pie-escena {
+    margin-top: 10px; text-align: center; font-family: var(--mono); font-size: 11px;
+    letter-spacing: .08em; color: var(--texto-suave); text-transform: uppercase;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .camion-turno::before { animation: none; opacity: 0; }
+  }
+
+  /* ── Ticker ── */
+  .ticker {
+    border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea);
+    overflow: hidden; padding: 12px 0; margin-top: 76px;
+    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  }
+  .ticker-fila { display: flex; gap: 44px; width: max-content; animation: rodar 38s linear infinite; }
+  .ticker-fila span { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; color: var(--texto-suave); white-space: nowrap; }
+  .ticker-fila b { font-weight: 700; }
+  .ticker-fila .ok-c { color: var(--ok); } .ticker-fila .am-c { color: var(--ambar); }
+  .ticker-fila .ru-c { color: var(--ruta); } .ticker-fila .ro-c { color: var(--rojo); }
+  @keyframes rodar { to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .ticker-fila { animation: none; } }
+
+  /* ── Secciones ── */
+  section { padding: 84px 0 20px; }
+  .cabeza-seccion { display: flex; flex-direction: column; gap: 10px; max-width: 64ch; }
+  section h2 { font-size: clamp(26px, 3.6vw, 40px); letter-spacing: -0.015em; }
+  .intro-seccion { color: var(--texto-suave); font-size: 16px; }
+
+  /* ── Compatibilidad: franja fina ── */
+  .compat {
+    margin-top: 64px; border: 1px solid var(--linea); border-radius: 12px;
+    padding: 18px 24px; display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap; background: var(--tinta-2);
+  }
+  .compat .titulo-compat { font-size: 15px; font-weight: 700; }
+  .compat .marcas {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em;
+    color: var(--texto-suave);
+  }
+  .compat .marcas span { border: 1px solid var(--linea); border-radius: 6px; padding: 5px 10px; }
+  .compat .nota-compat { font-size: 13px; color: var(--texto-suave); flex-basis: 100%; }
+  .compat .nota-compat a { color: var(--ruta); }
+
+  /* ── Sección delivery: el as bajo la manga ── */
+  .as-inset .carta-as { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── FAQ: lista plana a 2 columnas ── */
+  .faq { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 44px; margin-top: 40px; }
+  .faq .item h3 { font-size: 15.5px; margin-bottom: 6px; }
+  .faq .item p { font-size: 14px; color: var(--texto-suave); }
+
+  /* ── Banda reseller ── */
+  .reseller {
+    margin-top: 84px; border: 1px dashed rgba(56, 189, 248, 0.4);
+    border-radius: 14px; padding: 26px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap; background: var(--tinta-2);
+  }
+  .reseller h3 { font-size: 17px; margin-bottom: 4px; }
+  .reseller p { font-size: 14px; color: var(--texto-suave); max-width: 52ch; }
+
+
+  /* ════ TESIS: beat de aire — la tesis de control de flota ════
+     Rompe la cadena "título + tarjetas": una sola línea grande, mucho aire,
+     posición = piso / control = techo. */
+  .tesis { padding: 104px 0 34px; }
+  .tesis .linea {
+    font-family: var(--display); font-weight: 800; text-transform: uppercase;
+    font-size: clamp(30px, 5.4vw, 64px); line-height: 1.0; letter-spacing: -0.025em;
+    margin-top: 14px; max-width: 17ch; text-wrap: balance;
+  }
+  .tesis .linea .donde { color: var(--texto-suave); }
+  .tesis .linea .hacer { color: var(--ruta); }
+  .tesis .apostilla { margin-top: 22px; color: var(--texto-suave); font-size: 16.5px; max-width: 56ch; }
+  .tesis .apostilla strong { color: var(--texto); font-weight: 600; }
+
+  /* ════ FLOTA: la superficie REAL del operador (captura de Monitoreo en vivo)
+     en marco de navegador, con las capacidades anotadas debajo. Footage real,
+     no tarjetas sintéticas (§ diseno-web: mostrar el producto de verdad). ════ */
+  /* La escena: el escritorio (Operación) con dos teléfonos del MISMO módulo
+     (Resumen izq · Combustible der) traslapados en las esquinas inferiores. */
+  /* La escena: el escritorio (Operación) con dos teléfonos del MISMO módulo
+     (Resumen izq · Combustible der) traslapados en las esquinas inferiores.
+     Los teléfonos usan un marco reducido nativo (no scale) para que su caja no
+     provoque desborde horizontal; body ya recorta lo que asome de más. */
+  .flota-escena { position: relative; margin-top: 40px; }
+  .flota-navegador { margin: 0; }
+  .nav-img { display: block; width: 100%; height: auto; background: var(--tinta); }
+  .flota-fono { position: absolute; bottom: -215px; z-index: 4; width: 258px; pointer-events: none;
+    filter: var(--sombra-fono-flotante); }
+  .flota-fono .fono { margin: 0; width: 258px; padding: 6px; border-radius: 44px;
+    box-shadow: inset 0 0 0 1.2px rgba(255, 255, 255, 0.09), inset 0 0 0 3px rgba(0, 0, 0, 0.5); }
+  .flota-fono .fono img { border-radius: 39px; aspect-ratio: 720 / 1558; }
+  .flota-fono .fono .isla { width: 80px; height: 22px; top: 15px; border-radius: 12px; }
+  .flota-fono .fono .b { display: none; }
+  .escena .navegador img { max-height: 70vh; object-fit: cover; object-position: top; }
+  .flota-fono-izq { left: 30px; transform: rotate(-8deg); }
+  .flota-fono-der { right: 30px; transform: rotate(8deg); }
+  .flota-caps {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    margin-top: 252px; border: 1px solid var(--linea); border-radius: 14px;
+    overflow: hidden; background: var(--linea);
+  }
+  /* Bajo ~1240px el contenedor toca el borde de la ventana: la caja rotada de
+     los teléfonos ya no tiene margen donde sangrar, así que se achican. */
+  @media (max-width: 1240px) {
+    .flota-fono { width: 214px; bottom: -180px; }
+    .flota-fono .fono { width: 214px; border-radius: 37px; }
+    .flota-fono .fono img { border-radius: 32px; }
+    .flota-fono .fono .isla { width: 66px; height: 18px; top: 12px; border-radius: 10px; }
+    .flota-fono-izq { left: 40px; }
+    .flota-fono-der { right: 40px; }
+    .flota-caps { margin-top: 216px; }
+  }
+  .cap { padding: 22px 24px; background: var(--tinta-2); display: flex; flex-direction: column; gap: 9px; }
+  .cap-cab { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+  .cap h4 { font-size: 16.5px; letter-spacing: -0.01em; }
+  .cap .stat {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; color: var(--ruta);
+    white-space: nowrap; border: 1px solid var(--linea); border-radius: 999px; padding: 3px 10px;
+  }
+  .cap p { font-size: 13.5px; color: var(--texto-suave); }
+
+  /* ════ AS: reparto como inset SECUNDARIO — el as bajo la manga, no un pilar
+     co-igual. Sobre el mismo tablero, más chico y con borde punteado. ════ */
+  .as-inset {
+    margin-top: 22px; border: 1px dashed rgba(56, 189, 248, 0.42); border-radius: 16px;
+    padding: 32px; background: var(--tinta-2);
+    display: grid; grid-template-columns: 1fr 0.72fr; gap: 44px; align-items: center;
+  }
+  .as-inset h3 {
+    font-family: var(--display); font-weight: 800; text-transform: uppercase;
+    font-size: clamp(22px, 3vw, 33px); letter-spacing: -0.02em; margin: 10px 0 6px; line-height: 1.02;
+  }
+
+  /* ════ ESCALERA DE PLANES: un manifiesto en peldaños, no 3 tarjetas iguales.
+     Fleet Control es el tronco (destacado); los otros dos, ramas. ════ */
+  .escalera { margin-top: 40px; border: 1px solid var(--linea); border-radius: 16px; overflow: hidden; }
+  .peldano {
+    display: grid; grid-template-columns: 96px 1.35fr 1.2fr auto; gap: 26px; align-items: center;
+    padding: 24px 28px; border-top: 1px solid var(--linea); background: var(--tinta-2);
+  }
+  .peldano:first-child { border-top: 0; }
+  .peldano .codigo { font-family: var(--mono); font-size: 13px; letter-spacing: .14em; color: var(--texto-suave); }
+  .peldano .nom h3 { font-size: 19px; }
+  .peldano .nom p { font-size: 13px; color: var(--texto-suave); margin-top: 3px; }
+  .peldano .nom .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--ruta); }
+  .peldano .suma { font-family: var(--mono); font-size: 11.5px; color: var(--texto-suave); letter-spacing: .03em; line-height: 1.7; }
+  .peldano .suma b { color: var(--texto); font-weight: 600; }
+  .peldano .cta { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; color: var(--ruta); white-space: nowrap; text-decoration: none; }
+  .peldano .cta:hover { text-decoration: underline; }
+  .peldano.destacado { background: var(--peldano-destacado); box-shadow: inset 3px 0 0 var(--ruta); }
+  .peldano.destacado .codigo { color: var(--ruta); }
+
+  /* ════ EN EL BOLSILLO: la central en el teléfono (mockup premium + cards
+     flotantes, al estilo de las refs de dispositivo). ════ */
+  .bolsillo { display: grid; grid-template-columns: 1fr 0.82fr; gap: 60px; align-items: center; }
+  .bolsillo-texto h2 { font-size: clamp(26px, 3.6vw, 40px); letter-spacing: -0.015em; }
+  .bolsillo-texto .intro-seccion { margin-top: 12px; max-width: 46ch; }
+  .bolsillo-lista { list-style: none; padding: 0; margin-top: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; color: var(--texto-suave); }
+  .bolsillo-lista li::before { content: '+'; color: var(--ruta); margin-right: 9px; font-weight: 700; }
+
+  .bolsillo-fono { position: relative; width: 292px; margin: 0 auto; }
+  /* iPhone 17 Pro Max: riel de titanio, bisel fino y uniforme, isla dinámica */
+  .fono {
+    position: relative; width: 292px; margin: 0; padding: 7px;
+    background: linear-gradient(135deg, #5c616a 0%, #2d3037 14%, #17191e 34%, #101216 50%, #17191e 66%, #2d3037 86%, #5c616a 100%);
+    border-radius: 54px;
+    box-shadow: var(--sombra-fono);
+    transform: rotate(-4deg);
+  }
+  .fono img {
+    display: block; width: 100%; height: auto; aspect-ratio: 720 / 1558;
+    object-fit: cover; object-position: top; border-radius: 47px; background: #0b1526;
+  }
+  .fono .isla {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    width: 92px; height: 26px; background: #000; border-radius: 14px; z-index: 3;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  /* Botones de titanio: Acción + volumen (izq), Encendido + Control de Cámara (der) */
+  .fono .b { position: absolute; z-index: -1; width: 3px; }
+  .fono .b-accion { left: -3px; top: 116px; height: 24px; border-radius: 3px 0 0 3px; background: linear-gradient(90deg, #14171e, #4a505b); }
+  .fono .b-vol    { left: -3px; top: 150px; height: 66px; border-radius: 3px 0 0 3px; background: linear-gradient(90deg, #14171e, #4a505b); }
+  .fono .b-power  { right: -3px; top: 154px; height: 84px; border-radius: 0 3px 3px 0; background: linear-gradient(270deg, #14171e, #4a505b); }
+  .fono .b-cam    { right: -3px; top: 252px; height: 32px; border-radius: 0 3px 3px 0; background: linear-gradient(270deg, #14171e, #4a505b); }
+  /* El mismo iPhone en el inset de reparto (tilt opuesto para variar) */
+  .fono-reparto { transform: rotate(2.5deg); margin: 0 auto; }
+  .fono-reparto img { aspect-ratio: 720 / 1476; }
+  .fono-card {
+    position: absolute; z-index: 4; background: var(--vidrio-card);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1px solid var(--linea); border-radius: 12px; padding: 10px 14px;
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+    box-shadow: var(--sombra-card);
+    display: flex; flex-direction: column; gap: 2px; white-space: nowrap;
+  }
+  .fono-card b { font-family: var(--sans); font-weight: 700; font-size: 13.5px; letter-spacing: 0; color: var(--texto); }
+  .fono-card span { color: var(--texto-suave); }
+  .card-vivo { top: 150px; left: -140px; color: var(--ok); flex-direction: row; align-items: center; gap: 8px; }
+  .card-vivo::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px rgba(52, 211, 153, .9); }
+  .card-unidad { top: 286px; right: -74px; }
+  .card-alerta { bottom: 128px; left: -146px; }
+  /* Entre ~920 y 1010px la columna del teléfono se angosta y las cards
+     colgantes se salían de la ventana: se ocultan antes de llegar a eso. */
+  @media (max-width: 1010px) { .fono-card { display: none; } }
+  .card-alerta span { color: var(--rojo); }
+  .card-alerta::before { content: '▲'; color: var(--rojo); font-size: 10px; position: absolute; top: 11px; right: -14px; }
+
+  /* ── Cierre ── */
+  .cierre { padding: 90px 0 30px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .cierre h2 { font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.02em; text-transform: uppercase; max-width: 22ch; }
+  .cierre h2 .contorno { color: transparent; -webkit-text-stroke: 2px var(--ruta); }
+  .cierre p { color: var(--texto-suave); max-width: 52ch; }
+
+  footer {
+    border-top: 1px solid var(--linea); margin-top: 70px; padding: 26px 0 44px;
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--texto-suave);
+  }
+  footer .pie-marca { display: inline-flex; align-items: center; gap: 8px; }
+
+  @media (max-width: 920px) {
+    .heroe-sub { flex-direction: column; align-items: flex-start; }
+    .faq { grid-template-columns: 1fr; }
+    .flota-caps { grid-template-columns: 1fr; margin-top: 22px; }
+    .flota-fono { display: none; }
+    .as-inset { grid-template-columns: 1fr; gap: 26px; }
+    .bolsillo { grid-template-columns: 1fr; gap: 34px; }
+    .fono { transform: none; }
+    .fono-card { display: none; }
+    .peldano { grid-template-columns: 1fr; gap: 10px; padding: 22px 22px; }
+    .peldano .cta { justify-self: start; }
+    .reseller { flex-direction: column; align-items: flex-start; }
+    .barra nav a.nav-seccion { display: none; }
+  }
+  @media (max-width: 480px) {
+    /* En pantallas muy angostas el sello compite con "Ingresar": fuera */
+    .marca .sello { display: none; }
+    .marca .logo { font-size: 13px; }
+    .contenedor { padding: 0 18px; }
+  }
+</style>
+</head>
+<body>
+<a class="salto" href="#contenido">Saltar al contenido</a>
+
+<!-- La ruta de la página: el scroll recorre el turno de la central -->
+<nav class="ruta-turno" aria-label="Recorrido de la página">
+  <a class="hito origen" href="#inicio" aria-label="Inicio"></a>
+  <a class="hito" style="top: 25%;" href="#central" aria-label="La central"></a>
+  <a class="hito" style="top: 50%;" href="#monitoreo" aria-label="Tu app"></a>
+  <a class="hito" style="top: 75%;" href="#planes" aria-label="Planes"></a>
+  <a class="hito destino" href="#contacto" aria-label="Contacto"></a>
+  <span class="camion-turno" aria-hidden="true"></span>
+</nav>
+
+<div class="contenedor">
+  <header class="barra">
+    <a class="marca" href="/">
+      <svg class="logo-mark" viewBox="0 0 100 100" width="32" height="32" aria-hidden="true">
+        <circle cx="50" cy="50" r="48" stroke-width="2" />
+        <text x="50" y="62" text-anchor="middle" font-size="36" letter-spacing="-1">FST</text>
+      </svg>
+      <span class="logo">Falcón Seguridad Total</span>
+      <span class="sello">MONITOREO 24/7</span>
+    </a>
+    <nav>
+      <a class="nav-seccion" href="#central">La central</a>
+      <a class="nav-seccion" href="#monitoreo">Tu app</a>
+      <a class="nav-seccion" href="#control">Control</a>
+      <a class="nav-seccion" href="#planes">Planes</a>
+      <button type="button" id="boton-tema" class="boton-tema" aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
+        <span aria-hidden="true">◐</span>
+      </button>
+      <a class="boton boton-fantasma boton-entrar" href="https://monitoreo.falconseguridadtotal.com">Ingresar</a>
+    </nav>
+  </header>
+
+  <main id="contenido">
+  <section id="inicio" class="heroe">
+    <h1>
+      Tu alarma,<br />
+      <span class="contorno">vigilada 24 horas</span>.
+    </h1>
+    <div class="heroe-sub">
+      <p class="baja">
+        Cada señal de tu panel llega a un operador de la central en Coro, que
+        verifica, te llama y actúa. Y en tu teléfono, la app
+        <strong>te lo dice con voz</strong>, aunque esté cerrada.
+      </p>
+      <div class="acciones">
+        <button type="button" class="boton boton-primario abrir-contacto" data-motivo="monitoreo">Quiero monitoreo →</button>
+        <a class="boton boton-fantasma" href="https://monitoreo.falconseguridadtotal.com/app/">Descargar la app</a>
+      </div>
+    </div>
+
+    <div class="escena">
+      <figure class="navegador" aria-label="La central de monitoreo: la cola de alarmas con cada señal por color según su tipo, la cuenta, la zona, el estado y cuánto lleva esperando. Cuentas y señales de demostración.">
+        <div class="nav-barra">
+          <span class="nav-luces"><span></span><span></span><span></span></span>
+          <span class="nav-url">monitoreo.falconseguridadtotal.com/central</span>
+        </div>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="media/central-cola.png" /><img class="nav-img" src="media/claro/central-cola.png" width="2160" height="945"
+             alt="Cola de alarmas de la central: emergencias en rojo, robos en naranja, averías en amarillo, con cuenta, zona, estado y tiempo de espera" /></picture>
+      </figure>
+      <p class="pie-escena">La central real · cuentas y señales de demostración</p>
+    </div>
+  </section>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-fila">
+      <span>22:49:46 · AL-7075 · <b class="ro-c">PÁNICO</b> · OPERADOR EN LÍNEA</span>
+      <span>AL-7054 · <b class="ok-c">SISTEMA ARMADO</b> · GERARDO G. · 19:02</span>
+      <span>HIK-7031 · <b class="am-c">FALLA DE ELECTRICIDAD</b> · AVISO ENVIADO</span>
+      <span>AL-7112 · <b class="ru-c">NO CERRÓ A HORARIO</b> · LLAMANDO AL ENCARGADO</span>
+      <span>EBS-7037 · PRUEBA PERIÓDICA · <b class="ok-c">OK</b></span>
+      <span>BODEGÓN CENTRAL · <b class="am-c">SIN SEÑALES 26 H</b> · TÉCNICO NOTIFICADO</span>
+      <span>AVISO PUSH · <b class="ok-c">RECIBIDO Y HABLADO</b> · 2 S</span>
+      <span>22:49:46 · AL-7075 · <b class="ro-c">PÁNICO</b> · OPERADOR EN LÍNEA</span>
+      <span>AL-7054 · <b class="ok-c">SISTEMA ARMADO</b> · GERARDO G. · 19:02</span>
+      <span>HIK-7031 · <b class="am-c">FALLA DE ELECTRICIDAD</b> · AVISO ENVIADO</span>
+      <span>AL-7112 · <b class="ru-c">NO CERRÓ A HORARIO</b> · LLAMANDO AL ENCARGADO</span>
+      <span>EBS-7037 · PRUEBA PERIÓDICA · <b class="ok-c">OK</b></span>
+      <span>BODEGÓN CENTRAL · <b class="am-c">SIN SEÑALES 26 H</b> · TÉCNICO NOTIFICADO</span>
+      <span>AVISO PUSH · <b class="ok-c">RECIBIDO Y HABLADO</b> · 2 S</span>
+    </div>
+  </div>
+
+  <section class="tesis" aria-label="La tesis: monitoreo profesional">
+    <p class="linea">
+      La sirena suena <span class="donde">en tu local</span>.<br />
+      FST responde <span class="hacer">desde la central</span>.
+    </p>
+    <p class="apostilla">
+      Una alarma sin monitoreo solo hace ruido. Con la central, cada señal
+      tiene a alguien del otro lado: <strong>verifica con tu palabra clave,
+      llama a tu lista de contactos y despacha ayuda</strong>. Eso es
+      seguridad total.
+    </p>
+  </section>
+
+  <section id="central">
+    <div class="cabeza-seccion">
+      <h2>Una central que no duerme.</h2>
+      <p class="intro-seccion">
+        Operadores las 24 horas frente a una consola que no deja pasar
+        nada: cada señal por tipo y color, el plan de acción de tu cuenta,
+        tus contactos en orden y el historial completo de lo que pasó y lo
+        que se hizo.
+      </p>
+    </div>
+
+    <div class="flota-escena">
+      <figure class="navegador flota-navegador" role="img" aria-label="Ficha de un dispositivo en la central: estado del panel, zonas, usuarios, horarios y el historial de señales con el aviso que recibió el cliente">
+        <div class="nav-barra">
+          <div class="nav-luces"><span></span><span></span><span></span></div>
+          <span class="nav-url">monitoreo.falconseguridadtotal.com/dispositivos</span>
+        </div>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="media/central-dispositivo.png" /><img class="nav-img" src="media/claro/central-dispositivo.png" width="2160" height="1215"
+             alt="Ficha de un dispositivo: estado, zonas con nombre, usuarios del panel, horarios y el historial de cada señal" loading="lazy" /></picture>
+      </figure>
+
+      <!-- La app del cliente: Inicio (izq) y Avisos (der) -->
+      <div class="flota-fono flota-fono-izq">
+        <figure class="fono" role="img" aria-label="La app del cliente, pantalla de inicio: cada sitio con su estado, armado o desarmado, y la última señal. Datos de demostración.">
+          <span class="isla"></span>
+          <span class="b b-accion"></span><span class="b b-vol"></span><span class="b b-power"></span><span class="b b-cam"></span>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="media/app-inicio.png" /><img src="media/claro/app-inicio.png" width="720" height="1558" alt="" loading="lazy" /></picture>
+        </figure>
+      </div>
+      <div class="flota-fono flota-fono-der">
+        <figure class="fono" role="img" aria-label="La app del cliente, pestaña Avisos: lo que la central le dijo, en orden, con la hora. Datos de demostración.">
+          <span class="isla"></span>
+          <span class="b b-accion"></span><span class="b b-vol"></span><span class="b b-power"></span><span class="b b-cam"></span>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="media/app-avisos.png" /><img src="media/claro/app-avisos.png" width="720" height="1558" alt="" loading="lazy" /></picture>
+        </figure>
+      </div>
+    </div>
+
+    <div class="flota-caps">
+      <div class="cap">
+        <div class="cap-cab"><span class="stat">LLAMADA · PALABRA CLAVE · MÓVIL</span><h4>Verificación en segundos</h4></div>
+        <p>Ante un robo o un pánico el operador llama al sitio, pide la palabra clave y sigue el plan de acción de tu cuenta: contactos en orden, móvil o policía. Todo queda registrado.</p>
+      </div>
+      <div class="cap">
+        <div class="cap-cab"><span class="stat">HORARIOS · SILENCIO · FALLAS</span><h4>Lo que no suena también alarma</h4></div>
+        <p>Si tu negocio no cerró a la hora, si el panel dejó de reportar o si se fue la electricidad, la central lo sabe y te avisa antes de que sea un problema.</p>
+      </div>
+      <div class="cap">
+        <div class="cap-cab"><span class="stat">SEÑALES · LLAMADAS · CIERRES</span><h4>Historial completo</h4></div>
+        <p>Cada señal, cada llamada, cada aviso enviado a tu teléfono y cómo se cerró cada alarma. Nada se borra: puedes pedir el reporte de cualquier fecha.</p>
+      </div>
+    </div>
+
+    <aside class="compat" aria-label="Compatibilidad de paneles de alarma">
+      <p class="titulo-compat">¿Ya tienes alarma instalada? La conectamos.</p>
+      <div class="marcas">
+        <span>PIMA</span>
+        <span>HIKVISION</span>
+        <span>EBS</span>
+        <span>BOSCH</span>
+        <span>DSC</span>
+        <span>PARADOX</span>
+        <span>+ MÁS</span>
+      </div>
+      <p class="nota-compat">
+        Recibimos Contact ID por línea telefónica y por internet o celular (SIA DC-09),
+        y los protocolos propios de PIMA y Hikvision. Si tu panel no está en la lista,
+        <a href="#" class="abrir-contacto" data-motivo="compatibilidad">escríbenos con la marca y el modelo</a>
+        y lo verificamos. Con el panel ya instalado, empiezas a reportar el mismo día.
+      </p>
+    </aside>
+  </section>
+
+  <section id="monitoreo" class="bolsillo" aria-label="La central en tu teléfono">
+    <div class="bolsillo-texto">
+      <h2>Tu alarma, en tu bolsillo.</h2>
+      <p class="intro-seccion">
+        La app FST Alarma te dice lo que pasa con palabras, no con códigos:
+        "Sistema armado por Ana", "Alarma en zona 3, cocina". Y lo dice en voz
+        alta aunque la app esté cerrada o el teléfono en silencio.
+      </p>
+      <ul class="bolsillo-lista">
+        <li>Avisos hablados: emergencias, alarmas, armados y desarmados</li>
+        <li>Quién armó, quién desarmó y a qué hora, sitio por sitio</li>
+        <li>Botón de pánico que llega directo al operador</li>
+        <li>Tú decides qué recibir y en qué horario no molestar</li>
+      </ul>
+    </div>
+    <div class="bolsillo-fono">
+      <figure class="fono">
+        <span class="isla"></span>
+        <span class="b b-accion"></span>
+        <span class="b b-vol"></span>
+        <span class="b b-power"></span>
+        <span class="b b-cam"></span>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="media/app-inicio.png" /><img src="media/claro/app-inicio.png" width="720" height="1558"
+             alt="La app FST Alarma: cada sitio con su candado, protegido en verde o desarmado en ámbar, y la última señal recibida. Datos de demostración." /></picture>
+      </figure>
+      <div class="fono-card card-vivo">EN VIVO · 2 SITIOS PROTEGIDOS</div>
+      <div class="fono-card card-unidad"><b>Geralds Café</b><span>armado por Gerardo · 19:02</span></div>
+      <div class="fono-card card-alerta"><b>AL-7054</b><span>alarma en zona 3, cocina</span></div>
+    </div>
+  </section>
+
+  <section id="control">
+    <div class="as-inset">
+      <div class="carta-as">
+        <h3>El control de tu panel, desde la misma app.</h3>
+        <p class="intro-seccion" style="margin-top: 10px;">
+          Con paneles Hikvision, armas y desarmas desde el teléfono, ves cada
+          zona y su estado, y
+          <strong style="color: var(--texto);">la central sabe quién lo hizo</strong>:
+          si fue un usuario del panel, la app o un operador, queda con nombre y hora.
+        </p>
+        <ul style="list-style: none; padding: 0; margin-top: 12px; display: flex; flex-direction: column; gap: 9px; font-size: 14.5px; color: var(--texto-suave);">
+          <li>+ Armar, armar en casa y desarmar con tu clave</li>
+          <li>+ Zonas por nombre: puerta trasera, cocina, depósito</li>
+          <li>+ Cada comando con quién lo dio y desde dónde</li>
+          <li>+ El propietario administra desde la app quién tiene acceso y a quién llama la central</li>
+        </ul>
+      </div>
+      <figure class="fono fono-reparto" aria-label="La pantalla del panel en la app: estado armado, botones para armar y desarmar, y la lista de zonas con su estado. Datos de demostración.">
+        <span class="isla"></span>
+        <span class="b b-accion"></span>
+        <span class="b b-vol"></span>
+        <span class="b b-power"></span>
+        <span class="b b-cam"></span>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="media/app-panel.png" /><img src="media/claro/app-panel.png" width="720" height="1558" alt="" /></picture>
+      </figure>
+    </div>
+  </section>
+
+  <section id="planes">
+    <div class="cabeza-seccion">
+      <h2>Un plan por cada sitio que protejas.</h2>
+      <p class="intro-seccion">
+        Precios en dólares, pago en bolívares a la tasa del día del BCV o en
+        divisas. Sin contrato mínimo: el monitoreo se paga mientras lo uses.
+      </p>
+    </div>
+    <div class="escalera">
+      <div class="peldano">
+        <span class="codigo">RES · 01</span>
+        <div class="nom">
+          <h3>Residencial</h3>
+          <p>Tu casa, vigilada mientras duermes o no estás.</p>
+        </div>
+        <p class="suma">Monitoreo 24/7 con verificación telefónica<br />App con avisos hablados<br />Lista de contactos y plan de acción</p>
+        <button type="button" class="cta abrir-contacto" data-motivo="plan" data-plan="Residencial">HABLEMOS →</button>
+      </div>
+      <div class="peldano destacado">
+        <span class="codigo">COM · 02</span>
+        <div class="nom">
+          <span class="tag">EL MÁS ELEGIDO</span>
+          <h3>Comercial</h3>
+          <p>Para el local que abre y cierra a horario.</p>
+        </div>
+        <p class="suma"><b>Todo lo de Residencial, y además:</b><br />Control de horarios: apertura tarde, no cerró, fuera de horario<br />Aviso de panel mudo y de fallas<br />Reportes por fecha y usuarios del panel con nombre</p>
+        <button type="button" class="cta abrir-contacto" data-motivo="plan" data-plan="Comercial">HABLEMOS →</button>
+      </div>
+      <div class="peldano">
+        <span class="codigo">EMP · 03</span>
+        <div class="nom">
+          <span class="tag">VARIOS SITIOS</span>
+          <h3>Empresarial</h3>
+          <p>Sucursales, depósitos y cercos bajo una sola cuenta.</p>
+        </div>
+        <p class="suma"><b>Todo lo de Comercial, y además:</b><br />Varios sitios y paneles en una sola app<br />Usuarios con acceso por sitio, administrados por el propietario<br />Estado de cuenta y pagos en línea</p>
+        <button type="button" class="cta abrir-contacto" data-motivo="plan" data-plan="Empresarial">HABLEMOS →</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="preguntas">
+    <div class="cabeza-seccion">
+      <h2>Preguntas que nos hacen antes de conectar.</h2>
+    </div>
+    <div class="faq">
+      <div class="item">
+        <h3>¿Funciona con la alarma que ya tengo?</h3>
+        <p>
+          Casi seguro que sí. Recibimos PIMA, Hikvision, EBS y cualquier panel
+          que reporte Contact ID o SIA DC-09 por teléfono, internet o celular.
+          Mándanos marca y modelo y te confirmamos.
+        </p>
+      </div>
+      <div class="item">
+        <h3>¿Qué pasa cuando suena mi alarma?</h3>
+        <p>
+          En segundos un operador ve la señal, te llama y pide tu palabra
+          clave. Si no responde nadie o la clave es incorrecta, sigue tu plan
+          de acción: contactos, móvil de respuesta o policía.
+        </p>
+      </div>
+      <div class="item">
+        <h3>¿Y si se va la luz o el internet?</h3>
+        <p>
+          El panel avisa la falla de electricidad y la central te lo notifica.
+          Si deja de reportar por completo, la central lo detecta como panel
+          mudo y te avisa antes de que pase desapercibido.
+        </p>
+      </div>
+      <div class="item">
+        <h3>¿La app avisa con el teléfono en silencio?</h3>
+        <p>
+          Sí. Las alarmas usan su propio canal con sirena y pasan el modo
+          silencio; los avisos se leen en voz alta aunque la app esté cerrada.
+          Tú eliges qué recibir y en qué horario no molestar.
+        </p>
+      </div>
+      <div class="item">
+        <h3>¿Cómo se paga?</h3>
+        <p>
+          El plan está en dólares. Pagas en bolívares a la tasa oficial del día
+          o en divisas, por pago móvil, transferencia, Zelle o efectivo. En la
+          app ves tu estado de cuenta.
+        </p>
+      </div>
+      <div class="item">
+        <h3>¿Hay contrato o permanencia?</h3>
+        <p>
+          No. El monitoreo se paga mes a mes mientras lo uses. Y si te atrasas,
+          te avisamos: nunca se corta la vigilancia sin hablar contigo.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="cierre" id="contacto">
+    <h2>Duerme tranquilo. <span class="contorno">Nosotros vigilamos</span>.</h2>
+    <p>
+      Cuéntanos qué proteges: tu casa, tu local o tus sucursales. Te decimos
+      qué panel tienes que tener y en cuánto tiempo estás reportando.
+    </p>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+      <button type="button" class="boton boton-primario abrir-contacto" data-motivo="monitoreo">Quiero monitoreo →</button>
+      <a class="boton boton-fantasma" href="https://monitoreo.falconseguridadtotal.com/app/">Descargar la app</a>
+    </div>
+  </section>
+
+  <aside class="reseller" aria-label="Para instaladores de alarmas">
+    <div>
+      <h3>¿Instalas alarmas? Monitorea con nosotros.</h3>
+      <p>
+        Conecta los paneles de tus clientes a nuestra central y ofréceles
+        vigilancia 24 horas y la app, sin montar una central propia.
+      </p>
+    </div>
+    <button type="button" class="boton boton-fantasma abrir-contacto" data-motivo="instalador">Hablemos, soy instalador →</button>
+  </aside>
+  </main>
+
+  <footer>
+    <span class="pie-marca">
+      <svg class="logo-mark" viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+        <circle cx="50" cy="50" r="48" stroke-width="2" />
+        <text x="50" y="62" text-anchor="middle" font-size="36" letter-spacing="-1">FST</text>
+      </svg>
+      © 2026 FALCÓN SEGURIDAD TOTAL
+    </span>
+    <span>CORO · FALCÓN · VENEZUELA</span>
+    <span>11.4045° N · 69.6738° W · HECHO PARA DORMIR TRANQUILO</span>
+  </footer>
+</div>
+<dialog class="dialogo-contacto" id="dialogo-contacto" aria-labelledby="contacto-titulo">
+  <form id="form-contacto" novalidate>
+    <h3 id="contacto-titulo">Hablemos de tu seguridad</h3>
+    <p class="sub">Déjanos tus datos y te llamamos hoy mismo.</p>
+    <label>Nombre
+      <input name="nombre" required minlength="2" maxlength="120" autocomplete="name" />
+    </label>
+    <label>Teléfono
+      <input name="telefono" required maxlength="40" autocomplete="tel" placeholder="0414 000 0000" />
+    </label>
+    <label>Correo (opcional)
+      <input name="email" type="email" maxlength="254" autocomplete="email" />
+    </label>
+    <label>Mensaje (opcional)
+      <textarea name="mensaje" maxlength="2000" placeholder="Qué quieres proteger, qué alarma tienes…"></textarea>
+    </label>
+    <label class="np" aria-hidden="true">Sitio web
+      <input name="sitioWeb" tabindex="-1" autocomplete="off" />
+    </label>
+    <input type="hidden" name="motivo" value="contacto" />
+    <p class="estado" role="status"></p>
+    <div class="acciones">
+      <button type="button" class="boton boton-fantasma" data-cerrar>Cancelar</button>
+      <button type="submit" class="boton boton-primario">Enviar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  /* ── TEMA con botón: el data-tema del <html> ya lo puso el script del
+     <head>. Acá el botón alterna y persiste, y los MOCKUPS siguen al tema:
+     las <picture> traen su fuente oscura en un <source media=…> que este
+     script NEUTRALIZA para tomar control por src. ── */
+  (function () {
+    var raiz = document.documentElement;
+    var pares = [];
+    document.querySelectorAll('picture').forEach(function (pic) {
+      var src = pic.querySelector('source[media]');
+      var img = pic.querySelector('img');
+      if (!src || !img) return;
+      pares.push({ img: img, claro: img.getAttribute('src'), oscuro: src.getAttribute('srcset') });
+      src.setAttribute('media', 'not all');
+    });
+    function aplicarTema(t) {
+      raiz.dataset.tema = t;
+      raiz.style.colorScheme = t === 'oscuro' ? 'dark' : 'light';
+      pares.forEach(function (p) {
+        var destino = t === 'oscuro' ? p.oscuro : p.claro;
+        if (p.img.getAttribute('src') !== destino) p.img.setAttribute('src', destino);
+      });
+    }
+    aplicarTema(raiz.dataset.tema || 'claro');
+    var boton = document.getElementById('boton-tema');
+    if (boton) {
+      boton.addEventListener('click', function () {
+        var t = raiz.dataset.tema === 'oscuro' ? 'claro' : 'oscuro';
+        try { localStorage.setItem('landing.tema', t); } catch (e) {}
+        aplicarTema(t);
+      });
+    }
+    var mq = matchMedia('(prefers-color-scheme: dark)');
+    var alCambiar = function () {
+      var g = null;
+      try { g = localStorage.getItem('landing.tema'); } catch (e) {}
+      if (!g) aplicarTema(mq.matches ? 'oscuro' : 'claro');
+    };
+    if (mq.addEventListener) mq.addEventListener('change', alCambiar);
+  })();
+
+  /* ── La ruta marca la sección ACTUAL (hito iluminado) ── */
+  (function () {
+    var hitos = [...document.querySelectorAll('.ruta-turno .hito')];
+    if (!hitos.length || !('IntersectionObserver' in window)) return;
+    var porId = {};
+    hitos.forEach(function (h) { porId[h.getAttribute('href').slice(1)] = h; });
+    var visibles = new Map();
+    var io = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) { visibles.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0); });
+      var mejor = null, max = 0;
+      visibles.forEach(function (ratio, id) { if (ratio > max) { max = ratio; mejor = id; } });
+      hitos.forEach(function (h) { h.classList.toggle('activo', h === porId[mejor]); });
+    }, { threshold: [0.15, 0.4, 0.7] });
+    Object.keys(porId).forEach(function (id) {
+      var sec = document.getElementById(id);
+      if (sec) io.observe(sec);
+    });
+  })();
+
+  /* ── Formulario de contacto → POST /api/contacto en la API de la central
+     (la landing se sirve desde el mismo dominio o Caddy hace el proxy). ── */
+  (function () {
+    var dialogo = document.getElementById('dialogo-contacto');
+    var form = document.getElementById('form-contacto');
+    if (!dialogo || !form) return;
+    var estado = form.querySelector('.estado');
+    document.querySelectorAll('.abrir-contacto').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.preventDefault();
+        form.reset();
+        estado.textContent = '';
+        estado.className = 'estado';
+        form.elements.motivo.value = b.dataset.motivo || 'contacto';
+        if (b.dataset.plan) form.elements.mensaje.value = 'Me interesa el plan ' + b.dataset.plan + '. ';
+        dialogo.showModal();
+      });
+    });
+    dialogo.querySelector('[data-cerrar]').addEventListener('click', function () { dialogo.close(); });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      var datos = {
+        nombre: form.elements.nombre.value.trim(),
+        telefono: form.elements.telefono.value.trim(),
+        motivo: form.elements.motivo.value,
+        sitioWeb: form.elements.sitioWeb.value,
+      };
+      if (form.elements.email.value.trim()) datos.email = form.elements.email.value.trim();
+      if (form.elements.mensaje.value.trim()) datos.mensaje = form.elements.mensaje.value.trim();
+      estado.textContent = 'Enviando…';
+      estado.className = 'estado';
+      fetch('/api/contacto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) })
+        .then(function (r) { if (!r.ok) throw new Error(String(r.status)); })
+        .then(function () {
+          estado.textContent = 'Listo. Te llamamos a la brevedad.';
+          estado.className = 'estado ok';
+          setTimeout(function () { dialogo.close(); }, 1800);
+        })
+        .catch(function () {
+          estado.textContent = 'No se pudo enviar. Intenta de nuevo en un momento o llámanos.';
+          estado.className = 'estado err';
+        });
+    });
+  })();
+</script>
+</body>
+</html>

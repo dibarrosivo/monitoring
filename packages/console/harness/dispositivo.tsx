@@ -38,6 +38,7 @@ window.fetch = async (entrada: RequestInfo | URL) => {
   return new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 localStorage.setItem('monitoring.token', 'x');
+if (new URLSearchParams(location.search).get('tema') === 'claro') document.documentElement.dataset.theme = 'light';
 localStorage.setItem('monitoring.usuario', JSON.stringify({ id: 1, email: 'admin@monitoring.local', nombre: 'Administrador', rol: 'admin' }));
 createRoot(document.getElementById('raiz')!).render(
   <QueryClientProvider client={new QueryClient()}>

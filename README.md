@@ -26,6 +26,7 @@ packages/
   api/         Fastify: auth JWT, CRUD, cola de alarmas, WebSocket en tiempo real (todo bajo /api)
   console/     Consola de operador: React + Vite + Tailwind, tema oscuro, cola en vivo con sonido
   pima-bridge/ Puente para la PC de la central: lee el receptor y reenvía las tramas crudas
+  landing/     Página comercial estática (falconseguridadtotal.com): un index.html, capturas reales en media/
 tools/
   simulator/   Envía tramas DC-09 reales para probar sin hardware
 ```

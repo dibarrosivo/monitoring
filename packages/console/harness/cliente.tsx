@@ -10,12 +10,32 @@ const h = (dias: number, hora: string) => {
   d.setHours(hh!, mm!, 0, 0);
   return d.toISOString();
 };
+// ?tipo=hikvision: el primer panel pasa a Hikvision, con estado detallado y control desde la app
+const tipoPanel = new URLSearchParams(location.search).get('tipo') === 'hikvision' ? 'hikvision' : 'pima';
 const panel = {
-  id: 50, numeroCuenta: '7054', prefijo: 'AL', tipo: 'pima', activo: true, ultimaSenalEn: h(0, '09:44'),
+  id: 50, numeroCuenta: '7054', prefijo: 'AL', tipo: tipoPanel, activo: true, ultimaSenalEn: h(0, '09:44'),
   sitioId: 50, sitioNombre: 'Geralds Café', sitioDireccion: 'Variante Norte, Coro', clienteId: 50, clienteNombre: 'GERALDS CAFE',
   estadoArmado: 'desarmado' as const, ultimoMovimientoEn: h(0, '11:22'),
 };
 const respuestas: Record<string, unknown> = {
+  'estado-detallado': {
+    particiones: [{ particion: 1, nombre: 'Local', habilitada: true, estado: 'armado', enAlarma: false }],
+    zonas: [
+      { numero: 1, nombre: 'Cocina - Atención al cliente', estado: 'normal', armada: true, enAlarma: false, tipo: 'infrarrojo', descripcion: null },
+      { numero: 2, nombre: 'Oficina principal - Pasillo', estado: 'normal', armada: true, enAlarma: false, tipo: 'infrarrojo', descripcion: null },
+      { numero: 3, nombre: 'Gerencia', estado: 'normal', armada: true, enAlarma: false, tipo: 'infrarrojo', descripcion: null },
+      { numero: 5, nombre: 'Puerta trasera', estado: 'normal', armada: true, enAlarma: false, tipo: 'magnetico', descripcion: null },
+      { numero: 7, nombre: 'Puerta trasera exterior', estado: 'anulada', armada: false, enAlarma: false, tipo: 'pulsador', descripcion: null },
+    ],
+    bateria: { porcentaje: 96, estado: 'normal' },
+    comunicaciones: { cable: 'conectado', wifi: 'conectado', senalWifi: 82, nube: 'en línea' },
+    perifericos: [{ tipo: 'sirena', nombre: 'Sirena exterior', estado: 'normal', sabotaje: false }, { tipo: 'teclado', nombre: 'Teclado entrada', estado: 'normal', sabotaje: false }],
+  },
+  '/comandos': [
+    { id: 3, accion: 'armar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(0, '19:02'), resueltoEn: h(0, '19:02'), usuarioId: 9, usuarioNombre: 'Gerardo García', origen: 'cliente' },
+    { id: 2, accion: 'desarmar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(0, '07:58'), resueltoEn: h(0, '07:58'), usuarioId: 9, usuarioNombre: 'Gerardo García', origen: 'cliente' },
+    { id: 1, accion: 'armar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(1, '19:10'), resueltoEn: h(1, '19:10'), usuarioId: 2, usuarioNombre: 'Héctor', origen: 'operador' },
+  ],
   'cliente/resumen': {
     paneles: [
       panel,

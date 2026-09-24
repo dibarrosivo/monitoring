@@ -19,6 +19,7 @@ import { registrarConfiguracion } from './modulos/configuracion.js';
 import { registrarTablero } from './modulos/tablero.js';
 import { registrarTasa } from './modulos/tasa.js';
 import { registrarCobros } from './modulos/cobros.js';
+import { registrarContactoPublico, registrarContactos } from './modulos/contacto.js';
 import { registrarSupervision } from './modulos/supervision.js';
 import { registrarBridge, registrarBridgesConsulta } from './modulos/bridge.js';
 import './tipos.js';
@@ -94,6 +95,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       });
 
       registrarAuth(api);
+      registrarContactoPublico(api);
       // Acuse de recibo del push desde el servicio nativo del teléfono (sin sesión; la clave va firmada)
       api.post('/push/eco', async (request, reply) => {
         const { verificarEco } = await import('./push/fcm.js');
@@ -131,6 +133,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       await api.register(async (sub) => registrarTablero(sub));
       await api.register(async (sub) => registrarTasa(sub));
       await api.register(async (sub) => registrarCobros(sub));
+      await api.register(async (sub) => registrarContactos(sub));
       await api.register(async (sub) => registrarSupervision(sub));
       await api.register(async (sub) => registrarBridge(sub));
       await api.register(async (sub) => registrarBridgesConsulta(sub));
