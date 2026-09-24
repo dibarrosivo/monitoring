@@ -16,7 +16,13 @@ const panel = {
   estadoArmado: 'desarmado' as const, ultimoMovimientoEn: h(0, '11:22'),
 };
 const respuestas: Record<string, unknown> = {
-  'cliente/resumen': { paneles: [panel], propietarioDe: [50] },
+  'cliente/resumen': {
+    paneles: [
+      panel,
+      { ...panel, id: 24, numeroCuenta: '7026', sitioId: 24, sitioNombre: 'Cerco Geralds Café', sitioDireccion: 'Variante Norte, Coro', estadoArmado: 'armado' as const, ultimoMovimientoEn: h(0, '04:02'), ultimaSenalEn: h(0, '10:12') },
+    ],
+    propietarioDe: [50],
+  },
   'cliente/usuarios': [
     { id: 9, nombre: 'Gerardo García', email: 'gerald@example.com', activo: true, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: true, sitioId: null, sitioNombre: null, panelId: null },
     { id: 12, nombre: 'Crisbelys Herrera', email: 'crisbelys@example.com', activo: true, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: false, sitioId: null, sitioNombre: null, panelId: null },

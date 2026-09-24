@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { enviarPanico } from '../api.js';
 import type { PanelResumenCliente } from '../tipos.js';
+import { IconoCheck } from './Iconos.js';
 
 const MS_PRESION = 1500;
 
@@ -37,9 +38,7 @@ export function PanicoCliente({ sitios }: { sitios: PanelResumenCliente[] }) {
   if (enviar.isSuccess) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 text-center px-6 py-16">
-        <span className="text-5xl" aria-hidden>
-          ✅
-        </span>
+        <IconoCheck className="w-14 h-14 text-ok" grueso={1.5} />
         <h2 className="text-xl font-semibold text-ok">Pánico enviado</h2>
         <p className="text-tenue max-w-sm">
           La central lo recibió como alarma de máxima prioridad y ya lo está atendiendo. Si es posible, mantenga el teléfono

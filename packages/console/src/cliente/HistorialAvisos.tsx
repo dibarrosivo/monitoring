@@ -1,8 +1,10 @@
+import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { guardarPreferenciasCliente, verEventosCliente, verPreferenciasCliente } from '../api.js';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PREFERENCIAS_POR_DEFECTO, quiereRecibir } from './preferencias.js';
+import { IconoAlerta, IconoCandado, IconoCheck, IconoInfo } from './Iconos.js';
 import type { EventoCliente, PanelResumenCliente, PreferenciasAviso } from '../tipos.js';
 import { fraseParaEvento, type Frase } from './frases.js';
 
@@ -75,12 +77,12 @@ export function useNoLeidos(paneles: PanelResumenCliente[] | undefined, activa: 
   }, [eventos, paneles, prefs, activa]);
 }
 
-const ESTILO: Record<Frase['tono'], { icono: string; color: string }> = {
-  emergencia: { icono: '🚨', color: 'text-prio1' },
-  alarma: { icono: '⚠️', color: 'text-prio1' },
-  aviso: { icono: 'ℹ️', color: 'text-prio2' },
-  estado: { icono: '🔒', color: 'text-texto' },
-  bien: { icono: '✅', color: 'text-ok' },
+const ESTILO: Record<Frase['tono'], { Icono: (p: { className?: string }) => ReactElement; color: string }> = {
+  emergencia: { Icono: IconoAlerta, color: 'text-prio1' },
+  alarma: { Icono: IconoAlerta, color: 'text-prio1' },
+  aviso: { Icono: IconoInfo, color: 'text-prio2' },
+  estado: { Icono: IconoCandado, color: 'text-texto' },
+  bien: { Icono: IconoCheck, color: 'text-ok' },
 };
 
 function etiquetaDia(iso: string): string {
@@ -144,9 +146,7 @@ export function HistorialAvisos({ paneles }: { paneles: PanelResumenCliente[] | 
               const nuevo = new Date(a.ocurridoEn).getTime() > desde;
               return (
                 <li key={a.id} className={`px-3 py-2.5 flex items-start gap-3 ${nuevo ? '' : 'opacity-70'}`}>
-                  <span className="text-lg leading-none pt-0.5" aria-hidden>
-                    {s.icono}
-                  </span>
+                  <s.Icono className={`w-5 h-5 shrink-0 mt-0.5 ${s.color}`} />
                   <span className="flex-1 min-w-0">
                     <span className={`block text-sm ${s.color} ${a.tono === 'emergencia' || a.tono === 'alarma' ? 'font-semibold' : ''}`}>{a.texto}</span>
                   </span>
@@ -187,9 +187,7 @@ function PreferenciasAvisos({ prefs }: { prefs: PreferenciasAviso }) {
   return (
     <section className="bg-superficie border border-borde rounded-lg p-4 flex flex-col gap-3 text-sm">
       <div className="flex items-start gap-3 border-b border-borde/60 pb-3">
-        <span className="text-lg leading-none" aria-hidden>
-          🚨
-        </span>
+        <IconoAlerta className="w-5 h-5 text-prio1 shrink-0 mt-0.5" />
         <span className="flex-1">
           <span className="block font-semibold">Emergencias y alarmas</span>
           <span className="block text-tenue text-xs">Siempre llegan, incluso en la franja de silencio. No se pueden apagar.</span>

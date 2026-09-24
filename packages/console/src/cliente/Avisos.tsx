@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { verPreferenciasCliente } from '../api.js';
@@ -7,6 +8,7 @@ import type { MensajeTiempoReal } from '../tipos.js';
 import { fraseParaEvento, type Frase, type Tono } from './frases.js';
 import { guardarVoz, hablar, prepararVoz, vozActiva, vozDisponible } from './voz.js';
 import { esNativo } from '../api.js';
+import { IconoAlerta, IconoAltavoz, IconoCampana, IconoCandado, IconoCheck, IconoInfo } from './Iconos.js';
 
 /**
  * El operador dentro de la app: escucha el canal en tiempo real y, ante cada
@@ -129,12 +131,12 @@ const ESTILO: Record<Tono, string> = {
   bien: 'bg-ok/15 text-ok border-ok',
 };
 
-const ICONO: Record<Tono, string> = {
-  emergencia: '🚨',
-  alarma: '⚠️',
-  aviso: 'ℹ️',
-  estado: '🔒',
-  bien: '✅',
+const ICONO: Record<Tono, (p: { className?: string }) => ReactElement> = {
+  emergencia: IconoAlerta,
+  alarma: IconoAlerta,
+  aviso: IconoInfo,
+  estado: IconoCandado,
+  bien: IconoCheck,
 };
 
 /** Los avisos apilados arriba de la pantalla. */
@@ -150,9 +152,10 @@ export function AvisosCliente({ avisos, alDescartar }: { avisos: Aviso[]; alDesc
             a.tono === 'emergencia' ? 'alarma-nueva' : ''
           }`}
         >
-          <span className="text-xl leading-none" aria-hidden>
-            {ICONO[a.tono]}
-          </span>
+          {(() => {
+            const Icono = ICONO[a.tono];
+            return <Icono className="w-6 h-6 shrink-0 mt-0.5" />;
+          })()}
           <span className="flex-1">
             <span className="block font-semibold">{a.texto}</span>
             <span className="block text-xs opacity-70 mt-0.5">
@@ -185,18 +188,18 @@ export function ControlesAviso({
           onClick={alternarVoz}
           title={voz ? 'Apagar la voz' : 'Encender la voz: la app dice en voz alta lo que pasa'}
           aria-label={voz ? 'Apagar la voz' : 'Encender la voz'}
-          className={`px-1.5 text-lg leading-none ${voz ? '' : 'opacity-40'}`}
+          className={`px-1 ${voz ? 'text-acento' : 'text-tenue opacity-60'}`}
         >
-          {voz ? '🔊' : '🔇'}
+          <IconoAltavoz apagado={!voz} />
         </button>
       )}
       {notificaciones === 'default' && (
         <button
           onClick={pedirNotificaciones}
           title="Recibir notificaciones del sistema cuando la app no está a la vista"
-          className="text-xs border border-borde rounded-sm px-2 py-1 text-tenue hover:text-texto"
+          className="text-xs border border-borde rounded-sm px-2 py-1 text-tenue hover:text-texto flex items-center gap-1"
         >
-          🔔 Activar avisos
+          <IconoCampana className="w-4 h-4" /> Activar avisos
         </button>
       )}
     </span>
