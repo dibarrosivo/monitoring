@@ -1,8 +1,10 @@
+import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { enviarComando, estadoDetallado, listarComandos, verEventosCliente } from '../api.js';
 import type { AccionComando, EstadoDetalladoPanel, EstadoZonaPanel, PanelResumenCliente } from '../tipos.js';
-import { COLOR_TIPO_CLARO, nombreCuenta, tipoDe } from '../ui.js';
+import { VAR_TIPO, nombreCuenta, tipoDe } from '../ui.js';
+import { IconoAlerta, IconoCandado, IconoCandadoAbierto, IconoCasa, IconoFuego, IconoOjo, IconoPuerta } from './Iconos.js';
 
 /**
  * La pantalla del panel para equipos Hikvision, con la lógica de la app del
@@ -17,25 +19,25 @@ import { COLOR_TIPO_CLARO, nombreCuenta, tipoDe } from '../ui.js';
 type Modo = 'armado' | 'armado_casa' | 'desarmado' | 'armando';
 
 const MODO: Record<Modo, { titulo: string; frase: string; color: string; fondo: string }> = {
-  armado: { titulo: 'Armado', frase: 'Modo ausente. Todas las zonas protegidas.', color: '#1E6EF0', fondo: '#E7F0FE' },
-  armado_casa: { titulo: 'Armado en casa', frase: 'Perímetro protegido, interior libre.', color: '#0F8A6B', fondo: '#E3F5EF' },
-  desarmado: { titulo: 'Desarmado', frase: 'El sistema no está vigilando.', color: '#6B7280', fondo: '#F1F3F6' },
-  armando: { titulo: 'Armando…', frase: 'Retardo de salida en curso.', color: '#C47F12', fondo: '#FDF2DF' },
+  armado: { titulo: 'Armado', frase: 'Modo ausente. Todas las zonas protegidas.', color: 'var(--color-prio3)', fondo: 'color-mix(in srgb, var(--color-prio3) 14%, transparent)' },
+  armado_casa: { titulo: 'Armado en casa', frase: 'Perímetro protegido, interior libre.', color: 'var(--color-ok)', fondo: 'color-mix(in srgb, var(--color-ok) 14%, transparent)' },
+  desarmado: { titulo: 'Desarmado', frase: 'El sistema no está vigilando.', color: 'var(--color-tenue)', fondo: 'color-mix(in srgb, var(--color-tenue) 14%, transparent)' },
+  armando: { titulo: 'Armando…', frase: 'Retardo de salida en curso.', color: 'var(--color-prio2)', fondo: 'color-mix(in srgb, var(--color-prio2) 14%, transparent)' },
 };
 
-const ACCIONES: { accion: AccionComando; titulo: string; icono: string; modo: Modo }[] = [
-  { accion: 'armar', titulo: 'Ausente', icono: '🔒', modo: 'armado' },
-  { accion: 'armar_casa', titulo: 'En casa', icono: '🏠', modo: 'armado_casa' },
-  { accion: 'desarmar', titulo: 'Desarmar', icono: '🔓', modo: 'desarmado' },
+const ACCIONES: { accion: AccionComando; titulo: string; Icono: (p: { className?: string }) => ReactElement; modo: Modo }[] = [
+  { accion: 'armar', titulo: 'Ausente', Icono: IconoCandado, modo: 'armado' },
+  { accion: 'armar_casa', titulo: 'En casa', Icono: IconoCasa, modo: 'armado_casa' },
+  { accion: 'desarmar', titulo: 'Desarmar', Icono: IconoCandadoAbierto, modo: 'desarmado' },
 ];
 
 const ZONA: Record<EstadoZonaPanel['estado'], { texto: string; color: string }> = {
-  normal: { texto: 'Normal', color: '#0F8A6B' },
-  activa: { texto: 'Activa', color: '#D93025' },
-  anulada: { texto: 'Anulada', color: '#C47F12' },
-  sabotaje: { texto: 'Sabotaje', color: '#D93025' },
-  sin_conexion: { texto: 'Sin conexión', color: '#6B7280' },
-  falla: { texto: 'Falla', color: '#C47F12' },
+  normal: { texto: 'Normal', color: 'var(--color-ok)' },
+  activa: { texto: 'Activa', color: 'var(--color-prio1)' },
+  anulada: { texto: 'Anulada', color: 'var(--color-prio2)' },
+  sabotaje: { texto: 'Sabotaje', color: 'var(--color-prio1)' },
+  sin_conexion: { texto: 'Sin conexión', color: 'var(--color-tenue)' },
+  falla: { texto: 'Falla', color: 'var(--color-prio2)' },
 };
 
 const TIPO_ZONA: Record<string, string> = {
@@ -96,14 +98,14 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#F2F4F7', color: '#15212E' }}>
-      <header className="px-4 py-3 flex items-center gap-3" style={{ background: '#FFFFFF', borderBottom: '1px solid #E3E8EF' }}>
-        <button onClick={alVolver} aria-label="Volver" className="text-2xl leading-none px-1" style={{ color: '#1E6EF0' }}>
+    <div className="min-h-screen flex flex-col bg-fondo text-texto">
+      <header className="px-4 py-3 flex items-center gap-3 bg-superficie border-b border-borde">
+        <button onClick={alVolver} aria-label="Volver" className="text-2xl leading-none px-1 text-acento">
           ‹
         </button>
         <div className="min-w-0">
           <h1 className="font-semibold text-base truncate">{panel.sitioNombre}</h1>
-          <p className="text-xs truncate" style={{ color: '#6B7280' }}>
+          <p className="text-xs truncate text-tenue">
             Hikvision {nombreCuenta(panel.prefijo, panel.numeroCuenta)}
             {panel.ultimaSenalEn && ` · en línea`}
           </p>
@@ -112,23 +114,23 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
 
       <main className="flex-1 w-full max-w-lg mx-auto p-4 flex flex-col gap-4 pb-24">
         {/* Estado grande */}
-        <section className="rounded-2xl p-5 flex flex-col items-center gap-3 text-center" style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgb(21 33 46 / 0.06)' }}>
+        <section className="rounded-2xl p-5 flex flex-col items-center gap-3 text-center bg-superficie border border-borde">
           <div
             className="w-40 h-40 rounded-full flex flex-col items-center justify-center"
-            style={{ background: enAlarma ? '#FDECEA' : m.fondo, border: `6px solid ${enAlarma ? '#D93025' : m.color}` }}
+            style={{ background: enAlarma ? 'color-mix(in srgb, var(--color-prio1) 15%, transparent)' : m.fondo, border: `6px solid ${enAlarma ? 'var(--color-prio1)' : m.color}` }}
           >
             <span className="text-4xl" aria-hidden>
-              {enAlarma ? '🚨' : modo === 'desarmado' ? '🔓' : modo === 'armado_casa' ? '🏠' : '🔒'}
+              {enAlarma ? <IconoAlerta className="w-10 h-10" grueso={1.6} /> : modo === 'desarmado' ? <IconoCandadoAbierto className="w-10 h-10" grueso={1.6} /> : modo === 'armado_casa' ? <IconoCasa className="w-10 h-10" grueso={1.6} /> : <IconoCandado className="w-10 h-10" grueso={1.6} />}
             </span>
-            <span className="font-semibold mt-1" style={{ color: enAlarma ? '#D93025' : m.color }}>
+            <span className="font-semibold mt-1" style={{ color: enAlarma ? 'var(--color-prio1)' : m.color }}>
               {enAlarma ? 'EN ALARMA' : m.titulo}
             </span>
           </div>
-          <p className="text-sm" style={{ color: '#6B7280' }}>
+          <p className="text-sm text-tenue">
             {isLoading ? 'Consultando el panel…' : error ? 'No se pudo consultar el panel ahora.' : enAlarma ? 'Hay una alarma activa en el sistema.' : m.frase}
           </p>
           {particion?.nombre && estado!.particiones.filter((p) => p.habilitada).length > 1 && (
-            <p className="text-xs" style={{ color: '#6B7280' }}>Partición {particion.nombre}</p>
+            <p className="text-xs text-tenue">Partición {particion.nombre}</p>
           )}
         </section>
 
@@ -143,33 +145,31 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
                 disabled={enviar.isPending || !panel.activo}
                 className="rounded-2xl py-4 flex flex-col items-center gap-1.5 font-semibold text-sm disabled:opacity-50"
                 style={{
-                  background: activo ? MODO[a.modo].color : '#FFFFFF',
-                  color: activo ? '#FFFFFF' : '#15212E',
+                  background: activo ? MODO[a.modo].color : 'var(--color-superficie)',
+                  color: activo ? 'var(--color-superficie)' : 'var(--color-texto)',
                   boxShadow: '0 1px 3px rgb(21 33 46 / 0.06)',
-                  border: `1px solid ${activo ? MODO[a.modo].color : '#E3E8EF'}`,
+                  border: `1px solid ${activo ? MODO[a.modo].color : 'var(--color-borde)'}`,
                 }}
               >
-                <span className="text-2xl" aria-hidden>
-                  {a.icono}
-                </span>
+                <a.Icono className="w-7 h-7" />
                 {a.titulo}
               </button>
             );
           })}
         </section>
         {confirmarDesarme && (
-          <div className="rounded-xl p-3 flex items-center gap-3 text-sm" style={{ background: '#FDF2DF', border: '1px solid #C47F12' }}>
+          <div className="rounded-xl p-3 flex items-center gap-3 text-sm" style={{ background: 'color-mix(in srgb, var(--color-prio2) 14%, transparent)', border: '1px solid #C47F12' }}>
             <span className="flex-1">¿Desarmar el sistema? El sitio queda sin protección.</span>
-            <button onClick={() => setConfirmarDesarme(false)} className="px-3 py-1.5 rounded-lg" style={{ color: '#6B7280' }}>
+            <button onClick={() => setConfirmarDesarme(false)} className="px-3 py-1.5 rounded-lg text-tenue">
               No
             </button>
-            <button onClick={() => pedir('desarmar')} className="px-3 py-1.5 rounded-lg font-semibold text-white" style={{ background: '#C47F12' }}>
+            <button onClick={() => pedir('desarmar')} className="px-3 py-1.5 rounded-lg font-semibold text-white" style={{ background: 'var(--color-prio2)' }}>
               Sí, desarmar
             </button>
           </div>
         )}
         {aviso && (
-          <p className="text-sm text-center" style={{ color: '#1E6EF0' }}>
+          <p className="text-sm text-center" style={{ color: 'var(--color-acento)' }}>
             {aviso}
           </p>
         )}
@@ -199,26 +199,26 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
 
         {/* Zonas */}
         {estado && estado.zonas.length > 0 && (
-          <section className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgb(21 33 46 / 0.06)' }}>
-            <h2 className="px-4 pt-3 pb-2 text-xs uppercase tracking-wider font-semibold" style={{ color: '#6B7280' }}>
+          <section className="rounded-2xl overflow-hidden bg-superficie border border-borde">
+            <h2 className="px-4 pt-3 pb-2 text-xs uppercase tracking-wider font-semibold text-tenue">
               Zonas
             </h2>
             <ul>
               {estado.zonas.map((z) => {
                 const e = ZONA[z.estado];
                 return (
-                  <li key={z.numero} className="px-4 py-2.5 flex items-center gap-3" style={{ borderTop: '1px solid #EEF1F5' }}>
-                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-sm" style={{ background: '#F1F3F6' }} aria-hidden>
-                      {z.tipo === 'Fire' ? '🔥' : z.tipo === 'Delay' ? '🚪' : '👁'}
+                  <li key={z.numero} className="px-4 py-2.5 flex items-center gap-3 border-t border-borde/60">
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-sm bg-superficie-2" aria-hidden>
+                      {z.tipo === 'Fire' ? <IconoFuego className="w-4 h-4" /> : z.tipo === 'Delay' ? <IconoPuerta className="w-4 h-4" /> : <IconoOjo className="w-4 h-4" />}
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium truncate">{z.nombre}</span>
-                      <span className="block text-xs truncate" style={{ color: '#6B7280' }}>
+                      <span className="block text-xs truncate text-tenue">
                         {z.descripcion ?? (z.tipo ? (TIPO_ZONA[z.tipo] ?? z.tipo) : '')}
                         {z.armada && ' · armada'}
                       </span>
                     </span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: e.color, background: `${e.color}1A` }}>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: e.color, background: `color-mix(in srgb, ${e.color} 12%, transparent)` }}>
                       {e.texto}
                     </span>
                   </li>
@@ -230,7 +230,7 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
 
         {/* Periféricos con novedad */}
         {estado && estado.perifericos.some((p) => p.sabotaje || (p.estado !== 'online' && p.estado !== 'off')) && (
-          <section className="rounded-2xl p-4 text-sm" style={{ background: '#FDF2DF', border: '1px solid #C47F12' }}>
+          <section className="rounded-2xl p-4 text-sm" style={{ background: 'color-mix(in srgb, var(--color-prio2) 14%, transparent)', border: '1px solid #C47F12' }}>
             {estado.perifericos
               .filter((p) => p.sabotaje || (p.estado !== 'online' && p.estado !== 'off'))
               .map((p) => (
@@ -242,23 +242,23 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
         )}
 
         {/* Últimos eventos */}
-        <section className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgb(21 33 46 / 0.06)' }}>
-          <h2 className="px-4 pt-3 pb-2 text-xs uppercase tracking-wider font-semibold" style={{ color: '#6B7280' }}>
+        <section className="rounded-2xl overflow-hidden bg-superficie border border-borde">
+          <h2 className="px-4 pt-3 pb-2 text-xs uppercase tracking-wider font-semibold text-tenue">
             Actividad reciente
           </h2>
           <ul>
             {(eventos ?? []).slice(0, 20).map((ev) => (
-              <li key={ev.id} className="px-4 py-2.5 flex items-start gap-3 text-sm" style={{ borderTop: '1px solid #EEF1F5' }}>
-                <span className="text-xs whitespace-nowrap pt-0.5 tabular-nums" style={{ color: '#6B7280' }}>
+              <li key={ev.id} className="px-4 py-2.5 flex items-start gap-3 text-sm border-t border-borde/60">
+                <span className="text-xs whitespace-nowrap pt-0.5 tabular-nums text-tenue">
                   {new Date(ev.ocurridoEn).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <span className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: COLOR_TIPO_CLARO[tipoDe(ev)] }} aria-hidden />
+                <span className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: VAR_TIPO[tipoDe(ev)] }} aria-hidden />
                 <span className="flex-1 min-w-0">
-                  <span className="block" style={{ color: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? COLOR_TIPO_CLARO[tipoDe(ev)] : '#15212E', fontWeight: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? 600 : 400 }}>
+                  <span className="block" style={{ color: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? VAR_TIPO[tipoDe(ev)] : 'var(--color-texto)', fontWeight: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? 600 : 400 }}>
                     {ev.descripcion}
                   </span>
                   {ev.zona && (
-                    <span className="block text-xs" style={{ color: '#6B7280' }}>
+                    <span className="block text-xs text-tenue">
                       {['apertura', 'cierre', 'cancelacion'].includes(ev.categoria) ? 'usuario' : 'zona'} {Number(ev.zona) || ev.zona}
                       {ev.zonaDescripcion && ` · ${ev.zonaDescripcion}`}
                     </span>
@@ -267,7 +267,7 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
               </li>
             ))}
             {(eventos ?? []).length === 0 && (
-              <li className="px-4 py-3 text-sm" style={{ color: '#6B7280' }}>
+              <li className="px-4 py-3 text-sm text-tenue">
                 Sin actividad registrada todavía.
               </li>
             )}
@@ -276,23 +276,23 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
 
         {/* Órdenes enviadas desde la app */}
         {(comandos ?? []).length > 0 && (
-          <section className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgb(21 33 46 / 0.06)' }}>
-            <h2 className="px-4 pt-3 pb-2 text-xs uppercase tracking-wider font-semibold" style={{ color: '#6B7280' }}>
+          <section className="rounded-2xl overflow-hidden bg-superficie border border-borde">
+            <h2 className="px-4 pt-3 pb-2 text-xs uppercase tracking-wider font-semibold text-tenue">
               Órdenes enviadas
             </h2>
             <ul>
               {comandos!.slice(0, 5).map((c) => (
-                <li key={c.id} className="px-4 py-2 flex items-center gap-3 text-sm" style={{ borderTop: '1px solid #EEF1F5' }}>
-                  <span className="text-xs tabular-nums" style={{ color: '#6B7280' }}>
+                <li key={c.id} className="px-4 py-2 flex items-center gap-3 text-sm border-t border-borde/60">
+                  <span className="text-xs tabular-nums text-tenue">
                     {new Date(c.creadoEn).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <span className="flex-1">
                     {c.accion === 'armar' ? 'Armar (ausente)' : c.accion === 'armar_casa' ? 'Armar en casa' : 'Desarmar'}
-                    {c.usuarioNombre && <span style={{ color: '#6B7280' }}> · {c.usuarioNombre}</span>}
+                    {c.usuarioNombre && <span> · {c.usuarioNombre}</span>}
                   </span>
                   <span
                     className="text-xs font-semibold"
-                    style={{ color: c.estado === 'confirmado' ? '#0F8A6B' : c.estado === 'fallido' ? '#D93025' : '#C47F12' }}
+                    style={{ color: c.estado === 'confirmado' ? 'var(--color-ok)' : c.estado === 'fallido' ? 'var(--color-prio1)' : 'var(--color-prio2)' }}
                   >
                     {c.estado === 'confirmado' ? 'Confirmado por el panel' : c.estado === 'fallido' ? 'Rechazado' : c.estado === 'enviado' ? 'Esperando al panel' : 'Pendiente'}
                   </span>
@@ -308,11 +308,11 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
 
 function Chip({ titulo, valor, bien }: { titulo: string; valor: string; bien: boolean }) {
   return (
-    <div className="rounded-2xl px-3 py-2.5 text-center" style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgb(21 33 46 / 0.06)' }}>
-      <p className="text-[11px] uppercase tracking-wider" style={{ color: '#6B7280' }}>
+    <div className="rounded-2xl px-3 py-2.5 text-center bg-superficie border border-borde">
+      <p className="text-[11px] uppercase tracking-wider text-tenue">
         {titulo}
       </p>
-      <p className="text-sm font-semibold" style={{ color: bien ? '#15212E' : '#D93025' }}>
+      <p className="text-sm font-semibold" style={{ color: bien ? 'var(--color-texto)' : 'var(--color-prio1)' }}>
         {valor}
       </p>
     </div>

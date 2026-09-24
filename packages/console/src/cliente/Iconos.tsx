@@ -119,3 +119,22 @@ export const IconoAjustes = (p: Props) => (
     <circle cx="10" cy="17" r="2.2" />
   </svg>
 );
+
+export const IconoFuego = (p: Props) => (
+  <svg {...base(p)}>
+    <path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-1.5.5-2.5 1.2-3.3.3 1 .9 1.8 1.8 2.3C11 8 11.5 5.5 12 3Z" />
+  </svg>
+);
+export const IconoPuerta = (p: Props) => (
+  <svg {...base(p)}>
+    <path d="M6 20V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v15" />
+    <path d="M3 20h18" />
+    <circle cx="14.5" cy="12" r="0.9" fill="currentColor" stroke="none" />
+  </svg>
+);
+export const IconoOjo = (p: Props) => (
+  <svg {...base(p)}>
+    <path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="2.6" />
+  </svg>
+);
