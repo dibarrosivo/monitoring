@@ -1,7 +1,8 @@
 import { CANAL_ALARMAS, CANAL_EVENTOS, escucharCanal, pool } from '@monitoring/db';
 import { crearApp } from './app.js';
 import { debeRecibir, refrescarAlcance } from './tiempoReal.js';
-import { enviarAvisosPush, type CargaEvento } from './push/avisos.js';
+import type { CargaAviso } from '@monitoring/shared';
+import { enviarAvisosPush } from './push/avisos.js';
 import { pushDisponible } from './push/fcm.js';
 
 try {
@@ -16,7 +17,7 @@ const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (cana
   const datos = carga ? (JSON.parse(carga) as { panelId?: number | null }) : null;
   const mensaje = JSON.stringify({ canal, carga: datos });
   // A los teléfonos con la app cerrada les llega por push; abiertos, por el WebSocket de abajo
-  if (canal === CANAL_EVENTOS && datos) void enviarAvisosPush(datos as CargaEvento, app.log);
+  if (canal === CANAL_EVENTOS && datos) void enviarAvisosPush(datos as CargaAviso, app.log);
   for (const [socket, suscriptor] of conexiones) {
     if (socket.readyState !== socket.OPEN) continue;
     void refrescarAlcance(suscriptor).then(() => {

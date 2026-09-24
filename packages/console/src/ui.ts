@@ -1,4 +1,4 @@
-import type { CategoriaEvento, TipoSenal } from './tipos.js';
+import { tipoSenal, type CategoriaEvento, type TipoSenal } from '@monitoring/shared';
 
 /** Clases estáticas (Tailwind las detecta en el código fuente, no se pueden armar dinámicamente). */
 
@@ -50,6 +50,7 @@ export const NOMBRE_CATEGORIA: Record<CategoriaEvento, string> = {
 
 /**
  * Código de color por tipo de señal, el mismo en la cola, el diario y la app.
+ * El nombre y el orden de los tipos vienen de @monitoring/shared (NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL).
  * Sigue la convención de las centrales (y del software anterior): emergencia
  * rojo, robo naranja, avería amarillo, horario violeta, apertura/cierre verde,
  * restauración azul, prueba magenta, sistema gris. Las clases van escritas
@@ -67,42 +68,9 @@ export const CLASES_TIPO: Record<TipoSenal, { texto: string; barra: string; fond
   sistema: { texto: 'text-tipo-sistema', barra: 'bg-tipo-sistema', fondo: 'bg-tipo-sistema/15', borde: 'border-tipo-sistema' },
 };
 
-export const NOMBRE_TIPO_SENAL: Record<TipoSenal, string> = {
-  emergencia: 'Emergencia',
-  robo: 'Robo',
-  averia: 'Avería',
-  horario: 'Horario',
-  apertura_cierre: 'Apertura / cierre',
-  restauracion: 'Restauración',
-  anulacion: 'Anulación',
-  prueba: 'Prueba',
-  sistema: 'Sistema',
-};
-
-/** De lo urgente a lo informativo: así se listan en la leyenda y en los filtros. */
-export const ORDEN_TIPOS_SENAL: TipoSenal[] = ['emergencia', 'robo', 'averia', 'horario', 'apertura_cierre', 'restauracion', 'anulacion', 'prueba', 'sistema'];
-
-/** Tipo de un evento; si la respuesta no lo trae (versión vieja de la API), se aproxima por categoría. */
-export function tipoDe(evento: { tipo?: TipoSenal; categoria: CategoriaEvento; prioridad?: number }): TipoSenal {
-  if (evento.tipo) return evento.tipo;
-  switch (evento.categoria) {
-    case 'alarma':
-      return (evento.prioridad ?? 2) <= 1 ? 'emergencia' : 'robo';
-    case 'restauracion':
-      return 'restauracion';
-    case 'apertura':
-    case 'cierre':
-    case 'cancelacion':
-      return 'apertura_cierre';
-    case 'averia':
-      return 'averia';
-    case 'anulacion':
-      return 'anulacion';
-    case 'prueba':
-      return 'prueba';
-    default:
-      return 'sistema';
-  }
+/** Tipo de un evento; si la respuesta no lo trae (versión vieja de la API), se calcula con el mismo criterio que el servidor. */
+export function tipoDe(evento: { tipo?: TipoSenal; codigo?: string; categoria: CategoriaEvento; prioridad?: number }): TipoSenal {
+  return evento.tipo ?? tipoSenal({ codigo: evento.codigo ?? '', categoria: evento.categoria, prioridad: evento.prioridad ?? 2 });
 }
 
 /** ¿La alarma sigue en verificación (esperando el desarmado del usuario)? */
@@ -136,19 +104,6 @@ export function resumenAviso(a: { resultado: string; recibidoEn: string | null; 
       return { texto: 'no entregado', clase: 'text-prio1' };
   }
 }
-
-/** Colores por tipo para superficies siempre claras (pantallas del panel en la app). */
-export const COLOR_TIPO_CLARO: Record<TipoSenal, string> = {
-  emergencia: '#d7372b',
-  robo: '#d95f1a',
-  averia: '#a8780f',
-  horario: '#7b47d1',
-  apertura_cierre: '#1a8f6f',
-  restauracion: '#1e6ef0',
-  anulacion: '#3d7f93',
-  prueba: '#b0308f',
-  sistema: '#5d6f84',
-};
 
 /** Variable CSS del color de cada tipo (sigue el tema claro/oscuro), para estilos en línea. */
 export const VAR_TIPO: Record<TipoSenal, string> = {

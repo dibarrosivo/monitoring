@@ -1,4 +1,5 @@
 import { PushNotifications } from '@capacitor/push-notifications';
+import { CANAL_PUSH, SONIDO_ALARMA } from '@monitoring/shared';
 import { esNativo, pedir } from '../api.js';
 
 /**
@@ -102,8 +103,8 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
   try {
     // Canales de Android: el de alarmas suena con sirena y pasa el modo silencio del teléfono.
     // Android no deja cambiar un canal ya creado: si cambia el sonido, cambia el id (y el servidor lo acompaña).
-    await conTope('canal alarmas', push.createChannel({ id: 'alarmas-v2', name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan con sirena, siempre.', importance: 5, sound: 'sirena.wav', vibration: true, visibility: 1, lights: true }));
-    await conTope('canal avisos', push.createChannel({ id: 'avisos-v2', name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 4, sound: 'default', vibration: true, visibility: 1 }));
+    await conTope('canal alarmas', push.createChannel({ id: CANAL_PUSH.alarmas, name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan con sirena, siempre.', importance: 5, sound: SONIDO_ALARMA, vibration: true, visibility: 1, lights: true }));
+    await conTope('canal avisos', push.createChannel({ id: CANAL_PUSH.avisos, name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 4, sound: 'default', vibration: true, visibility: 1 }));
     for (const viejo of ['alarmas', 'avisos']) await push.deleteChannel({ id: viejo }).catch(() => undefined);
     anotar('canales-listos');
   } catch (e) {

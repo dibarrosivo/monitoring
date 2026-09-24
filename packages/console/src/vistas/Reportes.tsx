@@ -5,8 +5,7 @@ import type { Reporte } from '../tipos.js';
 import { fechaHora } from '../tiempo.js';
 import { NOMBRE_CATEGORIA } from '../ui.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
-const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
+import { BOTON, CAMPO } from '../estilos.js';
 
 function mesActual(): string {
   const ahora = new Date();

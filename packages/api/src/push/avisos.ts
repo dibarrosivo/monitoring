@@ -1,129 +1,23 @@
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { acceso, cliente, db, dispositivoPush, envioPush, panel, preferenciaAviso, sitio, usuario } from '@monitoring/db';
-import type { CategoriaEvento } from '@monitoring/shared';
+import { enZona } from '@monitoring/engine';
+import { conVoz, fraseParaEvento, PREFERENCIAS_POR_DEFECTO, quiereRecibir, type CargaAviso, type GrupoAviso, type PreferenciasAviso, type VozPush } from '@monitoring/shared';
 import { enviarPush, enviarPushSimple, pushDisponible, type MensajePush } from './fcm.js';
 
 /**
  * Avisos push a los teléfonos: para cada evento, a quién le toca (los
  * accesos que alcanzan ese panel), qué quiere recibir (sus preferencias) y
- * qué se le dice. Es el mismo criterio que la app aplica cuando está
- * abierta; acá se aplica cuando está cerrada.
+ * qué se le dice. Las frases y las reglas de preferencias viven en
+ * @monitoring/shared: son las mismas que aplica la app cuando está abierta.
  */
 
-export interface CargaEvento {
-  eventoId: number;
-  panelId: number | null;
-  categoria?: CategoriaEvento;
-  codigo?: string;
-  descripcion: string;
-  prioridad: number;
-  zona?: string | null;
-  zonaDescripcion?: string | null;
-  sitioNombre?: string | null;
-}
-
-interface Preferencias {
-  armadoDesarmado: boolean;
-  averias: boolean;
-  sistema: boolean;
-  silencioDesde: string | null;
-  silencioHasta: string | null;
-  vozPush?: string;
-}
-const POR_DEFECTO: Preferencias = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null, vozPush: 'siempre' };
-
-/** ¿Este aviso se dice en voz alta en el teléfono? La notificación llega igual. */
-export function conVoz(prefs: Preferencias, canal: 'alarmas' | 'avisos'): boolean {
-  const v = prefs.vozPush ?? 'siempre';
-  return v === 'siempre' || (v === 'solo_alarmas' && canal === 'alarmas');
-}
-
-const EMERGENCIAS: Record<string, string> = {
-  '100': 'emergencia médica',
-  '101': 'emergencia personal',
-  '110': 'incendio',
-  '111': 'humo',
-  '115': 'pulsador de incendio',
-  '120': 'pánico',
-  '121': 'coacción',
-  '122': 'pánico silencioso',
-  '123': 'pánico',
-  '151': 'gas',
-  '162': 'monóxido de carbono',
-};
-
-function persona(descripcion: string): string | null {
-  const remoto = / — (.+?) \(desde la (app|central)\)$/.exec(descripcion);
-  if (remoto) return `${remoto[1]} desde la ${remoto[2]}`;
-  const m = / — (.+?) \(cód\. \d+\)$/.exec(descripcion);
-  return m ? m[1]! : null;
-}
-function sinPrefijo(d: string): string {
-  return d.replace(/^[^:]{1,30}:\s*/, '');
-}
-
-/** Título, cuerpo y canal del aviso, o null si no se avisa (pruebas, latidos). */
-export function mensajeParaEvento(carga: CargaEvento, nombrarSitio: boolean): (MensajePush & { grupo: keyof Preferencias | null }) | null {
-  const cat = carga.categoria;
-  if (!cat || cat === 'prueba' || (carga.codigo ?? '').startsWith('PIMA-0')) return null;
-  const lugar = nombrarSitio && carga.sitioNombre ? ` en ${carga.sitioNombre}` : '';
-  const zona = carga.zona && Number(carga.zona) > 0 ? ` en zona ${Number(carga.zona)}${carga.zonaDescripcion ? `, ${carga.zonaDescripcion}` : ''}` : '';
-  const datos = { eventoId: String(carga.eventoId), panelId: String(carga.panelId ?? ''), categoria: cat };
-  switch (cat) {
-    case 'alarma': {
-      const cid = /^[ER](\d{3})$/.exec(carga.codigo ?? '')?.[1] ?? '';
-      if (EMERGENCIAS[cid] || carga.prioridad <= 1) {
-        const que = `${EMERGENCIAS[cid] ?? sinPrefijo(carga.descripcion)}${lugar}`;
-        return { titulo: 'EMERGENCIA', cuerpo: que, habla: `Emergencia: ${que}`, canal: 'alarmas', datos, grupo: null };
-      }
-      const que = `Alarma${zona}${lugar}${zona ? '' : `: ${sinPrefijo(carga.descripcion)}`}`;
-      return { titulo: 'ALARMA', cuerpo: que, habla: que, canal: 'alarmas', datos, grupo: null };
-    }
-    case 'cierre': {
-      const quien = persona(carga.descripcion);
-      const que = `${carga.codigo === 'R441' ? 'Sistema armado en casa' : 'Sistema armado'}${lugar}${quien ? ` por ${quien}` : ''}`;
-      return { titulo: 'Sistema armado', cuerpo: que.replace(/^Sistema armado( en casa)?/, (m) => m.replace('Sistema a', 'A')), habla: que, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
-    }
-    case 'apertura': {
-      const quien = persona(carga.descripcion);
-      const que = `Sistema desarmado${lugar}${quien ? ` por ${quien}` : ''}`;
-      return { titulo: 'Sistema desarmado', cuerpo: que.replace(/^Sistema d/, 'D'), habla: que, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
-    }
-    case 'cancelacion':
-      return { titulo: 'Alarma cancelada', cuerpo: `Alarma cancelada${lugar}`, habla: `Alarma cancelada${lugar}`, canal: 'avisos', datos, grupo: 'armadoDesarmado' };
-    case 'restauracion': {
-      const natural = !/^[^:]{1,30}:\s/.test(carga.descripcion);
-      const que = natural ? `${carga.descripcion}${zona}${lugar}` : `Restablecido: ${sinPrefijo(carga.descripcion)}${zona}${lugar}`;
-      return { titulo: natural ? carga.descripcion : 'Restablecido', cuerpo: que, habla: que, canal: 'avisos', datos, grupo: 'averias' };
-    }
-    case 'averia':
-    case 'anulacion': {
-      const que = `${carga.descripcion}${zona}${lugar}`;
-      return { titulo: 'Aviso', cuerpo: que, habla: `Aviso: ${que}`, canal: 'avisos', datos, grupo: 'averias' };
-    }
-    default: {
-      const que = `${carga.descripcion}${lugar}`;
-      return { titulo: 'Aviso de la central', cuerpo: que, habla: `Aviso de la central: ${que}`, canal: carga.prioridad <= 1 ? 'alarmas' : 'avisos', datos, grupo: carga.prioridad <= 1 ? null : 'sistema' };
-    }
-  }
-}
-
-function minutos(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return (h ?? 0) * 60 + (m ?? 0);
-}
-
-/** Igual que en la app: emergencias y alarmas siempre; el resto según preferencias y franja de silencio (hora de la central). */
-export function quiereRecibir(prefs: Preferencias, grupo: keyof Preferencias | null, ahora: Date = new Date()): boolean {
-  if (grupo === null) return true;
-  if (!prefs[grupo]) return false;
-  if (!prefs.silencioDesde || !prefs.silencioHasta) return true;
-  const local = new Date(ahora.toLocaleString('en-US', { timeZone: process.env.ZONA_HORARIA_CENTRAL ?? 'America/Caracas' }));
-  const m = local.getHours() * 60 + local.getMinutes();
-  const desde = minutos(prefs.silencioDesde);
-  const hasta = minutos(prefs.silencioHasta);
-  const enSilencio = desde <= hasta ? m >= desde && m < hasta : m >= desde || m < hasta;
-  return !enSilencio;
+/**
+ * ¿Le llega este aviso al usuario ahora? Las preferencias se evalúan en la
+ * hora de la central, no en la del servidor (UTC): la franja de silencio
+ * "22:00 a 07:00" es la noche del cliente.
+ */
+export function quiereRecibirAhora(prefs: PreferenciasAviso, grupo: GrupoAviso | null, ahora: Date = new Date()): boolean {
+  return quiereRecibir(prefs, grupo, enZona(null, ahora));
 }
 
 /** Usuarios de la app cuyos accesos alcanzan este panel, con su cantidad de sitios (para nombrar el lugar). */
@@ -166,7 +60,7 @@ async function destinatarios(panelId: number): Promise<{ usuarioId: number; siti
 }
 
 /** Manda el aviso de un evento a todos los teléfonos que corresponda. Nunca lanza: el push es lo último que puede frenar algo. */
-export async function enviarAvisosPush(carga: CargaEvento, log: { info: (o: object, m: string) => void; warn: (o: object, m: string) => void }): Promise<number> {
+export async function enviarAvisosPush(carga: CargaAviso, log: { info: (o: object, m: string) => void; warn: (o: object, m: string) => void }): Promise<number> {
   if (!pushDisponible() || carga.panelId === null) return 0;
   let enviados = 0;
   try {
@@ -202,10 +96,13 @@ export async function enviarAvisosPush(carga: CargaEvento, log: { info: (o: obje
       }, 30_000).unref();
     };
     for (const g of gente) {
-      const mensaje = mensajeParaEvento(carga, g.sitios > 1);
-      if (!mensaje) continue;
-      const p = prefs.find((x) => x.usuarioId === g.usuarioId) ?? POR_DEFECTO;
-      if (!quiereRecibir(p, mensaje.grupo)) {
+      const frase = fraseParaEvento(carga, { nombrarSitio: g.sitios > 1 });
+      if (!frase) continue;
+      const datos = { eventoId: String(carga.eventoId), panelId: String(carga.panelId ?? ''), categoria: carga.categoria ?? '' };
+      const mensaje: MensajePush = { titulo: frase.titulo, cuerpo: frase.cuerpo, habla: frase.texto, canal: frase.canal, datos };
+      const guardadas = prefs.find((x) => x.usuarioId === g.usuarioId);
+      const p: PreferenciasAviso = guardadas ? { ...guardadas, vozPush: guardadas.vozPush as VozPush } : PREFERENCIAS_POR_DEFECTO;
+      if (!quiereRecibirAhora(p, frase.grupo)) {
         await rastro(g.usuarioId, 'omitido', null, 'apagado en sus preferencias o en silencio');
         continue;
       }

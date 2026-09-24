@@ -30,6 +30,32 @@ tools/
   simulator/   Envía tramas DC-09 reales para probar sin hardware
 ```
 
+### Una sola fuente para lo que tiene que coincidir
+
+Todo lo que el servidor y la consola/app tienen que entender igual vive en `packages/shared` y se
+importa desde `@monitoring/shared` en los dos lados (la consola lo consume como dependencia del
+monorepo, sin alias). No se copia: una copia se olvida al cambiar la original.
+
+| Qué | Dónde |
+| --- | --- |
+| Categorías, tipos de señal, nombre y orden de los tipos | `shared/src/tipos.ts`, `shared/src/tiposSenal.ts` |
+| Motivos de cierre, desenlaces, resultados de llamada | `shared/src/cierres.ts` |
+| Frases de los avisos (push con la app cerrada y WebSocket con la app abierta) | `shared/src/avisos.ts` |
+| Preferencias de avisos, franja de silencio, voz | `shared/src/preferencias.ts` |
+| Huso horario por defecto, límite de silencio general, canales push, sonido | `shared/src/central.ts` |
+
+Reglas:
+- Un valor que el servidor ajusta por variable de entorno (`ZONA_HORARIA_CENTRAL`, `SILENCIO_GENERAL_MIN`)
+  tiene su **valor por defecto** en `shared/src/central.ts`; el paquete que lee la variable hace
+  `process.env.X ?? X_POR_DEFECTO`. La consola usa el valor por defecto directamente.
+- `shared` no importa nada de Node (`fs`, `crypto`, `process`): tiene que correr en el navegador.
+- Los tipos que la consola comparte con el servidor se reexportan desde `console/src/tipos.ts`, así
+  las pantallas siguen importando de un solo lugar.
+- Las clases repetidas de campos y botones de la consola están en `console/src/estilos.ts`
+  (`CAMPO`, `BOTON`, `BOTON_MINI`, `BOTON_MINI_ROJO` y las variantes `_APP` para la app del cliente).
+- Java no puede importar `shared`: los ids de canal en `AvisosService.java` son la única copia
+  permitida y llevan un comentario que apunta a `central.ts`.
+
 Reglas de oro del receptor:
 1. Toda trama cruda se persiste en `senal` **antes** de responder ACK (diario legal/auditoría).
 2. Si la persistencia falla, se responde NAK y el panel reintenta.

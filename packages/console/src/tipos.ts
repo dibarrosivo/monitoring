@@ -1,33 +1,18 @@
+/**
+ * Tipos de la consola. Los que también usa el servidor (categorías, tipos de
+ * señal, desenlaces, preferencias) viven en @monitoring/shared y acá solo se
+ * reexportan, para que las pantallas sigan importando de un solo lugar.
+ */
+import type { CategoriaEvento, DesenlaceAlarma, PreferenciasAviso, TipoSenal } from '@monitoring/shared';
+
+export type { CategoriaEvento, DesenlaceAlarma, PreferenciasAviso, TipoSenal };
+
 export interface Usuario {
   id: number;
   email: string;
   nombre: string;
   rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
 }
-
-export type CategoriaEvento =
-  | 'alarma'
-  | 'restauracion'
-  | 'apertura'
-  | 'cierre'
-  | 'averia'
-  | 'anulacion'
-  | 'prueba'
-  | 'cancelacion'
-  | 'sistema'
-  | 'desconocido';
-
-/** Familia de la señal, con color fijo en toda la consola (ver ui.ts). La calcula la API. */
-export type TipoSenal =
-  | 'emergencia'
-  | 'robo'
-  | 'averia'
-  | 'horario'
-  | 'apertura_cierre'
-  | 'restauracion'
-  | 'anulacion'
-  | 'prueba'
-  | 'sistema';
 
 export interface Evento {
   id: number;
@@ -376,9 +361,6 @@ export interface ContextoAlarma {
   }[];
 }
 
-/** Cómo terminó una alarma. Separado del texto libre para poder medirlo. */
-export type DesenlaceAlarma = 'resuelta' | 'falsa_alarma' | 'escalada';
-
 /** Resumen para la vista de clientes (rol 'cliente'). */
 export interface PanelResumenCliente {
   id: number;
@@ -440,18 +422,6 @@ export interface EventoCliente {
   zona: string | null;
   zonaDescripcion: string | null;
   ocurridoEn: string;
-}
-
-/** Qué quiere recibir el usuario de la app; emergencias y alarmas no se apagan */
-export interface PreferenciasAviso {
-  armadoDesarmado: boolean;
-  averias: boolean;
-  sistema: boolean;
-  /** 'HH:MM' ambas, o null ambas */
-  silencioDesde: string | null;
-  silencioHasta: string | null;
-  /** Voz en los avisos con la app cerrada; la notificación llega igual */
-  vozPush?: 'siempre' | 'solo_alarmas' | 'nunca';
 }
 
 /** Rastro de un aviso push a un usuario de la app */

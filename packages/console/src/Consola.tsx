@@ -22,12 +22,13 @@ import { HombreMuerto } from './HombreMuerto.js';
 import { usePantallaChica } from './pantalla.js';
 import { Buscador } from './Buscador.js';
 import { SelectorTema } from './SelectorTema.js';
+import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'calendario' | 'usuarios';
 
-/** Minutos sin ninguna señal para dar la central por muda (igual que SILENCIO_GENERAL_MIN en el servidor). */
-const LIMITE_SILENCIO_MIN = 20;
+/** Minutos sin ninguna señal para dar la central por muda: el mismo valor que usa el vigilante del servidor. */
+const LIMITE_SILENCIO_MIN = SILENCIO_GENERAL_MIN_POR_DEFECTO;
 
 /** Notificación del sistema (fuera de la pestaña) cuando el navegador la permite. */
 function notificarSistema(titulo: string, cuerpo: string): void {

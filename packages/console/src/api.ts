@@ -1,4 +1,4 @@
-import type { ResultadoLlamada } from './cierres.js';
+import type { ResultadoLlamada } from '@monitoring/shared';
 import type {
   Acceso,
   AccionAlarma,

@@ -9,10 +9,7 @@ import {
 } from '../api.js';
 import type { UsuarioAdmin } from '../tipos.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
-const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
-const BOTON_MINI = 'text-xs text-tenue hover:text-acento underline underline-offset-2';
-const BOTON_MINI_ROJO = 'text-xs text-tenue hover:text-prio1 underline underline-offset-2';
+import { BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO } from '../estilos.js';
 
 export function Usuarios({ usuarioActualId }: { usuarioActualId: number }) {
   const { data: usuarios, isLoading } = useQuery({ queryKey: ['usuarios'], queryFn: () => listarUsuarios() });

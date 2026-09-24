@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { anotarAlarma, devolverAlarma, listarAvisosPush, marcarPaso, listarAcciones, listarAlarmas, reabrirAlarma, tomarAlarma, tomarLote, verContexto } from '../api.js';
 import type { Alarma, TipoSenal } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
-import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, resumenAviso, tipoDe } from '../ui.js';
+import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, NOMBRE_TIPO_PANEL, resumenAviso, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 import { Modal } from '../Modal.js';
-import { ETIQUETA_DESENLACE } from '../cierres.js';
+import { ETIQUETA_DESENLACE, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
 import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;

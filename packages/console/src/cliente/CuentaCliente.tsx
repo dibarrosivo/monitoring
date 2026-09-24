@@ -14,10 +14,7 @@ import {
 } from '../api.js';
 import type { ContactoApp, PanelResumenCliente, Usuario, UsuarioApp } from '../tipos.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-lg px-3 py-2 text-sm w-full';
-const BOTON = 'bg-acento/15 hover:bg-acento/25 border border-acento text-acento rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50';
-const BOTON_MINI = 'text-xs text-tenue hover:text-acento underline underline-offset-2';
-const BOTON_MINI_ROJO = 'text-xs text-tenue hover:text-prio1 underline underline-offset-2';
+import { BOTON_APP as BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO_APP as CAMPO } from '../estilos.js';
 const ROLES = ['Propietario', 'Encargado', 'Empleado', 'Familiar', 'Vecino', 'Vigilante', 'Otro'];
 
 /**

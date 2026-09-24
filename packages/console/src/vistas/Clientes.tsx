@@ -29,12 +29,10 @@ import {
 import type { Cliente, Contacto, EstadoCliente, EstadoPanel, Sitio, TipoSitio } from '../tipos.js';
 import { Modal } from '../Modal.js';
 import { fechaHora } from '../tiempo.js';
+import { ZONA_HORARIA_POR_DEFECTO } from '@monitoring/shared';
 import { enPrueba, nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
-const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
-const BOTON_MINI = 'text-xs text-tenue hover:text-acento underline underline-offset-2';
-const BOTON_MINI_ROJO = 'text-xs text-tenue hover:text-prio1 underline underline-offset-2';
+import { BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO } from '../estilos.js';
 
 const ESTADO: Record<EstadoCliente, { nombre: string; clase: string }> = {
   activo: { nombre: 'Activo', clase: 'text-ok' },
@@ -194,7 +192,7 @@ function zonasHorarias(): string[] {
     // Navegador viejo: se usa la lista corta de abajo
   }
   return [
-    'America/Caracas',
+    ZONA_HORARIA_POR_DEFECTO,
     'America/Bogota',
     'America/Panama',
     'America/Santo_Domingo',

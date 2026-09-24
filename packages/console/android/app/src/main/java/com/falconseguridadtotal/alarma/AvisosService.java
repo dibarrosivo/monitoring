@@ -28,8 +28,10 @@ import java.util.Map;
  */
 public class AvisosService extends com.capacitorjs.plugins.pushnotifications.MessagingService {
     private static final String TAG = "AvisosService";
+    // Los mismos ids que CANAL_PUSH en packages/shared/src/central.ts (Java no puede importarlo)
     private static final String CANAL_ALARMAS = "alarmas-v2";
     private static final String CANAL_AVISOS = "avisos-v2";
+    private static final String URL_ECO = "https://monitoreo.falconseguridadtotal.com/api/push/eco";
     private static TextToSpeech voz;
     private static boolean vozLista = false;
     private static final List<String[]> pendientes = new ArrayList<>();
@@ -69,23 +71,7 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
 
     /** Acuse sincrónico, con tope corto: se usa en el hilo del mensaje, antes de que el proceso pueda morir. */
     static void acusarAhora(String eco, String estado) {
-        if (eco == null) return;
-        try {
-            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL("https://monitoreo.falconseguridadtotal.com/api/push/eco").openConnection();
-            c.setRequestMethod("POST");
-            c.setRequestProperty("Content-Type", "application/json");
-            c.setDoOutput(true);
-            c.setConnectTimeout(4000);
-            c.setReadTimeout(4000);
-            org.json.JSONObject j = new org.json.JSONObject();
-            j.put("eco", eco);
-            j.put("estado", estado + " | " + Build.MANUFACTURER + " " + Build.MODEL + " Android " + Build.VERSION.RELEASE);
-            c.getOutputStream().write(j.toString().getBytes("UTF-8"));
-            c.getResponseCode();
-            c.disconnect();
-        } catch (Exception e) {
-            Log.w(TAG, "No se pudo acusar el push: " + e.getMessage());
-        }
+        acusar(eco, estado, 4000);
     }
 
     private static Runnable alTerminar;
@@ -95,28 +81,31 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
         alTerminar = r;
     }
 
-    /** Le cuenta al servidor qué pasó con este aviso: llegó, y si la voz habló o por qué no. */
+    /** Acuse en segundo plano, para no frenar la voz ni la notificación. */
     static void acusar(String eco, String estado) {
         if (eco == null) return;
-        new Thread(() -> {
-            try {
-                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL("https://monitoreo.falconseguridadtotal.com/api/push/eco").openConnection();
-                c.setRequestMethod("POST");
-                c.setRequestProperty("Content-Type", "application/json");
-                c.setDoOutput(true);
-                c.setConnectTimeout(8000);
-                c.setReadTimeout(8000);
-                org.json.JSONObject j = new org.json.JSONObject();
-                j.put("eco", eco);
-                j.put("estado", estado + " | " + Build.MANUFACTURER + " " + Build.MODEL + " Android " + Build.VERSION.RELEASE);
-                byte[] cuerpo = j.toString().getBytes("UTF-8");
-                c.getOutputStream().write(cuerpo);
-                c.getResponseCode();
-                c.disconnect();
-            } catch (Exception e) {
-                Log.w(TAG, "No se pudo acusar el push: " + e.getMessage());
-            }
-        }).start();
+        new Thread(() -> acusar(eco, estado, 8000)).start();
+    }
+
+    /** POST /api/push/eco con la clave firmada que vino en el mensaje: así el servidor sabe que llegó y qué pasó con la voz. */
+    private static void acusar(String eco, String estado, int topeMs) {
+        if (eco == null) return;
+        try {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(URL_ECO).openConnection();
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json");
+            c.setDoOutput(true);
+            c.setConnectTimeout(topeMs);
+            c.setReadTimeout(topeMs);
+            org.json.JSONObject j = new org.json.JSONObject();
+            j.put("eco", eco);
+            j.put("estado", estado + " | " + Build.MANUFACTURER + " " + Build.MODEL + " Android " + Build.VERSION.RELEASE);
+            c.getOutputStream().write(j.toString().getBytes("UTF-8"));
+            c.getResponseCode();
+            c.disconnect();
+        } catch (Exception e) {
+            Log.w(TAG, "No se pudo acusar el push: " + e.getMessage());
+        }
     }
 
     private void mostrar(String titulo, String cuerpo, boolean alarma, String eventoId) {

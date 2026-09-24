@@ -1,7 +1,8 @@
 import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { accionAlarma, alarma, bridge, db, evento, feriado, horario, panel, senal, sitio } from '@monitoring/db';
 import { abrirAlarma, tieneAlarmaSistemaAbierta } from './procesador.js';
-import { enZona, evaluarPendientesDia, fechaIsoLocal } from './horarios.js';
+import { enZona, evaluarPendientesDia, fechaIsoLocal, ZONA_HORARIA_CENTRAL } from './horarios.js';
+import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
 
 /**
  * Vigilante de paneles silenciosos: en este rubro el silencio es en sí una emergencia
@@ -230,7 +231,7 @@ export async function revisarPuentes(): Promise<number> {
 }
 
 /** Minutos sin recibir NADA (de ningún receptor) para dar la central por muda. */
-export const SILENCIO_GENERAL_MIN = Number(process.env.SILENCIO_GENERAL_MIN ?? 20);
+export const SILENCIO_GENERAL_MIN = Number(process.env.SILENCIO_GENERAL_MIN ?? SILENCIO_GENERAL_MIN_POR_DEFECTO);
 const CODIGO_SILENCIO_GENERAL = 'SIS-GEN';
 
 /** ¿La última señal es demasiado vieja? Sin señales nunca, también. */
@@ -258,7 +259,7 @@ export async function revisarSilencioGeneral(ahora: Date = new Date()): Promise<
 
   if (haySilencioGeneral(ultima, ahora)) {
     if (abierta) return false;
-    const hora = ultima ? ultima.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', timeZone: process.env.ZONA_HORARIA_CENTRAL ?? 'America/Caracas' }) : 'nunca';
+    const hora = ultima ? ultima.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', timeZone: ZONA_HORARIA_CENTRAL }) : 'nunca';
     const descripcion = `SIN SEÑALES EN LA CENTRAL: ningún receptor recibió nada hace más de ${SILENCIO_GENERAL_MIN} min (última ${hora})`;
     const [filaEvento] = await db
       .insert(evento)

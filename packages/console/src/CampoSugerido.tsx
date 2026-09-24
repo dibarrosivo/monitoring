@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listarCatalogo } from './api.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
+import { CAMPO } from './estilos.js';
 
 /**
  * Campo de texto con sugerencias de lo ya cargado (marcas, modelos,

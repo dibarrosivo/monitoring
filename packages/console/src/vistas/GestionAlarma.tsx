@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cerrarAlarma, cerrarLote, registrarLlamada } from '../api.js';
 import type { AccionAlarma, Alarma, ContextoAlarma, DesenlaceAlarma } from '../tipos.js';
-import { ETIQUETA_DESENLACE, MOTIVOS_CIERRE, RESULTADOS_LLAMADA, type ResultadoLlamada } from '../cierres.js';
+import { ETIQUETA_DESENLACE, MOTIVOS_CIERRE, RESULTADOS_LLAMADA, type ResultadoLlamada } from '@monitoring/shared';
 import { fechaHora } from '../tiempo.js';
 
 /**

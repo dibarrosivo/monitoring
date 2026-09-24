@@ -28,13 +28,11 @@ import { enPrueba } from '../ui.js';
 import { Modal } from '../Modal.js';
 import { CampoSugerido } from '../CampoSugerido.js';
 import { ControlPanel } from '../ControlPanel.js';
-import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, resumenAviso, tipoDe } from '../ui.js';
+import { NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
+import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, resumenAviso, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
-const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
-const BOTON_MINI = 'text-xs text-tenue hover:text-acento underline underline-offset-2';
-const BOTON_MINI_ROJO = 'text-xs text-tenue hover:text-prio1 underline underline-offset-2';
+import { BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO } from '../estilos.js';
 const DIAS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const;
 
 function fechaCorta(iso: string | null | undefined): string {

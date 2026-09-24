@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { crearFeriado, eliminarFeriado, listarFeriados } from '../api.js';
 import { feriadosVenezuela } from '../feriados.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
-const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
+import { BOTON, CAMPO } from '../estilos.js';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
