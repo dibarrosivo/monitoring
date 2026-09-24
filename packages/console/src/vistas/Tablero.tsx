@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { verTablero } from '../api.js';
+import { verTablero, verTasa } from '../api.js';
+import { describirTasa } from '@monitoring/shared';
 import { fechaHora } from '../tiempo.js';
 import { NOMBRE_CATEGORIA, nombreCuenta } from '../ui.js';
 import { clasesPrioridad } from '../ui.js';
@@ -21,6 +22,7 @@ export function Tablero({
   alIrAClientes: () => void;
 }) {
   const { data: tablero, isLoading } = useQuery({ queryKey: ['tablero'], queryFn: verTablero, refetchInterval: 30_000 });
+  const { data: tasa } = useQuery({ queryKey: ['tasa'], queryFn: verTasa, refetchInterval: 30 * 60_000 });
 
   if (isLoading || !tablero) return <p className="text-tenue">Cargando el dashboard…</p>;
 
@@ -53,6 +55,11 @@ export function Tablero({
           alClickear={alIrAClientes}
         />
       </div>
+
+      {/* Tasa del día: los planes están en dólares y se convierten al consultar */}
+      <p className="text-xs text-tenue">
+        Tasa del día: {tasa?.vigente ? <span className="font-datos text-texto">{describirTasa(tasa.vigente)}</span> : <span className="text-prio2">sin tasa cargada todavía</span>}
+      </p>
 
       {(tablero.facturacion.vencidos > 0 || tablero.facturacion.porVencer > 0) && (
         <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-1.5">

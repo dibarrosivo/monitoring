@@ -4,6 +4,7 @@ import { debeRecibir, refrescarAlcance } from './tiempoReal.js';
 import type { CargaAviso } from '@monitoring/shared';
 import { enviarAvisosPush } from './push/avisos.js';
 import { pushDisponible } from './push/fcm.js';
+import { iniciarBotTasa } from './tasa/bcv.js';
 
 try {
   process.loadEnvFile();
@@ -29,8 +30,11 @@ const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (cana
 const puerto = Number(process.env.PUERTO_API ?? 3000);
 await app.listen({ port: puerto, host: '0.0.0.0' });
 app.log.info({ push: pushDisponible() }, pushDisponible() ? 'Avisos push por Firebase activos' : 'Avisos push apagados: sin FIREBASE_CREDENCIALES');
+// Tasa del BCV: una lectura al arrancar y otra cada 12 h; los cobros convierten con la vigente
+const detenerBotTasa = iniciarBotTasa(app.log);
 
 async function apagar() {
+  detenerBotTasa();
   await detenerEscucha();
   await app.close();
   await pool.end();

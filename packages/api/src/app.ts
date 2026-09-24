@@ -17,6 +17,7 @@ import { registrarClienteApp } from './modulos/clienteApp.js';
 import { registrarReportes } from './modulos/reportes.js';
 import { registrarConfiguracion } from './modulos/configuracion.js';
 import { registrarTablero } from './modulos/tablero.js';
+import { registrarTasa } from './modulos/tasa.js';
 import { registrarSupervision } from './modulos/supervision.js';
 import { registrarBridge, registrarBridgesConsulta } from './modulos/bridge.js';
 import './tipos.js';
@@ -127,6 +128,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       await api.register(async (sub) => registrarReportes(sub));
       await api.register(async (sub) => registrarConfiguracion(sub));
       await api.register(async (sub) => registrarTablero(sub));
+      await api.register(async (sub) => registrarTasa(sub));
       await api.register(async (sub) => registrarSupervision(sub));
       await api.register(async (sub) => registrarBridge(sub));
       await api.register(async (sub) => registrarBridgesConsulta(sub));

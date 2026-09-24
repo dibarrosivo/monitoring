@@ -41,6 +41,7 @@ import type {
   UsuarioApp,
   UsuarioPanel,
   Zona,
+  Tasa,
 } from './tipos.js';
 
 const CLAVE_TOKEN = 'monitoring.token';
@@ -286,6 +287,7 @@ export const crearUsuario = (datos: {
 export const editarUsuario = (id: number, datos: { nombre?: string; rol?: 'admin' | 'supervisor' | 'operador'; activo?: boolean; clave?: string }) =>
   editar<UsuarioAdmin>(`/usuarios/${id}`, datos);
 export const verTablero = () => pedir<Tablero>('/tablero');
+export const verTasa = () => pedir<{ vigente: Tasa | null; ultimas: Tasa[] }>('/tasa');
 
 export const generarReporte = (clienteId: number, desde: string, hasta: string) =>
   pedir<Reporte>(`/reportes?clienteId=${clienteId}&desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);

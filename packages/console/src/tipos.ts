@@ -530,6 +530,14 @@ export interface ResultadoBusqueda {
   contactos: { id: number; nombre: string; telefono: string; clienteId: number }[];
 }
 
+/** Tasa oficial del dólar (Bs por US$) y desde qué día rige. */
+export interface Tasa {
+  valor: number;
+  fechaValor: string;
+  fuente: string;
+  obtenidoEn: string;
+}
+
 /** Mensajes que llegan por el WebSocket (NOTIFY de Postgres). */
 export interface MensajeTiempoReal {
   canal: 'nueva_alarma' | 'nuevo_evento';

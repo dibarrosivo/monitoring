@@ -7,3 +7,4 @@ export * from './tiposSenal.js';
 export * from './central.js';
 export * from './preferencias.js';
 export * from './avisos.js';
+export * from './moneda.js';

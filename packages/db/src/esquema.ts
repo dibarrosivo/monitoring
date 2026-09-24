@@ -591,3 +591,26 @@ export const envioPush = pgTable(
   },
   (t) => [index('envio_push_evento').on(t.eventoId), index('envio_push_usuario_fecha').on(t.usuarioId, t.enviadoEn)],
 );
+
+/**
+ * Tasa de cambio oficial (BCV), una fila por día de valor. La leen los
+ * cobros: los planes están en dólares y la conversión a bolívares se hace en
+ * el momento de la consulta con la tasa vigente, nunca se guarda un monto en
+ * bolívares. El bot de la API la actualiza cada 12 horas; un administrador
+ * puede cargarla a mano si el BCV no responde.
+ */
+export const tasaCambio = pgTable(
+  'tasa_cambio',
+  {
+    id: serial('id').primaryKey(),
+    moneda: varchar('moneda', { length: 3 }).notNull().default('USD'),
+    /** Bolívares por una unidad de la moneda */
+    valor: numeric('valor', { precision: 14, scale: 4 }).notNull(),
+    /** Día desde el que rige ("Fecha Valor" del BCV) */
+    fechaValor: date('fecha_valor').notNull(),
+    /** bcv | manual */
+    fuente: varchar('fuente', { length: 16 }).notNull().default('bcv'),
+    obtenidoEn: timestamp('obtenido_en', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('tasa_cambio_moneda_fecha').on(t.moneda, t.fechaValor)],
+);

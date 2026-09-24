@@ -77,6 +77,12 @@ Cada sitio puede fijar su **zona horaria**; vacío significa la del servidor. La
 horarios evalúa cada sitio con su hora local, así un cliente en otra franja no dispara falsos
 avisos de apertura tarde.
 
+Los planes y las cuotas están en **dólares**; a bolívares se convierte al consultar, con la tasa
+oficial. La API lee la portada del BCV cada `TASA_BCV_CADA_HORAS` (12 por defecto) y guarda una fila
+por fecha de valor en `tasa_cambio`; una lectura con un salto mayor al 25 % no se guarda y queda en
+el log. `GET /api/tasa` devuelve la vigente (cualquier sesión) y `POST /api/tasa` la carga a mano
+(administrador) si el BCV no responde. Nunca se guarda un monto en bolívares.
+
 Marca, modelo e instalador se completan con **sugerencias de lo ya cargado**. El catálogo se
 alimenta solo: al guardar un equipo con un valor nuevo, queda disponible para el siguiente. Evita
 que convivan "Bosch", "BOSCH" y "bosh" sin obligar a mantener listas a mano.

@@ -43,7 +43,7 @@ export async function limpiarBase(): Promise<void> {
     TRUNCATE TABLE
       auditoria, accion_alarma, alarma, comando, evento, senal, acceso, usuario_panel, sesion_operador,
       contacto, horario, zona, panel, sitio, cliente, usuario, configuracion, feriado, catalogo, preferencia_aviso, dispositivo_push, envio_push,
-      bridge
+      bridge, tasa_cambio
     RESTART IDENTITY CASCADE
   `);
 }
