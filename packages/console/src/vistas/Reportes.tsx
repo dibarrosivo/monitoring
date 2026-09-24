@@ -172,7 +172,7 @@ export function Reportes() {
           </section>
 
           <footer className="text-tenue text-xs">
-            Generado el {new Date().toLocaleString('es')} · Central de monitoreo
+            Generado el {new Date().toLocaleString('es')} · FST Falcón Seguridad Total · Central de monitoreo
           </footer>
         </article>
       )}

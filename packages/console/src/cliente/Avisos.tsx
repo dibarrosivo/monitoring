@@ -109,7 +109,7 @@ function notificarSistema(frase: Frase): void {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible') return;
   try {
-    const n = new Notification(frase.tono === 'emergencia' ? 'EMERGENCIA' : frase.tono === 'alarma' ? 'ALARMA' : 'Mi alarma', {
+    const n = new Notification(frase.tono === 'emergencia' ? 'EMERGENCIA' : frase.tono === 'alarma' ? 'ALARMA' : 'FST Alarma', {
       body: frase.texto,
       tag: `aviso-${Date.now()}`,
       requireInteraction: frase.persistente,

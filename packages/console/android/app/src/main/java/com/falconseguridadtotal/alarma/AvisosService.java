@@ -129,7 +129,7 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
         int id = eventoId != null ? Math.abs(eventoId.hashCode()) : (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
         PendingIntent pi = PendingIntent.getActivity(this, id, abrir, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, canal)
-            .setSmallIcon(getApplicationInfo().icon)
+            .setSmallIcon(R.drawable.ic_notificacion)
             .setContentTitle(titulo)
             .setContentText(cuerpo)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(cuerpo))

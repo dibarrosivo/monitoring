@@ -31,9 +31,9 @@ export function ConfiguracionAvisos({ compacta = false, alCompletar }: { compact
     };
   }, []);
 
-  if (!esNativo() || !permisos) return null;
-
-  const pasos: { clave: string; titulo: string; detalle: string; listo: boolean; accion: () => void; boton: string }[] = [
+  // Los hooks van todos antes de cualquier return: si no, React falla al cambiar la cantidad entre renders
+  const pasos: { clave: string; titulo: string; detalle: string; listo: boolean; accion: () => void; boton: string }[] = permisos
+    ? [
     {
       clave: 'notificaciones',
       titulo: 'Permitir notificaciones',
@@ -50,22 +50,24 @@ export function ConfiguracionAvisos({ compacta = false, alCompletar }: { compact
       accion: () => void pedirBateria(),
       boton: 'Permitir',
     },
-  ];
-  if (permisos.necesitaInicioAutomatico) {
+  ]
+    : [];
+  if (permisos?.necesitaInicioAutomatico) {
     pasos.push({
       clave: 'inicio',
       titulo: `Activar inicio automático (${permisos.fabricante})`,
-      detalle: 'Este teléfono cierra las apps que no tienen inicio automático. Active el interruptor de Falcón Alarma y vuelva.',
+      detalle: 'Este teléfono cierra las apps que no tienen inicio automático. Active el interruptor de FST Alarma y vuelva.',
       listo: inicioAuto,
       accion: () => void abrirInicioAutomatico(),
       boton: 'Abrir ajuste',
     });
   }
-  const todoListo = pasos.every((p) => p.listo);
+  const todoListo = pasos.length > 0 && pasos.every((p) => p.listo);
   useEffect(() => {
     if (todoListo) alCompletar?.();
   }, [todoListo]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (!esNativo() || !permisos) return null;
   if (compacta && todoListo) return null;
 
   return (

@@ -252,7 +252,7 @@ const TEXTO_ESTADO: Record<EstadoPush['etapa'], string> = {
   'canales-listos': 'Canales listos; consultando el permiso…',
   'pidiendo-permiso': 'Pidiendo permiso de notificaciones…',
   'sin-plugin': 'La app no pudo cargar el módulo de notificaciones.',
-  'permiso-negado': 'Sin permiso de notificaciones. Actívelo en Ajustes del teléfono → Apps → Falcon Alarma → Notificaciones.',
+  'permiso-negado': 'Sin permiso de notificaciones. Actívelo en Ajustes del teléfono → Apps → FST Alarma → Notificaciones.',
   registrando: 'Registrando el teléfono en Firebase…',
   registrado: 'Este teléfono recibe avisos aunque la app esté cerrada.',
   error: 'No se pudo registrar el teléfono.',

@@ -4,6 +4,7 @@ import { cerrarSesion, listarAlarmas, listarEventos } from './api.js';
 import { useTiempoReal } from './tiempoReal.js';
 import { sonarAlarma, sonarSirena } from './sonido.js';
 import { listarSenales } from './api.js';
+import { MarcaFST } from './cliente/Iconos.js';
 import type { MensajeTiempoReal, Usuario } from './tipos.js';
 import { Cola, type FiltroCola } from './vistas/Cola.js';
 import { Tablero } from './vistas/Tablero.js';
@@ -246,7 +247,8 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           <button onClick={() => setMenuAbierto(!menuAbierto)} aria-label="Menú" className="text-lg leading-none">
             ☰
           </button>
-          <span className="font-semibold tracking-[0.1em]">CENTRAL</span>
+          <MarcaFST tamano={22} />
+          <span className="font-semibold tracking-[0.1em]">FST</span>
           <span>
             <span className={conteos.nuevas > 0 ? 'text-prio1 font-semibold' : 'text-tenue'}>{conteos.nuevas}</span>
             <span className="text-tenue"> nuevas</span>
@@ -323,7 +325,10 @@ export function Consola({ usuario }: { usuario: Usuario }) {
       {/* Riel de navegación */}
       <nav className="w-52 shrink-0 border-r border-borde bg-superficie flex flex-col">
         <div className="px-4 py-5 border-b border-borde">
-          <h1 className="font-datos font-semibold tracking-[0.2em] text-xs">CENTRAL DE MONITOREO</h1>
+          <span className="flex items-center gap-2.5">
+            <MarcaFST tamano={26} />
+            <h1 className="font-datos font-semibold tracking-[0.2em] text-xs">FST · CENTRAL DE MONITOREO</h1>
+          </span>
         </div>
         <div className="flex-1 py-2">
           {VISTAS.filter((v) => !v.roles || v.roles.includes(usuario.rol)).map((v) => (

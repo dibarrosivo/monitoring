@@ -59,7 +59,7 @@ public class VozService extends Service {
             nm.createNotificationChannel(c);
         }
         return new NotificationCompat.Builder(this, CANAL)
-            .setSmallIcon(getApplicationInfo().icon)
+            .setSmallIcon(R.drawable.ic_notificacion)
             .setContentTitle("Diciendo el aviso…")
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setSilent(true)

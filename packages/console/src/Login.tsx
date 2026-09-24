@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { esNativo, guardarServidor, ingresar, servidorGuardado } from './api.js';
+import { MarcaFST } from './cliente/Iconos.js';
 import type { Usuario } from './tipos.js';
 import { SelectorTema } from './SelectorTema.js';
 
@@ -37,7 +38,13 @@ export function Login({ alIngresar }: { alIngresar: (usuario: Usuario) => void }
         <header className="flex items-center gap-3">
           <span className="led led-verde" aria-hidden />
           <div>
-            <h1 className="font-datos font-semibold tracking-[0.25em] text-sm">CENTRAL DE MONITOREO</h1>
+            <span className="flex items-center gap-3">
+              <MarcaFST tamano={44} />
+              <span className="leading-tight">
+                <span className="block font-ui font-bold text-base tracking-[-0.01em]">Falcón Seguridad Total</span>
+                <h1 className="font-datos font-medium tracking-[0.22em] text-[11px] text-tenue uppercase">Central de monitoreo</h1>
+              </span>
+            </span>
             <p className="text-tenue text-sm">Consola de operador</p>
           </div>
         </header>

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Falcon Alarma</string>
-    <string name="title_activity_main">Falcon Alarma</string>
+    <string name="app_name">FST Alarma</string>
+    <string name="title_activity_main">FST Alarma</string>
     <string name="package_name">com.falconseguridadtotal.alarma</string>
     <string name="custom_url_scheme">com.falconseguridadtotal.alarma</string>
 </resources>
