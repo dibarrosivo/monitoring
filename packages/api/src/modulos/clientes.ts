@@ -85,6 +85,7 @@ const esquemaCliente = z.object({
   notas: z.string().optional(),
   instrucciones: z.string().optional(),
   fechaAlta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  exonerado: z.boolean().optional(),
 });
 
 /** Cambio de estado comercial: siempre con motivo y fecha. */
@@ -130,6 +131,7 @@ const camposPanel = {
   intervaloPruebaMin: z.number().int().positive().default(1440),
   ventanaCancelacionSeg: z.number().int().min(0).max(300).default(25),
   planId: z.number().int().nullable().optional(),
+  exonerado: z.boolean().optional(),
   montoAbono: z.union([z.number(), z.string()]).transform(String).nullable().optional(),
   frecuenciaMeses: z.number().int().min(1).max(24).optional(),
   proximoVencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),

@@ -85,6 +85,8 @@ export const cliente = pgTable('cliente', {
   motivoEstado: text('motivo_estado'),
   estadoDesde: timestamp('estado_desde', { withTimezone: true }),
   fechaAlta: date('fecha_alta'),
+  /** Exonerado de cobro: no se le generan cuotas a ninguno de sus dispositivos (cortesía, socio, prueba larga) */
+  exonerado: boolean('exonerado').notNull().default(false),
   activo: boolean('activo').notNull().default(true),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -177,6 +179,8 @@ export const panel = pgTable(
      * del próximo período a cobrar: el generador de cuotas lo va corriendo.
      */
     planId: integer('id_plan').references(() => plan.id),
+    /** Exonerado de cobro este dispositivo en particular, aunque tenga plan */
+    exonerado: boolean('exonerado').notNull().default(false),
     montoAbono: numeric('monto_abono', { precision: 12, scale: 2 }),
     frecuenciaMeses: integer('frecuencia_meses').notNull().default(1),
     proximoVencimiento: date('proximo_vencimiento'),

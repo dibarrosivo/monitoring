@@ -162,6 +162,8 @@ export interface EstadoPanel {
   propiedad?: PropiedadEquipo;
   /** Cobro: plan (precio y frecuencia) o monto propio; montoAbono con plan es precio especial */
   planId?: number | null;
+  /** Exonerado de cobro este dispositivo */
+  exonerado?: boolean;
   montoAbono?: string | null;
   frecuenciaMeses?: number;
   /** Inicio del próximo período a cobrar; el servidor lo corre al generar cada cuota */
@@ -263,6 +265,8 @@ export interface Cliente {
   motivoEstado: string | null;
   estadoDesde: string | null;
   fechaAlta: string | null;
+  /** Exonerado de cobro: sin cuotas para ninguno de sus dispositivos */
+  exonerado?: boolean;
   activo: boolean;
 }
 
@@ -579,6 +583,7 @@ export interface DispositivoCobro {
   prefijo: string | null;
   sitioNombre: string;
   activo: boolean;
+  exonerado: boolean;
   planId: number | null;
   planNombre: string | null;
   planPrecioUsd: number | null;
@@ -591,7 +596,7 @@ export interface DispositivoCobro {
 
 /** Estado de cuenta de un cliente. */
 export interface EstadoDeCuenta {
-  cliente: { id: number; nombre: string };
+  cliente: { id: number; nombre: string; exonerado: boolean };
   dispositivos: DispositivoCobro[];
   cuotas: CuotaVista[];
   pagos: PagoVista[];
@@ -615,6 +620,7 @@ export interface FilaCobros {
   clienteId: number;
   nombre: string;
   telefono: string | null;
+  exonerado: boolean;
   dispositivos: number;
   pendienteUsd: number;
   vencidoUsd: number;
@@ -629,7 +635,8 @@ export interface CobrosApp {
   clientes: {
     clienteId: number;
     nombre: string;
-    dispositivos: { panelId: number; numeroCuenta: string; prefijo: string | null; sitioNombre: string; plan: string | null; precioUsd: number | null; meses: number; proximoVencimiento: string | null }[];
+    exonerado: boolean;
+    dispositivos: { panelId: number; numeroCuenta: string; prefijo: string | null; sitioNombre: string; exonerado: boolean; plan: string | null; precioUsd: number | null; meses: number; proximoVencimiento: string | null }[];
     cuotasPendientes: { id: number; concepto: string; numeroCuenta: string; prefijo: string | null; venceEn: string; montoUsd: number; pagadoUsd: number; vencida: boolean }[];
     ultimosPagos: { id: number; fecha: string; montoUsd: number; montoBs: number | null; forma: FormaPago; referencia: string | null; estado: EstadoPago }[];
     pendienteUsd: number;

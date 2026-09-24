@@ -81,6 +81,21 @@ describe('cuotas', () => {
     expect(e.dispositivos[0].precioUsd).toBe(20);
   });
 
+  it('un dispositivo o un cliente exonerado no generan cuotas, aunque tengan plan', async () => {
+    await ctx.pedir('PUT', `/paneles/${panelId}`, { token: tokenAdmin, cuerpo: { exonerado: true } });
+    expect((await ctx.pedir('POST', '/cobros/generar', { token: tokenAdmin })).cuerpo.creadas).toBe(0);
+    await ctx.pedir('PUT', `/paneles/${panelId}`, { token: tokenAdmin, cuerpo: { exonerado: false } });
+    await ctx.pedir('PUT', `/clientes/${clienteId}`, { token: tokenAdmin, cuerpo: { nombre: 'Panadería K3', exonerado: true } });
+    expect((await ctx.pedir('POST', '/cobros/generar', { token: tokenAdmin })).cuerpo.creadas).toBe(0);
+    const e = (await ctx.pedir('GET', `/cobros/clientes/${clienteId}`, { token: tokenAdmin })).cuerpo;
+    expect(e.cliente.exonerado).toBe(true);
+    const app = (await ctx.pedir('GET', '/cliente/cobros', { token: tokenCliente })).cuerpo;
+    expect(app.clientes[0]).toMatchObject({ exonerado: true, pendienteUsd: 0, cuotasPendientes: [] });
+    // Al quitar la exoneración vuelve a cobrar desde donde quedó
+    await ctx.pedir('PUT', `/clientes/${clienteId}`, { token: tokenAdmin, cuerpo: { nombre: 'Panadería K3', exonerado: false } });
+    expect((await ctx.pedir('POST', '/cobros/generar', { token: tokenAdmin })).cuerpo.creadas).toBe(3);
+  });
+
   it('un dispositivo sin plan ni monto no genera nada', async () => {
     await ctx.pedir('PUT', `/paneles/${panelId}`, { token: tokenAdmin, cuerpo: { planId: null } });
     expect((await ctx.pedir('POST', '/cobros/generar', { token: tokenAdmin })).cuerpo.creadas).toBe(0);

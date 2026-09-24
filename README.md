@@ -88,7 +88,7 @@ dólares y frecuencia) o un monto propio, y una fecha de inicio del próximo per
 cuota cuando llega esa fecha (corrida al arrancar y cada `COBROS_CADA_HORAS`, 6 por defecto), la
 cuota vence `COBROS_DIAS_PARA_PAGAR` días después (5) y se le avisa al cliente por push al crearse y
 al vencer. Los pagos se registran por cliente, en dólares o en bolívares con la tasa del día, y se
-aplican a las cuotas más viejas primero; lo que sobra queda a favor y cubre la siguiente. La mora
+aplican a las cuotas más viejas primero; lo que sobra queda a favor y cubre la siguiente. Un cliente o un dispositivo marcado **exonerado** no genera cuotas (el monitoreo sigue igual). La mora
 solo se marca y se avisa: **nunca corta el monitoreo**. Vista "Cobros" en la consola (admin y
 supervisor), sección "Mi plan y mis pagos" en la app.
 

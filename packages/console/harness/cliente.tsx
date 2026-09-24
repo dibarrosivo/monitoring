@@ -40,9 +40,10 @@ const respuestas: Record<string, unknown> = {
       {
         clienteId: 50,
         nombre: 'Geralds Café',
+        exonerado: false,
         dispositivos: [
-          { panelId: 23, numeroCuenta: '7054', prefijo: 'AL', sitioNombre: 'Geralds Café', plan: 'Comercial', precioUsd: 25, meses: 1, proximoVencimiento: '2026-10-01' },
-          { panelId: 24, numeroCuenta: '7026', prefijo: 'AL', sitioNombre: 'Cerco Geralds Café', plan: 'Comercial', precioUsd: 20, meses: 1, proximoVencimiento: '2026-10-01' },
+          { panelId: 23, numeroCuenta: '7054', prefijo: 'AL', sitioNombre: 'Geralds Café', exonerado: false, plan: 'Comercial', precioUsd: 25, meses: 1, proximoVencimiento: '2026-10-01' },
+          { panelId: 24, numeroCuenta: '7026', prefijo: 'AL', sitioNombre: 'Cerco Geralds Café', exonerado: false, plan: 'Comercial', precioUsd: 20, meses: 1, proximoVencimiento: '2026-10-01' },
         ],
         cuotasPendientes: [
           { id: 9, concepto: 'Mensualidad de septiembre 2026', numeroCuenta: '7054', prefijo: 'AL', venceEn: '2026-09-06', montoUsd: 25, pagadoUsd: 0, vencida: true },

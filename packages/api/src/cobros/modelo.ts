@@ -38,8 +38,9 @@ export async function generarCuotas(hoy = hoyCentral()): Promise<number> {
     })
     .from(panel)
     .innerJoin(sitio, eq(panel.sitioId, sitio.id))
+    .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
     .leftJoin(plan, eq(panel.planId, plan.id))
-    .where(and(eq(panel.activo, true), isNotNull(panel.proximoVencimiento), lte(panel.proximoVencimiento, hoy)));
+    .where(and(eq(panel.activo, true), eq(panel.exonerado, false), eq(cliente.exonerado, false), isNotNull(panel.proximoVencimiento), lte(panel.proximoVencimiento, hoy)));
 
   let creadas = 0;
   for (const f of filas) {
@@ -239,7 +240,7 @@ async function cuotasDe(clienteId: number, limite: number): Promise<CuotaVista[]
 
 /** Estado de cuenta de un cliente: dispositivos con su plan, cuotas, pagos y saldos. */
 export async function estadoDeCuenta(clienteId: number) {
-  const [c] = await db.select({ id: cliente.id, nombre: cliente.nombre }).from(cliente).where(eq(cliente.id, clienteId)).limit(1);
+  const [c] = await db.select({ id: cliente.id, nombre: cliente.nombre, exonerado: cliente.exonerado }).from(cliente).where(eq(cliente.id, clienteId)).limit(1);
   if (!c) return null;
   const dispositivos = await db
     .select({
@@ -248,6 +249,7 @@ export async function estadoDeCuenta(clienteId: number) {
       prefijo: panel.prefijo,
       sitioNombre: sitio.nombre,
       activo: panel.activo,
+      exonerado: panel.exonerado,
       planId: panel.planId,
       planNombre: plan.nombre,
       planPrecioUsd: plan.precioUsd,
@@ -310,6 +312,7 @@ export async function listaCobros() {
       clienteId: cliente.id,
       nombre: cliente.nombre,
       telefono: cliente.telefono,
+      exonerado: cliente.exonerado,
       dispositivos: sql<number>`(select count(*) from ${panel} p join ${sitio} s on p.id_sitio = s.id where s.id_cliente = ${cliente.id} and p.activo and (p.id_plan is not null or p.monto_abono is not null))`.mapWith(Number),
       pendienteUsd: sql<string>`coalesce(sum(case when ${cuota.estado} = 'pendiente' then ${cuota.montoUsd} - ${cuota.pagadoUsd} else 0 end), 0)`,
       vencidoUsd: sql<string>`coalesce(sum(case when ${cuota.estado} = 'pendiente' and ${cuota.venceEn} < ${hoy} then ${cuota.montoUsd} - ${cuota.pagadoUsd} else 0 end), 0)`,
@@ -323,7 +326,7 @@ export async function listaCobros() {
     .orderBy(cliente.nombre);
   return filas
     .map((f) => ({ ...f, pendienteUsd: n(f.pendienteUsd), vencidoUsd: n(f.vencidoUsd) }))
-    .filter((f) => f.dispositivos > 0 || f.pendienteUsd > 0 || f.ultimoPago !== null);
+    .filter((f) => f.dispositivos > 0 || f.pendienteUsd > 0 || f.ultimoPago !== null || f.exonerado);
 }
 
 /** Números del mes para la cabecera de Cobros. */
@@ -365,12 +368,18 @@ export async function cobrosParaApp(clienteIds: number[]) {
   for (const id of clienteIds) {
     const e = await estadoDeCuenta(id);
     if (!e) continue;
+    // Exonerado: no se le muestra deuda ni plan, solo el aviso
+    if (e.cliente.exonerado && e.pendienteUsd === 0 && e.pagos.length === 0) {
+      clientes.push({ clienteId: id, nombre: e.cliente.nombre, exonerado: true, dispositivos: [], cuotasPendientes: [], ultimosPagos: [], pendienteUsd: 0, vencidoUsd: 0, saldoAFavorUsd: 0, pendienteBs: null });
+      continue;
+    }
     clientes.push({
       clienteId: id,
       nombre: e.cliente.nombre,
+      exonerado: e.cliente.exonerado,
       dispositivos: e.dispositivos
         .filter((d) => d.activo && d.precioUsd !== null)
-        .map((d) => ({ panelId: d.panelId, numeroCuenta: d.numeroCuenta, prefijo: d.prefijo, sitioNombre: d.sitioNombre, plan: d.planNombre, precioUsd: d.precioUsd, meses: d.meses, proximoVencimiento: d.proximoVencimiento })),
+        .map((d) => ({ panelId: d.panelId, numeroCuenta: d.numeroCuenta, prefijo: d.prefijo, sitioNombre: d.sitioNombre, exonerado: d.exonerado, plan: d.planNombre, precioUsd: d.precioUsd, meses: d.meses, proximoVencimiento: d.proximoVencimiento })),
       cuotasPendientes: e.cuotas
         .filter((q) => q.estado === 'pendiente')
         .map((q) => ({ id: q.id, concepto: q.concepto, numeroCuenta: q.numeroCuenta, prefijo: q.prefijo, venceEn: q.venceEn, montoUsd: q.montoUsd, pagadoUsd: q.pagadoUsd, vencida: q.venceEn < hoy })),

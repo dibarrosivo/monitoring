@@ -438,6 +438,7 @@ function DetalleCliente({
           {ESTADO[detalle.estado].nombre.toUpperCase()}
           {detalle.motivoEstado && <span className="text-tenue font-normal"> · {detalle.motivoEstado}</span>}
         </span>
+        {detalle.exonerado && <span className="text-xs font-semibold text-ok">EXONERADO DE COBRO</span>}
         <button onClick={() => setEditando(true)} className={BOTON_MINI} title="Editar cliente">
           ✎ Editar
         </button>
@@ -623,6 +624,7 @@ function ModalEditarCliente({
     fechaAlta: cliente.fechaAlta ?? '',
     instrucciones: cliente.instrucciones ?? '',
     notas: cliente.notas ?? '',
+    exonerado: cliente.exonerado ?? false,
   });
   const [error, setError] = useState<string | null>(null);
   const guardar = useMutation({
@@ -638,6 +640,7 @@ function ModalEditarCliente({
         fechaAlta: d.fechaAlta || undefined,
         instrucciones: d.instrucciones || undefined,
         notas: d.notas || undefined,
+        exonerado: d.exonerado,
       } as Partial<Cliente>),
     onSuccess: () => {
       alCambiar();
@@ -694,6 +697,10 @@ function ModalEditarCliente({
             rows={2}
             className={`${CAMPO} resize-none`}
           />
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={d.exonerado} onChange={(e) => setD({ ...d, exonerado: e.target.checked })} />
+          Exonerado de cobro (no se generan cuotas para ninguno de sus dispositivos; el monitoreo sigue igual)
         </label>
         {error && <p className="text-prio1">{error}</p>}
         <div className="flex justify-end gap-2">

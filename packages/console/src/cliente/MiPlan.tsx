@@ -11,7 +11,7 @@ import { nombreCuenta } from '../ui.js';
 export function MiPlan() {
   const { data, isLoading } = useQuery({ queryKey: ['cobros-cli'], queryFn: verCobrosCliente, staleTime: 5 * 60_000 });
   if (isLoading || !data) return null;
-  const conPlan = data.clientes.filter((c) => c.dispositivos.length > 0 || c.cuotasPendientes.length > 0 || c.ultimosPagos.length > 0);
+  const conPlan = data.clientes.filter((c) => c.exonerado || c.dispositivos.length > 0 || c.cuotasPendientes.length > 0 || c.ultimosPagos.length > 0);
   if (conPlan.length === 0) return null;
   const tasa = data.tasa;
 
@@ -21,7 +21,14 @@ export function MiPlan() {
       {conPlan.map((c) => (
         <div key={c.clienteId} className="flex flex-col gap-2 text-sm">
           {conPlan.length > 1 && <p className="font-semibold text-tenue">{c.nombre}</p>}
+          {c.exonerado && c.pendienteUsd === 0 && (
+            <div className="rounded-lg p-3 bg-ok/10 border border-ok/30">
+              <p className="text-xs uppercase tracking-wider text-tenue">Estado de cuenta</p>
+              <p className="font-semibold text-ok">Servicio exonerado de pago</p>
+            </div>
+          )}
 
+          {!(c.exonerado && c.pendienteUsd === 0) && (
           <div className={`rounded-lg p-3 ${c.vencidoUsd > 0 ? 'bg-prio2/10 border border-prio2/40' : c.pendienteUsd > 0 ? 'bg-superficie-2' : 'bg-ok/10 border border-ok/30'}`}>
             {c.pendienteUsd > 0 ? (
               <>
@@ -42,6 +49,7 @@ export function MiPlan() {
               </>
             )}
           </div>
+          )}
 
           <ul className="flex flex-col gap-0.5">
             {c.dispositivos.map((d) => (
@@ -49,7 +57,8 @@ export function MiPlan() {
                 <span className="font-datos">{nombreCuenta(d.prefijo, d.numeroCuenta)}</span>
                 <span className="text-tenue truncate">{d.sitioNombre}</span>
                 <span className="flex-1" />
-                {d.precioUsd !== null && (
+                {d.exonerado && <span className="text-ok">exonerado</span>}
+                {!d.exonerado && d.precioUsd !== null && (
                   <span>
                     {d.plan ?? 'Plan'} · {formatearUsd(d.precioUsd)}
                     <span className="text-tenue"> cada {d.meses === 1 ? 'mes' : `${d.meses} meses`}</span>
@@ -93,7 +102,7 @@ export function MiPlan() {
               </ul>
             </details>
           )}
-          <p className="text-xs text-tenue">Para reportar un pago, comuníquese con la central. Pronto podrá hacerlo desde aquí.</p>
+          {!c.exonerado && <p className="text-xs text-tenue">Para reportar un pago, comuníquese con la central. Pronto podrá hacerlo desde aquí.</p>}
         </div>
       ))}
     </section>

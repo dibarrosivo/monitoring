@@ -113,6 +113,7 @@ function FilaCliente({ fila: f, elegido, alElegir }: { fila: FilaCobros; elegido
     <tr onClick={alElegir} className={`cursor-pointer border-b border-borde/50 last:border-0 ${elegido ? 'bg-acento/10' : 'hover:bg-superficie-2/60'}`}>
       <td className="px-3 py-2">
         <span className="font-semibold">{f.nombre}</span>
+        {f.exonerado && <span className="ml-2 text-ok text-xs font-semibold uppercase">exonerado</span>}
         <span className="block text-xs text-tenue">
           {f.dispositivos} {f.dispositivos === 1 ? 'dispositivo' : 'dispositivos'}
           {f.ultimoPago ? ` · último pago ${fechaCorta(f.ultimoPago)}` : ' · sin pagos'}
@@ -164,6 +165,7 @@ function EstadoCuenta({ clienteId, alCerrar }: { clienteId: number; alCerrar: ()
     <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline gap-3">
         <h2 className="font-semibold text-lg">{e.cliente.nombre}</h2>
+        {e.cliente.exonerado && <span className="text-ok text-xs font-semibold uppercase">exonerado de cobro</span>}
         <span className="text-sm">
           {e.vencidoUsd > 0 ? (
             <span className="text-prio2 font-semibold">Vencido {formatearUsd(e.vencidoUsd)}</span>
@@ -205,6 +207,7 @@ function EstadoCuenta({ clienteId, alCerrar }: { clienteId: number; alCerrar: ()
               ) : (
                 <span className="text-tenue">sin plan de cobro</span>
               )}
+              {d.exonerado && <span className="text-ok text-xs">exonerado</span>}
               {!d.activo && <span className="text-prio2 text-xs">inactivo</span>}
             </li>
           ))}

@@ -125,7 +125,8 @@ export function DetalleDispositivo({
               ? `Abono ${formatearUsd(Number(panel.montoAbono))} cada ${panel.frecuenciaMeses ?? 1} ${(panel.frecuenciaMeses ?? 1) === 1 ? 'mes' : 'meses'}`
               : 'Sin plan de cobro'}
           {panel.proximoVencimiento && ` · próximo período desde el ${fechaCorta(panel.proximoVencimiento)}`}
-          {(planActual || panel.montoAbono) && ' · los pagos se registran en Cobros, por cliente'}
+          {panel.exonerado && <span className="text-ok font-semibold"> · exonerado de cobro</span>}
+          {!panel.exonerado && (planActual || panel.montoAbono) && ' · los pagos se registran en Cobros, por cliente'}
         </p>
         <p className="text-sm mt-1">
           <button
@@ -374,6 +375,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
     intervaloPruebaMin: String(panel.intervaloPruebaMin),
     ventanaCancelacionSeg: String(panel.ventanaCancelacionSeg ?? 25),
     planId: panel.planId ? String(panel.planId) : '',
+    exonerado: panel.exonerado ?? false,
     montoAbono: panel.montoAbono ?? '',
     frecuenciaMeses: String(panel.frecuenciaMeses ?? 1),
     proximoVencimiento: panel.proximoVencimiento ?? '',
@@ -400,6 +402,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
         intervaloPruebaMin: Number(datos.intervaloPruebaMin),
         ventanaCancelacionSeg: Math.max(0, Number(datos.ventanaCancelacionSeg) || 0),
         planId: datos.planId ? Number(datos.planId) : null,
+        exonerado: datos.exonerado,
         montoAbono: datos.montoAbono || null,
         frecuenciaMeses: Number(datos.frecuenciaMeses) || 1,
         proximoVencimiento: datos.proximoVencimiento || null,
@@ -561,6 +564,10 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
             <input type="date" value={datos.proximoVencimiento} onChange={(e) => setDatos({ ...datos, proximoVencimiento: e.target.value })} className={CAMPO} />
           </label>
         </div>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={datos.exonerado} onChange={(e) => setDatos({ ...datos, exonerado: e.target.checked })} />
+          Exonerado de cobro (este dispositivo no genera cuotas aunque tenga plan)
+        </label>
         <p className="text-xs text-tenue">La cuota se genera sola cuando llega esa fecha y se le avisa al cliente. Los pagos se registran en Cobros, por cliente.</p>
         <label className="flex items-center gap-2">
           <input
