@@ -102,21 +102,11 @@ export const IconoAltavoz = (p: Props & { apagado?: boolean }) => (
 export const MarcaFST = ({ className, tamano = 36 }: { className?: string; tamano?: number }) => (
   <svg width={tamano} height={tamano} viewBox="0 0 100 100" className={className} role="img" aria-label="FST">
     <circle cx="50" cy="50" r="48" fill="#ffffff" />
-    <text
-      x="50"
-      y="63"
-      textAnchor="middle"
-      fontFamily="Barlow, 'Arial Black', Arial, sans-serif"
-      fontWeight="900"
-      fontSize="42"
-      letterSpacing="-1.5"
-      fill="#0b0f14"
-      stroke="#0b0f14"
-      strokeWidth="2.6"
-      strokeLinejoin="round"
-      paintOrder="stroke"
-    >
-      FST
+    {/* Peso 900 sin contorno: el contorno engordaba tanto que la S se cerraba y parecía más chica */}
+    <text x="50" y="64" textAnchor="middle" fontFamily="Barlow, 'Arial Black', Arial, sans-serif" fontWeight="900" fontSize="44" fill="#0b0f14">
+      <tspan>F</tspan>
+      <tspan fontSize="46" dy="0.6">S</tspan>
+      <tspan dy="-0.6">T</tspan>
     </text>
   </svg>
 );
