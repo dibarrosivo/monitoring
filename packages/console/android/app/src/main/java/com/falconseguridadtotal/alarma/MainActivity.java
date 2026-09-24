@@ -3,6 +3,12 @@ package com.falconseguridadtotal.alarma;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(android.os.Bundle savedInstanceState) {
+        registerPlugin(PermisosPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+
     /** Con la app a la vista, los avisos los dice la propia app (tiempo real); si no, AvisosService. */
     public static volatile boolean enPrimerPlano = false;
 

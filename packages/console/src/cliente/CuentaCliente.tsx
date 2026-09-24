@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { esNativo } from '../api.js';
 import { estadoPush, reintentarPush, type EstadoPush } from './push.js';
+import { ConfiguracionAvisos } from './ConfiguracionAvisos.js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   cambiarEstadoUsuarioCliente,
@@ -47,6 +48,7 @@ export function CuentaCliente({ usuario, paneles, propietarioDe, alCambiarClave 
         </button>
         <EstadoNotificaciones />
       </section>
+      <ConfiguracionAvisos />
 
       {esPropietario ? (
         <>

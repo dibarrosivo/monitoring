@@ -13,6 +13,7 @@ import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
 import { CuentaCliente } from './CuentaCliente.js';
 import { detenerPush, iniciarPush } from './push.js';
 import { AnilloEstado, type EstadoAnillo } from './AnilloEstado.js';
+import { ConfiguracionAvisos } from './ConfiguracionAvisos.js';
 import { IconoAjustes, IconoCampana, IconoCasa, IconoFlecha, IconoLista, IconoPersona, IconoSos, MarcaFST } from './Iconos.js';
 import { SelectorTema } from '../SelectorTema.js';
 import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_SENAL, tipoDe, VAR_TIPO } from '../ui.js';
@@ -269,6 +270,7 @@ function InicioCliente({
         </h2>
         <p className={`font-datos text-xs tracking-[0.08em] uppercase mt-1 ${enAlarma > 0 ? 'text-prio1' : 'text-tenue'}`}>{resumen}</p>
       </div>
+      <ConfiguracionAvisos compacta />
       {grupos.map((nombreCliente) => (
         <section key={nombreCliente} className="flex flex-col gap-3">
           {grupos.length > 1 && <h3 className="font-datos text-[11px] tracking-[0.14em] uppercase text-tenue">{nombreCliente}</h3>}
