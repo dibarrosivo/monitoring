@@ -107,10 +107,14 @@ export const MarcaFST = ({ className, tamano = 36 }: { className?: string; taman
       y="63"
       textAnchor="middle"
       fontFamily="Barlow, 'Arial Black', Arial, sans-serif"
-      fontWeight="800"
+      fontWeight="900"
       fontSize="42"
-      letterSpacing="-1"
+      letterSpacing="-1.5"
       fill="#0b0f14"
+      stroke="#0b0f14"
+      strokeWidth="2.6"
+      strokeLinejoin="round"
+      paintOrder="stroke"
     >
       FST
     </text>

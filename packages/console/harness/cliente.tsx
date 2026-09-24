@@ -64,6 +64,10 @@ const estilos: Record<string, string> = {
   marca: ':root{--color-fondo:#0f2318;--color-superficie:#16311f;--color-superficie-2:#1d3d28;--color-borde:#2c5a3a;--color-texto:#e7f3ea;--color-tenue:#8fb39a;--color-acento:#5be0a0}',
   claroverde: ':root[data-theme="light"]{--color-acento:#1f7a4d;--color-fondo:#eef4ef;--color-superficie:#ffffff;--color-superficie-2:#f1f6f2;--color-borde:#cddbd1}',
 };
+const acento = new URLSearchParams(location.search).get('acento');
+const tema = new URLSearchParams(location.search).get('tema');
+if (tema === 'claro') { localStorage.setItem('monitoring.tema', 'claro'); document.documentElement.setAttribute('data-theme', 'light'); }
+if (acento) { const st = document.createElement('style'); st.textContent = `:root, :root[data-theme="light"], :root[data-theme="dark"]{--color-acento:#${acento}}`; document.head.appendChild(st); }
 if (variante && estilos[variante]) {
   const st = document.createElement('style');
   st.textContent = estilos[variante];
