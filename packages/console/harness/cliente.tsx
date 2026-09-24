@@ -13,8 +13,8 @@ const h = (dias: number, hora: string) => {
 // ?tipo=hikvision: el primer panel pasa a Hikvision, con estado detallado y control desde la app
 const tipoPanel = new URLSearchParams(location.search).get('tipo') === 'hikvision' ? 'hikvision' : 'pima';
 const panel = {
-  id: 50, numeroCuenta: '7054', prefijo: 'AL', tipo: tipoPanel, activo: true, ultimaSenalEn: h(0, '09:44'),
-  sitioId: 50, sitioNombre: 'Geralds Café', sitioDireccion: 'Variante Norte, Coro', clienteId: 50, clienteNombre: 'GERALDS CAFE',
+  id: 50, numeroCuenta: '5154', prefijo: 'AL', tipo: tipoPanel, activo: true, ultimaSenalEn: h(0, '09:44'),
+  sitioId: 50, sitioNombre: 'Café del Faro', sitioDireccion: 'Av. Los Médanos, Coro', clienteId: 50, clienteNombre: 'CAFE DEL FARO',
   estadoArmado: 'desarmado' as const, ultimoMovimientoEn: h(0, '11:22'),
 };
 const respuestas: Record<string, unknown> = {
@@ -32,26 +32,26 @@ const respuestas: Record<string, unknown> = {
     perifericos: [{ tipo: 'sirena', nombre: 'Sirena exterior', estado: 'normal', sabotaje: false }, { tipo: 'teclado', nombre: 'Teclado entrada', estado: 'normal', sabotaje: false }],
   },
   '/comandos': [
-    { id: 3, accion: 'armar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(0, '19:02'), resueltoEn: h(0, '19:02'), usuarioId: 9, usuarioNombre: 'Gerardo García', origen: 'cliente' },
-    { id: 2, accion: 'desarmar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(0, '07:58'), resueltoEn: h(0, '07:58'), usuarioId: 9, usuarioNombre: 'Gerardo García', origen: 'cliente' },
-    { id: 1, accion: 'armar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(1, '19:10'), resueltoEn: h(1, '19:10'), usuarioId: 2, usuarioNombre: 'Héctor', origen: 'operador' },
+    { id: 3, accion: 'armar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(0, '19:02'), resueltoEn: h(0, '19:02'), usuarioId: 9, usuarioNombre: 'Andrés Molina', origen: 'cliente' },
+    { id: 2, accion: 'desarmar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(0, '07:58'), resueltoEn: h(0, '07:58'), usuarioId: 9, usuarioNombre: 'Andrés Molina', origen: 'cliente' },
+    { id: 1, accion: 'armar', particion: '1', estado: 'ejecutado', detalle: null, creadoEn: h(1, '19:10'), resueltoEn: h(1, '19:10'), usuarioId: 2, usuarioNombre: 'Daniel', origen: 'operador' },
   ],
   'cliente/resumen': {
     paneles: [
       panel,
-      { ...panel, id: 24, numeroCuenta: '7026', sitioId: 24, sitioNombre: 'Cerco Geralds Café', sitioDireccion: 'Variante Norte, Coro', estadoArmado: 'armado' as const, ultimoMovimientoEn: h(0, '04:02'), ultimaSenalEn: h(0, '10:12') },
+      { ...panel, id: 24, numeroCuenta: '5126', sitioId: 24, sitioNombre: 'Cerco Café del Faro', sitioDireccion: 'Av. Los Médanos, Coro', estadoArmado: 'armado' as const, ultimoMovimientoEn: h(0, '04:02'), ultimaSenalEn: h(0, '10:12') },
     ],
     propietarioDe: [50],
   },
   'cliente/usuarios': [
-    { id: 9, nombre: 'Gerardo García', email: 'gerald@example.com', activo: true, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: true, sitioId: null, sitioNombre: null, panelId: null },
-    { id: 12, nombre: 'Crisbelys Herrera', email: 'crisbelys@example.com', activo: true, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: false, sitioId: null, sitioNombre: null, panelId: null },
-    { id: 14, nombre: 'Luis Alberto García', email: 'luis@example.com', activo: false, clienteId: 50, clienteNombre: 'GERALDS CAFE', propietario: false, sitioId: null, sitioNombre: null, panelId: null },
+    { id: 9, nombre: 'Andrés Molina', email: 'andres@example.com', activo: true, clienteId: 50, clienteNombre: 'CAFE DEL FARO', propietario: true, sitioId: null, sitioNombre: null, panelId: null },
+    { id: 12, nombre: 'Marta Lugo', email: 'marta@example.com', activo: true, clienteId: 50, clienteNombre: 'CAFE DEL FARO', propietario: false, sitioId: null, sitioNombre: null, panelId: null },
+    { id: 14, nombre: 'Pedro Salas', email: 'pedro@example.com', activo: false, clienteId: 50, clienteNombre: 'CAFE DEL FARO', propietario: false, sitioId: null, sitioNombre: null, panelId: null },
   ],
   'cliente/contactos': [
-    { id: 1, clienteId: 50, sitioId: 50, nombre: 'Enmanuel Chirinos', rol: 'Encargado', telefono: '04246009387', telefonoAlternativo: null, orden: 1, autorizadoCancelar: false },
-    { id: 2, clienteId: 50, sitioId: 50, nombre: 'Luis Alberto García', rol: 'Propietario', telefono: '04146835616', telefonoAlternativo: null, orden: 2, autorizadoCancelar: true },
-    { id: 3, clienteId: 50, sitioId: 50, nombre: 'Crisbelys Herrera', rol: 'Empleado', telefono: '04146780878', telefonoAlternativo: null, orden: 3, autorizadoCancelar: false },
+    { id: 1, clienteId: 50, sitioId: 50, nombre: 'Julio Navas', rol: 'Encargado', telefono: '0412-5550102', telefonoAlternativo: null, orden: 1, autorizadoCancelar: false },
+    { id: 2, clienteId: 50, sitioId: 50, nombre: 'Pedro Salas', rol: 'Propietario', telefono: '0412-5550103', telefonoAlternativo: null, orden: 2, autorizadoCancelar: true },
+    { id: 3, clienteId: 50, sitioId: 50, nombre: 'Marta Lugo', rol: 'Empleado', telefono: '0412-5550104', telefonoAlternativo: null, orden: 3, autorizadoCancelar: false },
   ],
   'cliente/alarmas': [],
   'cliente/cobros': {
@@ -59,15 +59,15 @@ const respuestas: Record<string, unknown> = {
     clientes: [
       {
         clienteId: 50,
-        nombre: 'Geralds Café',
+        nombre: 'Café del Faro',
         exonerado: false,
         dispositivos: [
-          { panelId: 23, numeroCuenta: '7054', prefijo: 'AL', sitioNombre: 'Geralds Café', exonerado: false, plan: 'Comercial', precioUsd: 25, meses: 1, proximoVencimiento: '2026-10-01' },
-          { panelId: 24, numeroCuenta: '7026', prefijo: 'AL', sitioNombre: 'Cerco Geralds Café', exonerado: false, plan: 'Comercial', precioUsd: 20, meses: 1, proximoVencimiento: '2026-10-01' },
+          { panelId: 23, numeroCuenta: '5154', prefijo: 'AL', sitioNombre: 'Café del Faro', exonerado: false, plan: 'Comercial', precioUsd: 25, meses: 1, proximoVencimiento: '2026-10-01' },
+          { panelId: 24, numeroCuenta: '5126', prefijo: 'AL', sitioNombre: 'Cerco Café del Faro', exonerado: false, plan: 'Comercial', precioUsd: 20, meses: 1, proximoVencimiento: '2026-10-01' },
         ],
         cuotasPendientes: [
-          { id: 9, concepto: 'Mensualidad de septiembre 2026', numeroCuenta: '7054', prefijo: 'AL', venceEn: '2026-09-06', montoUsd: 25, pagadoUsd: 0, vencida: true },
-          { id: 10, concepto: 'Mensualidad de septiembre 2026', numeroCuenta: '7026', prefijo: 'AL', venceEn: '2026-09-06', montoUsd: 20, pagadoUsd: 0, vencida: true },
+          { id: 9, concepto: 'Mensualidad de septiembre 2026', numeroCuenta: '5154', prefijo: 'AL', venceEn: '2026-09-06', montoUsd: 25, pagadoUsd: 0, vencida: true },
+          { id: 10, concepto: 'Mensualidad de septiembre 2026', numeroCuenta: '5126', prefijo: 'AL', venceEn: '2026-09-06', montoUsd: 20, pagadoUsd: 0, vencida: true },
         ],
         ultimosPagos: [
           { id: 2, fecha: '2026-08-03', montoUsd: 45, montoBs: 37200.5, forma: 'pago_movil', referencia: '4471', estado: 'confirmado' },
@@ -83,11 +83,11 @@ const respuestas: Record<string, unknown> = {
   'cliente/preferencias': { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: '22:00', silencioHasta: '07:00' },
   'paneles/50/zonas': [
     { numero: '001', descripcion: 'Cocina - Atención al cliente INFRA' }, { numero: '002', descripcion: 'Oficina principal - Pasillo INFRA' },
-    { numero: '003', descripcion: 'Gerencia Oficina Gerardo INFRA' }, { numero: '005', descripcion: 'Puerta trasera MAG' },
+    { numero: '003', descripcion: 'Gerencia INFRA' }, { numero: '005', descripcion: 'Puerta trasera MAG' },
     { numero: '007', descripcion: 'Puerta trasera exterior PULSADOR' }, { numero: '008', descripcion: 'Caja PULSADOR' }, { numero: '014', descripcion: 'Entrada INFRA' },
   ],
   'cliente/eventos': [
-    { id: 1, panelId: 50, categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura (desarmado): Apertura/Cierre por usuario — Crisbelys Herrera (cód. 6)', zona: '006', zonaDescripcion: null, ocurridoEn: h(0, '11:22') },
+    { id: 1, panelId: 50, categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura (desarmado): Apertura/Cierre por usuario — Marta Lugo (cód. 6)', zona: '006', zonaDescripcion: null, ocurridoEn: h(0, '11:22') },
     { id: 2, panelId: 50, categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario — Augusto Hernández (cód. 1)', zona: '001', zonaDescripcion: null, ocurridoEn: h(0, '04:02') },
     { id: 3, panelId: 50, categoria: 'alarma', codigo: 'E130', descripcion: 'Robo: Robo perímetro', zona: '005', zonaDescripcion: 'Puerta trasera MAG', ocurridoEn: h(1, '23:41') },
     { id: 4, panelId: 50, categoria: 'restauracion', codigo: 'R130', descripcion: 'Restauración: Robo perímetro', zona: '005', zonaDescripcion: 'Puerta trasera MAG', ocurridoEn: h(1, '23:43') },
@@ -122,7 +122,7 @@ if (variante && estilos[variante]) {
 localStorage.setItem('monitoring.avisos.vistoHasta', String(hoy.getTime() - 20 * 3_600_000));
 createRoot(document.getElementById('raiz')!).render(
   <QueryClientProvider client={new QueryClient()}>
-    <PantallaCliente usuario={{ id: 9, email: 'gerald@example.com', nombre: 'Gerardo García', rol: 'cliente' }} />
+    <PantallaCliente usuario={{ id: 9, email: 'andres@example.com', nombre: 'Andrés Molina', rol: 'cliente' }} />
   </QueryClientProvider>,
 );
 // #avisos abre la pestaña de avisos; #panel abre la pantalla del panel

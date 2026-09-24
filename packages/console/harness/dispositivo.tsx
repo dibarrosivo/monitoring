@@ -6,7 +6,7 @@ import '../src/index.css';
 const t = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
 let id = 5000;
 const ev = (min: number, categoria: string, codigo: string, descripcion: string, zona: string | null, zonaDescripcion: string | null, tipo: string, prioridad = 3) => ({
-  id: id--, senalId: id, panelId: 92, numeroCuenta: '7037', prefijo: 'HIK', categoria, codigo, descripcion, particion: '01', zona, zonaDescripcion, prioridad, tipo, ocurridoEn: t(min),
+  id: id--, senalId: id, panelId: 92, numeroCuenta: '5137', prefijo: 'HIK', categoria, codigo, descripcion, particion: '01', zona, zonaDescripcion, prioridad, tipo, ocurridoEn: t(min),
 });
 const eventos = [
   ev(3, 'prueba', 'E602', 'Prueba periódica', null, null, 'prueba', 5),
@@ -22,7 +22,7 @@ const eventos = [
   ev(1500, 'sistema', 'SIS', 'Panel silencioso: sin señales hace 36 h', null, null, 'sistema', 2),
 ];
 const panel = {
-  id: 92, sitioId: 92, numeroCuenta: '7037', prefijo: 'HIK', tipo: 'hikvision', marca: 'Hikvision', modelo: 'DS-PHA20-W2P', supervisado: true, intervaloPruebaMin: 1440,
+  id: 92, sitioId: 92, numeroCuenta: '5137', prefijo: 'HIK', tipo: 'hikvision', marca: 'Hikvision', modelo: 'DS-PHA20-W2P', supervisado: true, intervaloPruebaMin: 1440,
   ultimaSenalEn: t(3), activo: true, alias: 'Test Hikvision', propiedad: 'propio', frecuenciaMeses: 1, proximoVencimiento: null, montoAbono: null,
   sitioNombre: 'Test Hikvision', clienteId: 2, clienteNombre: 'Falcon Seguridad Total', ventanaCancelacionSeg: 25, enPruebaHasta: null,
 };
