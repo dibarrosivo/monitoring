@@ -174,6 +174,11 @@ export function ControlPanel({ panel }: { panel: EstadoPanel }) {
               >
                 {NOMBRE_ESTADO[c.estado]}
               </span>
+              {c.usuarioNombre && (
+                <span className="text-tenue">
+                  por {c.usuarioNombre} ({c.origen === 'cliente' ? 'app' : 'central'})
+                </span>
+              )}
               {c.detalle && <span className="text-tenue">· {c.detalle}</span>}
             </li>
           ))}

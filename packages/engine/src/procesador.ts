@@ -251,12 +251,17 @@ export async function procesarEvento(entrada: {
    * haya obedecido: la única confirmación que vale es la que transmite el panel.
    */
   if (panelEncontrado && ['apertura', 'cierre'].includes(normalizado.categoria)) {
-    await confirmarPorEvento({
+    const confirmado = await confirmarPorEvento({
       panelId: panelEncontrado.id,
       codigo: normalizado.codigo,
       eventoId: filaEvento!.id,
       ocurridoEn: recibidaEn,
     });
+    // Si fue una orden remota, el evento lo dice: "— Ivo Di Barros (desde la app)"
+    if (confirmado?.usuarioNombre) {
+      descripcion = `${descripcion} — ${confirmado.usuarioNombre} (desde la ${confirmado.origen})`;
+      await db.update(evento).set({ descripcion }).where(eq(evento.id, filaEvento!.id));
+    }
   }
 
   /*

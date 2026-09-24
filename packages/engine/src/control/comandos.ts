@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray } from 'drizzle-orm';
-import { comando, db, panel } from '@monitoring/db';
+import { comando, db, panel, usuario } from '@monitoring/db';
 import { crearProveedorHikvision } from './hikvision.js';
 import { proveedorPara, registrarProveedor, type AccionComando, type EstadoDetallado, type EstadoParticion } from './proveedor.js';
 
@@ -87,7 +87,7 @@ export async function confirmarPorEvento(entrada: {
   codigo: string;
   eventoId: number;
   ocurridoEn: Date;
-}): Promise<number | null> {
+}): Promise<{ comandoId: number; usuarioNombre: string | null; origen: 'app' | 'central' } | null> {
   const acciones = (Object.keys(CODIGOS_CONFIRMAN) as AccionComando[]).filter((a) =>
     CODIGOS_CONFIRMAN[a].includes(entrada.codigo),
   );
@@ -97,8 +97,9 @@ export async function confirmarPorEvento(entrada: {
   // Cinco minutos alcanzan de sobra para un panel con cobertura normal.
   const desde = new Date(entrada.ocurridoEn.getTime() - 5 * 60_000);
   const [pendiente] = await db
-    .select({ id: comando.id })
+    .select({ id: comando.id, usuarioNombre: usuario.nombre, rol: usuario.rol })
     .from(comando)
+    .leftJoin(usuario, eq(comando.usuarioId, usuario.id))
     .where(
       and(
         eq(comando.panelId, entrada.panelId),
@@ -115,7 +116,7 @@ export async function confirmarPorEvento(entrada: {
     .update(comando)
     .set({ estado: 'confirmado', eventoConfirmaId: entrada.eventoId, resueltoEn: new Date() })
     .where(eq(comando.id, pendiente.id));
-  return pendiente.id;
+  return { comandoId: pendiente.id, usuarioNombre: pendiente.usuarioNombre, origen: pendiente.rol === 'cliente' ? 'app' : 'central' };
 }
 
 /**
@@ -151,8 +152,12 @@ export async function historialComandos(panelId: number, limite = 20) {
       creadoEn: comando.creadoEn,
       resueltoEn: comando.resueltoEn,
       usuarioId: comando.usuarioId,
+      /** Quién dio la orden y desde dónde: la app del cliente o la central */
+      usuarioNombre: usuario.nombre,
+      origen: usuario.rol,
     })
     .from(comando)
+    .leftJoin(usuario, eq(comando.usuarioId, usuario.id))
     .where(eq(comando.panelId, panelId))
     .orderBy(desc(comando.creadoEn))
     .limit(limite);

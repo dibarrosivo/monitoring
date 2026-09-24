@@ -53,6 +53,8 @@ const EMERGENCIAS: Record<string, string> = {
 };
 
 function persona(descripcion: string): string | null {
+  const remoto = / — (.+?) \(desde la (app|central)\)$/.exec(descripcion);
+  if (remoto) return `${remoto[1]} desde la ${remoto[2]}`;
   const m = / — (.+?) \(cód\. \d+\)$/.exec(descripcion);
   return m ? m[1]! : null;
 }

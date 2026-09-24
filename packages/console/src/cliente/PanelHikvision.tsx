@@ -285,7 +285,10 @@ export function PanelHikvision({ panel, alVolver }: { panel: PanelResumenCliente
                   <span className="text-xs tabular-nums" style={{ color: '#6B7280' }}>
                     {new Date(c.creadoEn).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  <span className="flex-1">{c.accion === 'armar' ? 'Armar (ausente)' : c.accion === 'armar_casa' ? 'Armar en casa' : 'Desarmar'}</span>
+                  <span className="flex-1">
+                    {c.accion === 'armar' ? 'Armar (ausente)' : c.accion === 'armar_casa' ? 'Armar en casa' : 'Desarmar'}
+                    {c.usuarioNombre && <span style={{ color: '#6B7280' }}> · {c.usuarioNombre}</span>}
+                  </span>
                   <span
                     className="text-xs font-semibold"
                     style={{ color: c.estado === 'confirmado' ? '#0F8A6B' : c.estado === 'fallido' ? '#D93025' : '#C47F12' }}

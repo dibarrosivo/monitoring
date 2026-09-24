@@ -599,6 +599,9 @@ export interface Comando {
   creadoEn: string;
   resueltoEn: string | null;
   usuarioId: number | null;
+  usuarioNombre?: string | null;
+  /** Rol de quien ordenó: 'cliente' = desde la app; otro = desde la central */
+  origen?: string | null;
 }
 
 /** Estado de una partición según el propio panel. */

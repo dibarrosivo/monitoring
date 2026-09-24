@@ -63,6 +63,8 @@ function sinPrefijo(descripcion: string): string {
 
 /** Saca el " — Nombre (cód. 3)" que agrega el servidor en aperturas y cierres. */
 function persona(descripcion: string): string | null {
+  const remoto = / — (.+?) \(desde la (app|central)\)$/.exec(descripcion);
+  if (remoto) return `${remoto[1]} desde la ${remoto[2]}`;
   const m = / — (.+?) \(cód\. \d+\)$/.exec(descripcion);
   return m ? m[1]! : null;
 }
