@@ -116,11 +116,13 @@ export function enPrueba(panel: { enPruebaHasta?: string | null } | null | undef
 }
 
 /** Cómo terminó un aviso push, en una palabra y un color. */
-export function resumenAviso(a: { resultado: string; recibidoEn: string | null; voz: string | null }): { texto: string; clase: string } {
+export function resumenAviso(a: { resultado: string; recibidoEn: string | null; voz: string | null; detalle?: string | null }): { texto: string; clase: string } {
   if (a.recibidoEn) {
     const hablo = a.voz ? /speak=0/.test(a.voz) : false;
-    return { texto: hablo ? 'recibido y hablado' : 'recibido', clase: 'text-ok' };
+    const sinVoz = a.voz ? /sin voz/.test(a.voz) : false;
+    return { texto: hablo ? 'recibido y hablado' : sinVoz ? 'recibido (sin voz)' : 'recibido', clase: 'text-ok' };
   }
+  if (a.detalle?.startsWith('sin acuse')) return { texto: 'reenviado como notificación simple', clase: 'text-prio2' };
   switch (a.resultado) {
     case 'enviado':
       return { texto: 'enviado, sin acuse', clase: 'text-prio3' };

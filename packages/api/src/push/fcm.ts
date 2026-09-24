@@ -114,3 +114,38 @@ export async function enviarPush(token: string, mensaje: MensajePush, usuarioId 
   if (respuesta.status === 404 || texto.includes('UNREGISTERED') || texto.includes('INVALID_ARGUMENT')) return 'token-invalido';
   throw new Error(`FCM ${respuesta.status}: ${texto.slice(0, 200)}`);
 }
+
+/**
+ * Reenvío como notificación simple: mensaje CON bloque "notification", que
+ * Android muestra por su cuenta aunque la app esté muerta. Sin voz, pero
+ * llega. Es la red de seguridad cuando el teléfono no acusó el mensaje de
+ * datos (Xiaomi y otros que matan procesos en segundo plano).
+ */
+export async function enviarPushSimple(token: string, mensaje: MensajePush): Promise<ResultadoPush> {
+  const c = cargarCuenta();
+  if (!c) return 'error';
+  const acceso = await obtenerTokenAcceso();
+  const respuesta = await fetch(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${acceso}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      message: {
+        token,
+        notification: { title: mensaje.titulo, body: mensaje.cuerpo },
+        data: { ...(mensaje.datos ?? {}), reenvio: '1' },
+        android: {
+          priority: 'high',
+          notification: {
+            channel_id: mensaje.canal === 'alarmas' ? 'alarmas-v2' : 'avisos-v2',
+            sound: mensaje.canal === 'alarmas' ? 'sirena.wav' : 'default',
+            notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
+          },
+        },
+      },
+    }),
+  });
+  if (respuesta.ok) return 'enviado';
+  const texto = await respuesta.text();
+  if (respuesta.status === 404 || texto.includes('UNREGISTERED') || texto.includes('INVALID_ARGUMENT')) return 'token-invalido';
+  throw new Error(`FCM ${respuesta.status}: ${texto.slice(0, 200)}`);
+}

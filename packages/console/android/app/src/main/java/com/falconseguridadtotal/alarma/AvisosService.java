@@ -45,9 +45,54 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
         boolean alarma = "alarmas".equals(d.get("canal"));
         String habla = d.get("habla");
         String eco = d.get("eco");
+        // Primero el acuse, en este mismo hilo: si el sistema mata el proceso después, el servidor igual sabe que llegó
+        acusarAhora(eco, "recibido");
         mostrar(titulo, cuerpo, alarma, d.get("eventoId"));
-        if (habla != null && !habla.isEmpty()) hablar(getApplicationContext(), habla, alarma, eco);
-        else acusar(eco, "recibido sin voz (habla vacía)");
+        if (habla != null && !habla.isEmpty()) {
+            // La voz corre en un servicio en primer plano para que nadie la mate a medio camino
+            Intent voz = new Intent(this, VozService.class);
+            voz.putExtra("habla", habla);
+            voz.putExtra("alarma", alarma);
+            voz.putExtra("eco", eco);
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(voz);
+                else startService(voz);
+            } catch (Exception e) {
+                // Sin permiso de primer plano en este momento: se intenta igual en el proceso actual
+                Log.w(TAG, "No se pudo iniciar el servicio de voz: " + e.getMessage());
+                hablar(getApplicationContext(), habla, alarma, eco);
+            }
+        } else {
+            acusar(eco, "sin voz (apagada en preferencias)");
+        }
+    }
+
+    /** Acuse sincrónico, con tope corto: se usa en el hilo del mensaje, antes de que el proceso pueda morir. */
+    static void acusarAhora(String eco, String estado) {
+        if (eco == null) return;
+        try {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL("https://monitoreo.falconseguridadtotal.com/api/push/eco").openConnection();
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json");
+            c.setDoOutput(true);
+            c.setConnectTimeout(4000);
+            c.setReadTimeout(4000);
+            org.json.JSONObject j = new org.json.JSONObject();
+            j.put("eco", eco);
+            j.put("estado", estado + " | " + Build.MANUFACTURER + " " + Build.MODEL + " Android " + Build.VERSION.RELEASE);
+            c.getOutputStream().write(j.toString().getBytes("UTF-8"));
+            c.getResponseCode();
+            c.disconnect();
+        } catch (Exception e) {
+            Log.w(TAG, "No se pudo acusar el push: " + e.getMessage());
+        }
+    }
+
+    private static Runnable alTerminar;
+
+    /** Quien arranca la voz puede pedir aviso cuando termine de hablar. */
+    static synchronized void alTerminarVoz(Runnable r) {
+        alTerminar = r;
     }
 
     /** Le cuenta al servidor qué pasó con este aviso: llegó, y si la voz habló o por qué no. */
@@ -165,6 +210,18 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
                     try { motor = voz.getDefaultEngine(); } catch (Exception e) { motor = "?"; }
                     motorInfo = "motor=" + motor + " " + idioma;
                     voz.setSpeechRate(0.95f);
+                    voz.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+                        @Override public void onStart(String id) {}
+                        @Override public void onError(String id) { avisarFin(id); }
+                        @Override public void onDone(String id) { avisarFin(id); }
+                        private void avisarFin(String id) {
+                            if (id != null && id.startsWith("fin-")) {
+                                Runnable r;
+                                synchronized (AvisosService.class) { r = alTerminar; }
+                                if (r != null) r.run();
+                            }
+                        }
+                    });
                     vozLista = true;
                     for (String[] p : pendientes) decir(p[0], "1".equals(p[1]), p[2]);
                     pendientes.clear();
@@ -190,10 +247,10 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
             .build());
         // La sirena del canal suena primero; la voz espera un momento para no pisarla
         voz.playSilentUtterance(alarma ? 1500 : 400, TextToSpeech.QUEUE_ADD, "pausa-" + System.nanoTime());
-        int r = voz.speak(texto, TextToSpeech.QUEUE_ADD, params, "aviso-" + System.nanoTime());
+        int r = voz.speak(texto, TextToSpeech.QUEUE_ADD, params, (alarma ? "aviso-" : "fin-") + System.nanoTime());
         if (alarma) {
             voz.playSilentUtterance(700, TextToSpeech.QUEUE_ADD, "pausa2-" + System.nanoTime());
-            voz.speak(texto, TextToSpeech.QUEUE_ADD, params, "aviso2-" + System.nanoTime());
+            voz.speak(texto, TextToSpeech.QUEUE_ADD, params, "fin-" + System.nanoTime());
         }
         acusar(eco, "voz: speak=" + r + " " + motorInfo + " alarma=" + alarma + " " + volumenes());
     }

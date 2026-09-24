@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { acceso, cliente, db, dispositivoPush, envioPush, panel, preferenciaAviso, sitio, usuario } from '@monitoring/db';
 import type { CategoriaEvento } from '@monitoring/shared';
-import { enviarPush, pushDisponible, type MensajePush } from './fcm.js';
+import { enviarPush, enviarPushSimple, pushDisponible, type MensajePush } from './fcm.js';
 
 /**
  * Avisos push a los teléfonos: para cada evento, a quién le toca (los
@@ -174,8 +174,32 @@ export async function enviarAvisosPush(carga: CargaEvento, log: { info: (o: obje
     if (gente.length === 0) return 0;
     const prefs = await db.select().from(preferenciaAviso).where(inArray(preferenciaAviso.usuarioId, gente.map((g) => g.usuarioId)));
     const tokens = await db.select().from(dispositivoPush).where(inArray(dispositivoPush.usuarioId, gente.map((g) => g.usuarioId)));
-    const rastro = async (usuarioId: number, resultado: string, dispositivoId: number | null = null, detalle: string | null = null) => {
-      await db.insert(envioPush).values({ eventoId: carga.eventoId, usuarioId, dispositivoId, resultado, detalle }).catch(() => undefined);
+    const rastro = async (usuarioId: number, resultado: string, dispositivoId: number | null = null, detalle: string | null = null): Promise<number | null> => {
+      const [f] = await db
+        .insert(envioPush)
+        .values({ eventoId: carga.eventoId, usuarioId, dispositivoId, resultado, detalle })
+        .returning({ id: envioPush.id })
+        .catch(() => [] as { id: number }[]);
+      return f?.id ?? null;
+    };
+    /*
+     * Red de seguridad: si en 30 s el teléfono no acusó el mensaje de datos,
+     * se reenvía como notificación simple del sistema, que llega aunque la
+     * app esté muerta. Sin voz, pero llega: lo que no puede pasar es que un
+     * aviso se pierda.
+     */
+    const reenviarSiNoAcusa = (envioId: number, token: string, mensaje: MensajePush) => {
+      setTimeout(async () => {
+        try {
+          const [f] = await db.select({ recibidoEn: envioPush.recibidoEn }).from(envioPush).where(eq(envioPush.id, envioId)).limit(1);
+          if (!f || f.recibidoEn) return;
+          const r = await enviarPushSimple(token, mensaje);
+          await db.update(envioPush).set({ detalle: `sin acuse en 30 s; reenviado como notificación simple (${r})` }).where(eq(envioPush.id, envioId));
+          log.info({ envioId, r }, 'Push reenviado como notificación simple');
+        } catch (err) {
+          log.warn({ err: (err as Error).message, envioId }, 'No se pudo reenviar el push');
+        }
+      }, 30_000).unref();
     };
     for (const g of gente) {
       const mensaje = mensajeParaEvento(carga, g.sitios > 1);
@@ -196,7 +220,8 @@ export async function enviarAvisosPush(carga: CargaEvento, log: { info: (o: obje
           const r = await enviarPush(t.token, paraEste, g.usuarioId);
           if (r === 'enviado') enviados++;
           if (r === 'token-invalido') await db.delete(dispositivoPush).where(eq(dispositivoPush.id, t.id));
-          await rastro(g.usuarioId, r, t.id, paraEste.habla ? null : 'sin voz por preferencia');
+          const envioId = await rastro(g.usuarioId, r, t.id, paraEste.habla ? null : 'sin voz por preferencia');
+          if (r === 'enviado' && envioId) reenviarSiNoAcusa(envioId, t.token, paraEste);
         } catch (err) {
           log.warn({ err: (err as Error).message, usuarioId: g.usuarioId }, 'No se pudo mandar el push');
           await rastro(g.usuarioId, 'error', t.id, (err as Error).message.slice(0, 200));

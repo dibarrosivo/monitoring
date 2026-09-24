@@ -22,6 +22,7 @@
 
         <!-- Avisos push con voz: reemplaza al servicio del plugin (lo extiende) -->
         <service android:name="com.capacitorjs.plugins.pushnotifications.MessagingService" tools:node="remove" />
+        <service android:name=".VozService" android:exported="false" android:foregroundServiceType="shortService" />
         <service android:name=".AvisosService" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
@@ -48,4 +49,5 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 </manifest>

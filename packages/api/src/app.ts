@@ -102,13 +102,20 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
         request.log.warn({ eco: datos, estado }, 'Acuse de push del teléfono');
         const { and: y, eq: igual, isNull: nulo, desc: descendente } = await import('drizzle-orm');
         const { envioPush } = await import('@monitoring/db');
+        // "recibido" llega apenas entra el mensaje; el estado de la voz llega después, en otro acuse
+        const esRecibo = estado.startsWith('recibido');
         const [fila] = await db
           .select({ id: envioPush.id })
           .from(envioPush)
-          .where(y(igual(envioPush.eventoId, Number(datos.eventoId)), igual(envioPush.usuarioId, datos.usuarioId), nulo(envioPush.recibidoEn)))
+          .where(y(igual(envioPush.eventoId, Number(datos.eventoId)), igual(envioPush.usuarioId, datos.usuarioId), ...(esRecibo ? [nulo(envioPush.recibidoEn)] : [])))
           .orderBy(descendente(envioPush.id))
           .limit(1);
-        if (fila) await db.update(envioPush).set({ recibidoEn: new Date(), voz: estado }).where(igual(envioPush.id, fila.id));
+        if (fila) {
+          await db
+            .update(envioPush)
+            .set(esRecibo ? { recibidoEn: new Date() } : { voz: estado, recibidoEn: new Date() })
+            .where(y(igual(envioPush.id, fila.id), ...(esRecibo ? [] : [])));
+        }
         return { ok: true };
       });
       await api.register(async (sub) => registrarClientes(sub));
