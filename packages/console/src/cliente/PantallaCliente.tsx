@@ -13,7 +13,7 @@ import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
 import { CuentaCliente } from './CuentaCliente.js';
 import { detenerPush, iniciarPush } from './push.js';
 import { AnilloEstado, type EstadoAnillo } from './AnilloEstado.js';
-import { IconoCampana, IconoCasa, IconoFlecha, IconoLista, IconoPersona, IconoSos, MarcaFST } from './Iconos.js';
+import { IconoAjustes, IconoCampana, IconoCasa, IconoFlecha, IconoLista, IconoPersona, IconoSos, MarcaFST } from './Iconos.js';
 import { SelectorTema } from '../SelectorTema.js';
 import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_SENAL, tipoDe, VAR_TIPO } from '../ui.js';
 
@@ -39,6 +39,8 @@ function saludo(): string {
  */
 export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usuario; impersonado?: boolean }) {
   const [pestana, setPestana] = useState<Pestana>('inicio');
+  // Atajo del encabezado: abre Avisos con "Qué recibir" desplegado
+  const [ajustesAvisos, setAjustesAvisos] = useState(0);
   const [claveVisible, setClaveVisible] = useState(false);
   const { data: resumen } = useQuery({ queryKey: ['resumen-cli'], queryFn: verResumenCliente, refetchInterval: 30_000 });
   const { data: alarmas } = useQuery({ queryKey: ['alarmas-cli'], queryFn: verAlarmasCliente, refetchInterval: 20_000 });
@@ -107,6 +109,17 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
           ))}
         </nav>
         <span className="flex-1" />
+        <button
+          onClick={() => {
+            setPestana('avisos');
+            setAjustesAvisos((n) => n + 1);
+          }}
+          title="Qué avisos recibir"
+          aria-label="Ajustes de avisos"
+          className={`px-1 ${pestana === 'avisos' ? 'text-acento' : 'text-tenue hover:text-texto'}`}
+        >
+          <IconoAjustes />
+        </button>
         <SelectorTema />
         <ControlesAviso
           voz={avisos.voz}
@@ -148,7 +161,7 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
 
       <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4 w-full max-w-5xl mx-auto">
         {pestana === 'inicio' && <InicioCliente nombre={usuario.nombre} paneles={resumen?.paneles} alarmas={alarmas ?? []} alAbrirPanel={setPanelAbierto} />}
-        {pestana === 'avisos' && <HistorialAvisos paneles={resumen?.paneles} />}
+        {pestana === 'avisos' && <HistorialAvisos key={ajustesAvisos} paneles={resumen?.paneles} abrirAjustes={ajustesAvisos > 0} />}
         {pestana === 'eventos' && <EventosCliente />}
         {pestana === 'panico' && <PanicoCliente sitios={resumen?.paneles ?? []} />}
         {pestana === 'cuenta' && (

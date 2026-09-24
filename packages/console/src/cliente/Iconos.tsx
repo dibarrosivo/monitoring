@@ -97,7 +97,7 @@ export const IconoAltavoz = (p: Props & { apagado?: boolean }) => (
 
 /**
  * Marca FST: el logo real de Falcón Seguridad Total, círculo blanco con las
- * siglas en negro e itálica. Colores fijos: es el logo, no sigue el tema.
+ * siglas en negro. Colores fijos: es el logo, no sigue el tema.
  */
 export const MarcaFST = ({ className, tamano = 36 }: { className?: string; tamano?: number }) => (
   <svg width={tamano} height={tamano} viewBox="0 0 100 100" className={className} role="img" aria-label="FST">
@@ -108,12 +108,20 @@ export const MarcaFST = ({ className, tamano = 36 }: { className?: string; taman
       textAnchor="middle"
       fontFamily="Barlow, 'Arial Black', Arial, sans-serif"
       fontWeight="800"
-      fontStyle="italic"
       fontSize="42"
       letterSpacing="-1"
       fill="#0b0f14"
     >
       FST
     </text>
+  </svg>
+);
+
+/** Ajustes de avisos: deslizadores. */
+export const IconoAjustes = (p: Props) => (
+  <svg {...base(p)}>
+    <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+    <circle cx="16" cy="7" r="2.2" />
+    <circle cx="10" cy="17" r="2.2" />
   </svg>
 );

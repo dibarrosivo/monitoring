@@ -95,10 +95,13 @@ function etiquetaDia(iso: string): string {
   return f.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-export function HistorialAvisos({ paneles }: { paneles: PanelResumenCliente[] | undefined }) {
+export function HistorialAvisos({ paneles, abrirAjustes = false }: { paneles: PanelResumenCliente[] | undefined; abrirAjustes?: boolean }) {
   const { data: eventos, isLoading } = useQuery({ queryKey: ['eventos-cli'], queryFn: () => verEventosCliente(), refetchInterval: 30_000 });
   const { data: prefs } = useQuery({ queryKey: ['preferencias-cli'], queryFn: verPreferenciasCliente, staleTime: 60_000 });
-  const [configurando, setConfigurando] = useState(false);
+  const [configurando, setConfigurando] = useState(abrirAjustes);
+  useEffect(() => {
+    if (abrirAjustes) setConfigurando(true);
+  }, [abrirAjustes]);
   const desde = useMemo(() => vistoHasta(), []);
   // Abrir la pestaña deja todo como leído (al salir, el contador arranca de acá)
   useEffect(() => {

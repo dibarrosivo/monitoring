@@ -56,6 +56,19 @@ window.fetch = async (entrada: RequestInfo | URL) => {
   return new Response(JSON.stringify(respuestas[clave] ?? []), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 localStorage.setItem('monitoring.token', 'x');
+// Variantes de color para comparar: ?variante=verde | marca | claro | claroverde
+const variante = new URLSearchParams(location.search).get('variante');
+if (variante === 'claro' || variante === 'claroverde') { localStorage.setItem('monitoring.tema', 'claro'); document.documentElement.setAttribute('data-theme', 'light'); } else localStorage.removeItem('monitoring.tema');
+const estilos: Record<string, string> = {
+  verde: ':root{--color-acento:#3ddc97}',
+  marca: ':root{--color-fondo:#0f2318;--color-superficie:#16311f;--color-superficie-2:#1d3d28;--color-borde:#2c5a3a;--color-texto:#e7f3ea;--color-tenue:#8fb39a;--color-acento:#5be0a0}',
+  claroverde: ':root[data-theme="light"]{--color-acento:#1f7a4d;--color-fondo:#eef4ef;--color-superficie:#ffffff;--color-superficie-2:#f1f6f2;--color-borde:#cddbd1}',
+};
+if (variante && estilos[variante]) {
+  const st = document.createElement('style');
+  st.textContent = estilos[variante];
+  document.head.appendChild(st);
+}
 localStorage.setItem('monitoring.avisos.vistoHasta', String(hoy.getTime() - 20 * 3_600_000));
 createRoot(document.getElementById('raiz')!).render(
   <QueryClientProvider client={new QueryClient()}>
