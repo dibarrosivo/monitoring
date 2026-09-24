@@ -204,3 +204,9 @@ html {
     animation: none;
   }
 }
+
+/* Acento de marca para la app del cliente: el verde FST, igual en claro y oscuro.
+   Solo la app; la consola de la central conserva el cian. */
+.app-cliente {
+  --color-acento: #22855a;
+}

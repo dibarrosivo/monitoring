@@ -58,19 +58,19 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
   const panelElegido = resumen?.paneles.find((p) => p.id === panelAbierto);
   if (panelElegido) {
     return (
-      <>
+      <div className="app-cliente">
         {panelElegido.tipo === 'hikvision' ? (
           <PanelHikvision panel={panelElegido} alVolver={() => setPanelAbierto(null)} />
         ) : (
           <PanelGenerico panel={panelElegido} alarmas={alarmas ?? []} alVolver={() => setPanelAbierto(null)} />
         )}
         <AvisosCliente avisos={avisos.avisos} alDescartar={avisos.descartar} />
-      </>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-fondo flex flex-col">
+    <div className="app-cliente min-h-screen bg-fondo flex flex-col">
       <ActualizacionApp />
       {impersonado && (
         <div className="bg-acento/15 border-b border-acento px-4 py-2 text-sm flex items-center gap-3">
