@@ -24,8 +24,7 @@ import {
   listarPaneles,
   listarUsuarios,
   usuarioGuardado,
-  verCliente,
-} from '../api.js';
+  verCliente, listarPlanes } from '../api.js';
 import type { Cliente, Contacto, EstadoCliente, EstadoPanel, Sitio, TipoSitio } from '../tipos.js';
 import { Modal } from '../Modal.js';
 import { fechaHora } from '../tiempo.js';
@@ -238,6 +237,7 @@ function Campo({
 /** Alta en un paso: cliente + sitio + dispositivo + primer contacto. */
 function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clienteId: number) => void }) {
   const clienteConsultas = useQueryClient();
+  const { data: planes } = useQuery({ queryKey: ['planes'], queryFn: listarPlanes });
   const [d, setD] = useState({
     nombre: '',
     documento: '',
@@ -251,7 +251,7 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
     tipo: 'hikvision' as EstadoPanel['tipo'],
     marca: '',
     modelo: '',
-    montoAbono: '',
+    planId: '',
     proximoVencimiento: '',
     contactoNombre: '',
     contactoTelefono: '',
@@ -278,7 +278,7 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
           tipo: d.tipo,
           marca: d.marca || undefined,
           modelo: d.modelo || undefined,
-          montoAbono: d.montoAbono || undefined,
+          planId: d.planId ? Number(d.planId) : undefined,
           proximoVencimiento: d.proximoVencimiento || undefined,
         },
         contacto:
@@ -360,13 +360,20 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
           </label>
           <Campo etiqueta="Marca" valor={d.marca} alCambiar={(v) => setD({ ...d, marca: v })} />
           <Campo etiqueta="Modelo" valor={d.modelo} alCambiar={(v) => setD({ ...d, modelo: v })} />
-          <Campo etiqueta="Abono" valor={d.montoAbono} alCambiar={(v) => setD({ ...d, montoAbono: v })} />
-          <Campo
-            etiqueta="Próximo vencimiento"
-            tipo="date"
-            valor={d.proximoVencimiento}
-            alCambiar={(v) => setD({ ...d, proximoVencimiento: v })}
-          />
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-tenue">Plan de cobro</span>
+            <select value={d.planId} onChange={(e) => setD({ ...d, planId: e.target.value })} className={CAMPO}>
+              <option value="">Sin plan</option>
+              {(planes ?? [])
+                .filter((p) => p.activo)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre} · US$ {p.precioUsd}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <Campo etiqueta="Cobrar desde" tipo="date" valor={d.proximoVencimiento} alCambiar={(v) => setD({ ...d, proximoVencimiento: v })} />
         </section>
 
         <section className="grid md:grid-cols-2 gap-3">

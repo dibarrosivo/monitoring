@@ -368,6 +368,14 @@ export function registrarClienteApp(app: App) {
     })
     .refine((p) => (p.silencioDesde === null) === (p.silencioHasta === null), { message: 'La franja de silencio necesita inicio y fin' });
 
+  /** Plan, cuotas pendientes y pagos de los clientes que el usuario ve, en dólares y en bolívares del día. */
+  app.get('/cliente/cobros', async (request) => {
+    const paneles = await panelesDelUsuario(request.user.id);
+    const clientes = [...new Set(paneles.map((p) => p.clienteId))];
+    const { cobrosParaApp } = await import('../cobros/modelo.js');
+    return cobrosParaApp(clientes);
+  });
+
   app.get('/cliente/preferencias', async (request) => {
     const [fila] = await db.select().from(preferenciaAviso).where(eq(preferenciaAviso.usuarioId, request.user.id)).limit(1);
     if (!fila) return PREFERENCIAS_POR_DEFECTO;

@@ -8,3 +8,4 @@ export * from './central.js';
 export * from './preferencias.js';
 export * from './avisos.js';
 export * from './moneda.js';
+export * from './cobros.js';

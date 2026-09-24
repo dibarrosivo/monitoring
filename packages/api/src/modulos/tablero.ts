@@ -1,5 +1,5 @@
-import { and, asc, count, desc, eq, gte, isNotNull, lte, ne, sql } from 'drizzle-orm';
-import { alarma, cliente, db, evento, panel, senal, sitio } from '@monitoring/db';
+import { and, asc, count, desc, eq, gte, lte, ne, sql } from 'drizzle-orm';
+import { alarma, cliente, cuota, db, evento, panel, senal, sitio } from '@monitoring/db';
 import type { App } from '../tipos.js';
 
 /** Resumen operativo para el tablero del administrador: una sola consulta HTTP. */
@@ -66,42 +66,28 @@ export function registrarTablero(app: App) {
         .leftJoin(cliente, eq(sitio.clienteId, cliente.id))
         .orderBy(desc(alarma.creadoEn))
         .limit(8),
-      // Facturación: solo aviso administrativo, no corta el monitoreo
+      // Cobros: solo aviso administrativo, no corta el monitoreo
+      db.select({ cantidad: count() }).from(cuota).where(and(eq(cuota.estado, 'pendiente'), sql`${cuota.venceEn} < current_date`)),
       db
         .select({ cantidad: count() })
-        .from(panel)
-        .where(and(eq(panel.activo, true), isNotNull(panel.proximoVencimiento), sql`${panel.proximoVencimiento} < current_date`)),
-      db
-        .select({ cantidad: count() })
-        .from(panel)
-        .where(
-          and(
-            eq(panel.activo, true),
-            isNotNull(panel.proximoVencimiento),
-            sql`${panel.proximoVencimiento} >= current_date`,
-            sql`${panel.proximoVencimiento} <= current_date + interval '7 days'`,
-          ),
-        ),
+        .from(cuota)
+        .where(and(eq(cuota.estado, 'pendiente'), sql`${cuota.venceEn} >= current_date`, sql`${cuota.venceEn} <= current_date + interval '7 days'`)),
       db
         .select({
-          panelId: panel.id,
+          panelId: cuota.panelId,
           numeroCuenta: panel.numeroCuenta,
           prefijo: panel.prefijo,
+          clienteId: cuota.clienteId,
           clienteNombre: cliente.nombre,
-          proximoVencimiento: panel.proximoVencimiento,
-          montoAbono: panel.montoAbono,
+          concepto: cuota.concepto,
+          venceEn: cuota.venceEn,
+          montoUsd: sql<string>`${cuota.montoUsd} - ${cuota.pagadoUsd}`,
         })
-        .from(panel)
-        .innerJoin(sitio, eq(panel.sitioId, sitio.id))
-        .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
-        .where(
-          and(
-            eq(panel.activo, true),
-            isNotNull(panel.proximoVencimiento),
-            sql`${panel.proximoVencimiento} <= current_date + interval '7 days'`,
-          ),
-        )
-        .orderBy(asc(panel.proximoVencimiento))
+        .from(cuota)
+        .innerJoin(panel, eq(cuota.panelId, panel.id))
+        .innerJoin(cliente, eq(cuota.clienteId, cliente.id))
+        .where(and(eq(cuota.estado, 'pendiente'), sql`${cuota.venceEn} <= current_date + interval '7 days'`))
+        .orderBy(asc(cuota.venceEn))
         .limit(10),
     ]);
 
@@ -117,7 +103,7 @@ export function registrarTablero(app: App) {
       facturacion: {
         vencidos: vencidos?.cantidad ?? 0,
         porVencer: porVencer?.cantidad ?? 0,
-        cuentas: cuentasVencidas,
+        cuentas: cuentasVencidas.map((c) => ({ ...c, montoUsd: Number(c.montoUsd) })),
       },
       eventosHoyPorCategoria,
       ultimasAlarmas,

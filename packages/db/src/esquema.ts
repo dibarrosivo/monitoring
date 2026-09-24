@@ -170,7 +170,13 @@ export const panel = pgTable(
      * desarma, se cierra sola como cancelada. 0 = sin ventana. 25 s por defecto.
      */
     ventanaCancelacionSeg: integer('ventana_cancelacion_seg').notNull().default(25),
-    // Facturación por cuenta monitoreada: solo vencimiento y monto, sin facturas
+    /**
+     * Cobro del dispositivo: plan (precio y frecuencia en USD) o, sin plan, un
+     * monto y una frecuencia propios. `montoAbono` con plan es un precio
+     * especial que manda sobre el del plan. `proximoVencimiento` es el inicio
+     * del próximo período a cobrar: el generador de cuotas lo va corriendo.
+     */
+    planId: integer('id_plan').references(() => plan.id),
     montoAbono: numeric('monto_abono', { precision: 12, scale: 2 }),
     frecuenciaMeses: integer('frecuencia_meses').notNull().default(1),
     proximoVencimiento: date('proximo_vencimiento'),
@@ -613,4 +619,91 @@ export const tasaCambio = pgTable(
     obtenidoEn: timestamp('obtenido_en', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('tasa_cambio_moneda_fecha').on(t.moneda, t.fechaValor)],
+);
+
+/** Plan comercial: precio en dólares por período. Se asigna por dispositivo. */
+export const plan = pgTable('plan', {
+  id: serial('id').primaryKey(),
+  nombre: varchar('nombre', { length: 80 }).notNull().unique(),
+  precioUsd: numeric('precio_usd', { precision: 12, scale: 2 }).notNull(),
+  frecuenciaMeses: integer('frecuencia_meses').notNull().default(1),
+  descripcion: text('descripcion'),
+  activo: boolean('activo').notNull().default(true),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Cuota: lo que un dispositivo debe por un período. La genera el servidor
+ * cuando llega el inicio del período; se paga con uno o varios pagos
+ * (pago_cuota). Nunca se borra: se anula.
+ */
+export const cuota = pgTable(
+  'cuota',
+  {
+    id: serial('id').primaryKey(),
+    clienteId: integer('id_cliente')
+      .notNull()
+      .references(() => cliente.id),
+    panelId: integer('id_panel')
+      .notNull()
+      .references(() => panel.id),
+    periodoDesde: date('periodo_desde').notNull(),
+    periodoHasta: date('periodo_hasta').notNull(),
+    venceEn: date('vence_en').notNull(),
+    montoUsd: numeric('monto_usd', { precision: 12, scale: 2 }).notNull(),
+    pagadoUsd: numeric('pagado_usd', { precision: 12, scale: 2 }).notNull().default('0'),
+    /** pendiente | pagada | anulada */
+    estado: varchar('estado', { length: 16 }).notNull().default('pendiente'),
+    concepto: text('concepto').notNull(),
+    /** Cuándo se le avisó al cliente que existe, y cuándo que venció */
+    avisadaEn: timestamp('avisada_en', { withTimezone: true }),
+    avisoMoraEn: timestamp('aviso_mora_en', { withTimezone: true }),
+    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('cuota_panel_periodo').on(t.panelId, t.periodoDesde), index('cuota_cliente_estado').on(t.clienteId, t.estado)],
+);
+
+/**
+ * Pago de un cliente. El monto de referencia es en dólares; si pagó en
+ * bolívares se guardan también el monto y la tasa usada ese día. Se aplica
+ * a las cuotas más viejas primero (pago_cuota) y lo que sobra queda a favor.
+ */
+export const pago = pgTable(
+  'pago',
+  {
+    id: serial('id').primaryKey(),
+    clienteId: integer('id_cliente')
+      .notNull()
+      .references(() => cliente.id),
+    montoUsd: numeric('monto_usd', { precision: 12, scale: 2 }).notNull(),
+    montoBs: numeric('monto_bs', { precision: 14, scale: 2 }),
+    tasa: numeric('tasa', { precision: 14, scale: 4 }),
+    /** pago_movil | transferencia | efectivo | zelle | tarjeta | deposito | otro */
+    forma: varchar('forma', { length: 24 }).notNull(),
+    referencia: varchar('referencia', { length: 80 }),
+    fecha: date('fecha').notNull(),
+    nota: text('nota'),
+    /** confirmado | por_confirmar (reportado desde la app o la web) | anulado */
+    estado: varchar('estado', { length: 16 }).notNull().default('confirmado'),
+    registradoPor: integer('registrado_por').references(() => usuario.id),
+    reportadoPor: integer('reportado_por').references(() => usuario.id),
+    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('pago_cliente_fecha').on(t.clienteId, t.fecha)],
+);
+
+/** Qué parte de cada pago cubrió cada cuota. */
+export const pagoCuota = pgTable(
+  'pago_cuota',
+  {
+    id: serial('id').primaryKey(),
+    pagoId: integer('id_pago')
+      .notNull()
+      .references(() => pago.id),
+    cuotaId: integer('id_cuota')
+      .notNull()
+      .references(() => cuota.id),
+    montoUsd: numeric('monto_usd', { precision: 12, scale: 2 }).notNull(),
+  },
+  (t) => [index('pago_cuota_pago').on(t.pagoId), index('pago_cuota_cuota').on(t.cuotaId)],
 );

@@ -34,6 +34,31 @@ const respuestas: Record<string, unknown> = {
     { id: 3, clienteId: 50, sitioId: 50, nombre: 'Crisbelys Herrera', rol: 'Empleado', telefono: '04146780878', telefonoAlternativo: null, orden: 3, autorizadoCancelar: false },
   ],
   'cliente/alarmas': [],
+  'cliente/cobros': {
+    tasa: { valor: 855.6625, fechaValor: '2026-09-25', fuente: 'bcv', obtenidoEn: '2026-09-24T20:00:00Z' },
+    clientes: [
+      {
+        clienteId: 50,
+        nombre: 'Geralds Café',
+        dispositivos: [
+          { panelId: 23, numeroCuenta: '7054', prefijo: 'AL', sitioNombre: 'Geralds Café', plan: 'Comercial', precioUsd: 25, meses: 1, proximoVencimiento: '2026-10-01' },
+          { panelId: 24, numeroCuenta: '7026', prefijo: 'AL', sitioNombre: 'Cerco Geralds Café', plan: 'Comercial', precioUsd: 20, meses: 1, proximoVencimiento: '2026-10-01' },
+        ],
+        cuotasPendientes: [
+          { id: 9, concepto: 'Mensualidad de septiembre 2026', numeroCuenta: '7054', prefijo: 'AL', venceEn: '2026-09-06', montoUsd: 25, pagadoUsd: 0, vencida: true },
+          { id: 10, concepto: 'Mensualidad de septiembre 2026', numeroCuenta: '7026', prefijo: 'AL', venceEn: '2026-09-06', montoUsd: 20, pagadoUsd: 0, vencida: true },
+        ],
+        ultimosPagos: [
+          { id: 2, fecha: '2026-08-03', montoUsd: 45, montoBs: 37200.5, forma: 'pago_movil', referencia: '4471', estado: 'confirmado' },
+          { id: 1, fecha: '2026-07-02', montoUsd: 45, montoBs: null, forma: 'zelle', referencia: null, estado: 'confirmado' },
+        ],
+        pendienteUsd: 45,
+        vencidoUsd: 45,
+        saldoAFavorUsd: 0,
+        pendienteBs: 38504.81,
+      },
+    ],
+  },
   'cliente/preferencias': { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: '22:00', silencioHasta: '07:00' },
   'paneles/50/zonas': [
     { numero: '001', descripcion: 'Cocina - Atención al cliente INFRA' }, { numero: '002', descripcion: 'Oficina principal - Pasillo INFRA' },

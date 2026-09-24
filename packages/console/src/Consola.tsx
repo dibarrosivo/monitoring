@@ -16,6 +16,7 @@ import { Clientes } from './vistas/Clientes.js';
 import { Usuarios } from './vistas/Usuarios.js';
 import { Calendario } from './vistas/Calendario.js';
 import { Reportes } from './vistas/Reportes.js';
+import { Cobros } from './vistas/Cobros.js';
 import { ColaMovil } from './vistas/ColaMovil.js';
 import { ModalClave } from './ModalClave.js';
 import { HombreMuerto } from './HombreMuerto.js';
@@ -25,7 +26,7 @@ import { SelectorTema } from './SelectorTema.js';
 import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
-type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'reportes' | 'supervision' | 'calendario' | 'usuarios';
+type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'cobros' | 'reportes' | 'supervision' | 'calendario' | 'usuarios';
 
 /** Minutos sin ninguna señal para dar la central por muda: el mismo valor que usa el vigilante del servidor. */
 const LIMITE_SILENCIO_MIN = SILENCIO_GENERAL_MIN_POR_DEFECTO;
@@ -69,6 +70,7 @@ const VISTAS: { clave: Vista; nombre: string; roles?: Usuario['rol'][] }[] = [
   { clave: 'paneles', nombre: 'Dispositivos' },
   { clave: 'puentes', nombre: 'Puentes' },
   { clave: 'clientes', nombre: 'Clientes' },
+  { clave: 'cobros', nombre: 'Cobros', roles: ['admin', 'supervisor'] },
   { clave: 'reportes', nombre: 'Reportes' },
   { clave: 'supervision', nombre: 'Supervisión', roles: ['admin', 'supervisor'] },
   { clave: 'calendario', nombre: 'Calendario', roles: ['admin', 'supervisor'] },
@@ -87,6 +89,14 @@ export function Consola({ usuario }: { usuario: Usuario }) {
   const [clienteObjetivo, setClienteObjetivo] = useState<number | null>(null);
 
   const [dispositivoObjetivo, setDispositivoObjetivo] = useState<number | null>(null);
+  // Desde el tablero se salta al estado de cuenta de un cliente
+  const [cobroObjetivo, setCobroObjetivo] = useState<number | null>(null);
+
+  function irACobros(clienteId: number | null = null) {
+    setCobroObjetivo(clienteId);
+    setVista('cobros');
+    setMenuAbierto(false);
+  }
 
   function irACliente(clienteId: number) {
     setClienteObjetivo(clienteId);
@@ -303,6 +313,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
               alIrAPaneles={() => setVista('paneles')}
               alIrASenales={irASenales}
               alIrAClientes={() => irAVista('clientes')}
+              alIrACobros={irACobros}
             />
           )}
           {vista === 'cola' && <ColaMovil />}
@@ -310,6 +321,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'paneles' && <Paneles alIrACliente={irACliente} dispositivoInicial={dispositivoObjetivo} />}
           {vista === 'puentes' && <Puentes />}
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
+          {vista === 'cobros' && <Cobros clienteInicial={cobroObjetivo} />}
           {vista === 'reportes' && <Reportes />}
           {vista === 'supervision' && <Supervision />}
           {vista === 'calendario' && <Calendario />}
@@ -414,6 +426,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
               alIrAPaneles={() => setVista('paneles')}
               alIrASenales={irASenales}
               alIrAClientes={() => irAVista('clientes')}
+              alIrACobros={irACobros}
             />
           )}
           {vista === 'cola' && <Cola alarmaReciente={alarmaReciente} filtro={filtroCola} />}

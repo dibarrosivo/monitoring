@@ -13,6 +13,7 @@ import {
   verUsuariosCliente,
 } from '../api.js';
 import type { ContactoApp, PanelResumenCliente, Usuario, UsuarioApp } from '../tipos.js';
+import { MiPlan } from './MiPlan.js';
 
 import { BOTON_APP as BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO_APP as CAMPO } from '../estilos.js';
 const ROLES = ['Propietario', 'Encargado', 'Empleado', 'Familiar', 'Vecino', 'Vigilante', 'Otro'];
@@ -46,6 +47,7 @@ export function CuentaCliente({ usuario, paneles, propietarioDe, alCambiarClave 
         <EstadoNotificaciones />
       </section>
       <ConfiguracionAvisos />
+      <MiPlan />
 
       {esPropietario ? (
         <>

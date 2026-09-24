@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   crearContacto,
-  registrarPago,
   crearHorario,
   crearUsuarioPanel,
   crearZona,
@@ -20,15 +19,14 @@ import {
   listarPaneles,
   listarUsuariosPanel,
   listarZonas,
-  verCliente,
-} from '../api.js';
+  verCliente, listarPlanes } from '../api.js';
 import type { EstadoPanel, TipoSenal } from '../tipos.js';
 import { fechaHora, transcurrido } from '../tiempo.js';
 import { enPrueba } from '../ui.js';
 import { Modal } from '../Modal.js';
 import { CampoSugerido } from '../CampoSugerido.js';
 import { ControlPanel } from '../ControlPanel.js';
-import { NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
+import { formatearUsd, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
 import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, resumenAviso, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 
@@ -58,6 +56,8 @@ export function DetalleDispositivo({
   const { data: paneles } = useQuery({ queryKey: ['paneles'], queryFn: listarPaneles });
   const panel = (paneles ?? []).find((p) => p.id === panelId);
   const [editando, setEditando] = useState(false);
+  const { data: planes } = useQuery({ queryKey: ['planes'], queryFn: listarPlanes });
+  const planActual = planes?.find((p) => p.id === panel?.planId) ?? null;
   const [poniendoEnPrueba, setPoniendoEnPrueba] = useState(false);
   const sacarDePrueba = useMutation({
     mutationFn: () => quitarPrueba(panelId),
@@ -68,14 +68,9 @@ export function DetalleDispositivo({
     mutationFn: () => editarPanel(panelId, { activo: !panel?.activo }),
     onSuccess: () => void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] }),
   });
-  const pagar = useMutation({
-    mutationFn: () => registrarPago(panelId),
-    onSuccess: () => void clienteConsultas.invalidateQueries({ queryKey: ['paneles'] }),
-  });
 
   if (!panel) return <p className="text-tenue">Cargando dispositivo…</p>;
 
-  const vencido = Boolean(panel.proximoVencimiento && panel.proximoVencimiento < new Date().toISOString().slice(0, 10));
 
   return (
     <div className="flex flex-col gap-4 max-w-6xl">
@@ -123,18 +118,14 @@ export function DetalleDispositivo({
           {panel.ventanaCancelacionSeg !== undefined && (panel.ventanaCancelacionSeg > 0 ? ` · robo espera ${panel.ventanaCancelacionSeg} s el desarmado` : ' · sin ventana de cancelación')}
           {panel.propiedad && panel.propiedad !== 'propio' && ` · ${panel.propiedad}`}
         </p>
-        <p className="text-sm mt-1 flex flex-wrap items-center gap-x-3">
-          <span className={vencido ? 'text-prio2 font-semibold' : 'text-tenue'}>
-            {panel.proximoVencimiento
-              ? `${vencido ? 'Vencido' : 'Vence'} el ${fechaCorta(panel.proximoVencimiento)}`
-              : 'Sin vencimiento cargado'}
-            {panel.montoAbono && ` · abono ${panel.montoAbono}`}
-          </span>
-          {panel.proximoVencimiento && (
-            <button onClick={() => pagar.mutate()} disabled={pagar.isPending} className={BOTON_MINI}>
-              Registrar pago
-            </button>
-          )}
+        <p className="text-sm mt-1 text-tenue">
+          {planActual
+            ? `Plan ${planActual.nombre} · ${formatearUsd(panel.montoAbono ? Number(panel.montoAbono) : planActual.precioUsd)} cada ${planActual.frecuenciaMeses} ${planActual.frecuenciaMeses === 1 ? 'mes' : 'meses'}`
+            : panel.montoAbono
+              ? `Abono ${formatearUsd(Number(panel.montoAbono))} cada ${panel.frecuenciaMeses ?? 1} ${(panel.frecuenciaMeses ?? 1) === 1 ? 'mes' : 'meses'}`
+              : 'Sin plan de cobro'}
+          {panel.proximoVencimiento && ` · próximo período desde el ${fechaCorta(panel.proximoVencimiento)}`}
+          {(planActual || panel.montoAbono) && ' · los pagos se registran en Cobros, por cliente'}
         </p>
         <p className="text-sm mt-1">
           <button
@@ -382,10 +373,12 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
     supervisado: panel.supervisado,
     intervaloPruebaMin: String(panel.intervaloPruebaMin),
     ventanaCancelacionSeg: String(panel.ventanaCancelacionSeg ?? 25),
+    planId: panel.planId ? String(panel.planId) : '',
     montoAbono: panel.montoAbono ?? '',
     frecuenciaMeses: String(panel.frecuenciaMeses ?? 1),
     proximoVencimiento: panel.proximoVencimiento ?? '',
   });
+  const { data: planes } = useQuery({ queryKey: ['planes'], queryFn: listarPlanes });
   const [error, setError] = useState<string | null>(null);
 
   const guardar = useMutation({
@@ -406,7 +399,8 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
         supervisado: datos.supervisado,
         intervaloPruebaMin: Number(datos.intervaloPruebaMin),
         ventanaCancelacionSeg: Math.max(0, Number(datos.ventanaCancelacionSeg) || 0),
-        montoAbono: datos.montoAbono || undefined,
+        planId: datos.planId ? Number(datos.planId) : null,
+        montoAbono: datos.montoAbono || null,
         frecuenciaMeses: Number(datos.frecuenciaMeses) || 1,
         proximoVencimiento: datos.proximoVencimiento || null,
       }),
@@ -532,33 +526,42 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
           </label>
         </div>
 
-        <h3 className="text-tenue text-xs uppercase tracking-wider mt-1">Facturación de la cuenta</h3>
-        <div className="grid grid-cols-3 gap-3">
+        <h3 className="text-tenue text-xs uppercase tracking-wider mt-1">Cobro del dispositivo (en dólares)</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-tenue">Abono</span>
-            <input value={datos.montoAbono} onChange={(e) => setDatos({ ...datos, montoAbono: e.target.value })} className={`${CAMPO} font-datos`} />
+            <span className="text-tenue">Plan</span>
+            <select value={datos.planId} onChange={(e) => setDatos({ ...datos, planId: e.target.value })} className={CAMPO}>
+              <option value="">Sin plan</option>
+              {(planes ?? [])
+                .filter((p) => p.activo || String(p.id) === datos.planId)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre} · {formatearUsd(p.precioUsd)}
+                  </option>
+                ))}
+            </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-tenue">Cada (meses)</span>
+            <span className="text-tenue">{datos.planId ? 'Precio especial (US$)' : 'Monto (US$)'}</span>
             <input
-              type="number"
-              min="1"
-              max="24"
-              value={datos.frecuenciaMeses}
-              onChange={(e) => setDatos({ ...datos, frecuenciaMeses: e.target.value })}
+              value={datos.montoAbono}
+              onChange={(e) => setDatos({ ...datos, montoAbono: e.target.value })}
               className={`${CAMPO} font-datos`}
+              placeholder={datos.planId ? 'el del plan' : ''}
             />
           </label>
+          {!datos.planId && (
+            <label className="flex flex-col gap-1">
+              <span className="text-tenue">Cada (meses)</span>
+              <input type="number" min="1" max="24" value={datos.frecuenciaMeses} onChange={(e) => setDatos({ ...datos, frecuenciaMeses: e.target.value })} className={`${CAMPO} font-datos`} />
+            </label>
+          )}
           <label className="flex flex-col gap-1">
-            <span className="text-tenue">Próximo vencimiento</span>
-            <input
-              type="date"
-              value={datos.proximoVencimiento}
-              onChange={(e) => setDatos({ ...datos, proximoVencimiento: e.target.value })}
-              className={CAMPO}
-            />
+            <span className="text-tenue">Próximo período desde</span>
+            <input type="date" value={datos.proximoVencimiento} onChange={(e) => setDatos({ ...datos, proximoVencimiento: e.target.value })} className={CAMPO} />
           </label>
         </div>
+        <p className="text-xs text-tenue">La cuota se genera sola cuando llega esa fecha y se le avisa al cliente. Los pagos se registran en Cobros, por cliente.</p>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"

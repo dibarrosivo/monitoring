@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { verTablero, verTasa } from '../api.js';
-import { describirTasa } from '@monitoring/shared';
+import { describirTasa, formatearUsd } from '@monitoring/shared';
 import { fechaHora } from '../tiempo.js';
 import { NOMBRE_CATEGORIA, nombreCuenta } from '../ui.js';
 import { clasesPrioridad } from '../ui.js';
@@ -15,11 +15,13 @@ export function Tablero({
   alIrAPaneles,
   alIrASenales,
   alIrAClientes,
+  alIrACobros,
 }: {
   alIrACola: (filtro: FiltroCola) => void;
   alIrAPaneles: () => void;
   alIrASenales: () => void;
   alIrAClientes: () => void;
+  alIrACobros: (clienteId?: number | null) => void;
 }) {
   const { data: tablero, isLoading } = useQuery({ queryKey: ['tablero'], queryFn: verTablero, refetchInterval: 30_000 });
   const { data: tasa } = useQuery({ queryKey: ['tasa'], queryFn: verTasa, refetchInterval: 30 * 60_000 });
@@ -48,12 +50,8 @@ export function Tablero({
         <Ficha nombre="Señales hoy" valor={tablero.hoy.senales} alClickear={alIrASenales} />
         <Ficha nombre="Cerradas hoy" valor={tablero.alarmas.cerradasHoy} alClickear={() => alIrACola('cerrada')} />
         <Ficha nombre="Dispositivos activos" valor={tablero.paneles.activos} alClickear={alIrAPaneles} />
-        <Ficha
-          nombre="Cuentas vencidas"
-          valor={tablero.facturacion.vencidos}
-          alerta={tablero.facturacion.vencidos > 0}
-          alClickear={alIrAClientes}
-        />
+        <Ficha nombre="Clientes activos" valor={tablero.clientes.activos} alClickear={alIrAClientes} />
+        <Ficha nombre="Cuotas vencidas" valor={tablero.facturacion.vencidos} alerta={tablero.facturacion.vencidos > 0} alClickear={() => alIrACobros()} />
       </div>
 
       {/* Tasa del día: los planes están en dólares y se convierten al consultar */}
@@ -64,20 +62,22 @@ export function Tablero({
       {(tablero.facturacion.vencidos > 0 || tablero.facturacion.porVencer > 0) && (
         <section className="bg-superficie border border-borde rounded-sm p-4 flex flex-col gap-1.5">
           <h2 className="text-tenue text-xs uppercase tracking-wider">
-            Facturación · {tablero.facturacion.vencidos} vencidas y {tablero.facturacion.porVencer} por vencer
+            Cobros · {tablero.facturacion.vencidos} vencidas y {tablero.facturacion.porVencer} por vencer
           </h2>
           {tablero.facturacion.cuentas.map((c) => {
-            const vencida = Boolean(c.proximoVencimiento && c.proximoVencimiento < new Date().toISOString().slice(0, 10));
+            const vencida = c.venceEn < new Date().toISOString().slice(0, 10);
             return (
-              <div key={c.panelId} className="flex items-center gap-3 text-sm">
+              <button key={`${c.panelId}-${c.venceEn}`} onClick={() => alIrACobros(c.clienteId)} className="flex items-center gap-3 text-sm text-left hover:text-acento">
                 <span className="font-datos">{nombreCuenta(c.prefijo, c.numeroCuenta)}</span>
-                <span className="flex-1 truncate">{c.clienteNombre}</span>
-                {c.montoAbono && <span className="font-datos text-tenue">{c.montoAbono}</span>}
-                <span className={`font-datos text-xs ${vencida ? 'text-prio2 font-semibold' : 'text-tenue'}`}>
-                  {vencida ? 'vencida el ' : 'vence el '}
-                  {c.proximoVencimiento}
+                <span className="flex-1 truncate">
+                  {c.clienteNombre} <span className="text-tenue">· {c.concepto}</span>
                 </span>
-              </div>
+                <span className="font-datos text-tenue">{formatearUsd(c.montoUsd)}</span>
+                <span className={`font-datos text-xs ${vencida ? 'text-prio2 font-semibold' : 'text-tenue'}`}>
+                  {vencida ? 'venció el ' : 'vence el '}
+                  {c.venceEn}
+                </span>
+              </button>
             );
           })}
         </section>

@@ -63,7 +63,7 @@ export function descargarBcv(url = URL_BCV): Promise<string> {
 }
 
 /** 'AAAA-MM-DD' de hoy en la hora de la central. */
-function hoyCentral(): string {
+export function hoyCentral(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: process.env.ZONA_HORARIA_CENTRAL ?? ZONA_HORARIA_POR_DEFECTO });
 }
 

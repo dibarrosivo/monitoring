@@ -14,6 +14,8 @@ import {
   usuario,
   usuarioPanel,
   zona,
+  cuota,
+  plan,
 } from '@monitoring/db';
 import type { App } from '../tipos.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -127,7 +129,8 @@ const camposPanel = {
   supervisado: z.boolean().default(true),
   intervaloPruebaMin: z.number().int().positive().default(1440),
   ventanaCancelacionSeg: z.number().int().min(0).max(300).default(25),
-  montoAbono: z.union([z.number(), z.string()]).transform(String).optional(),
+  planId: z.number().int().nullable().optional(),
+  montoAbono: z.union([z.number(), z.string()]).transform(String).nullable().optional(),
   frecuenciaMeses: z.number().int().min(1).max(24).optional(),
   proximoVencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 };
@@ -223,9 +226,10 @@ export function registrarClientes(app: App) {
         dispositivos: sql<number>`count(distinct ${panel.id})`.mapWith(Number),
         silenciosos: sql<number>`count(distinct ${panel.id}) filter (where ${panel.activo} and ${panel.supervisado} and coalesce(${panel.ultimaSenalEn}, ${panel.creadoEn}) < now() - (${panel.intervaloPruebaMin} * interval '90 seconds'))`.mapWith(Number),
         alarmasAbiertas: sql<number>`count(distinct ${alarma.id}) filter (where ${alarma.estado} <> 'cerrada')`.mapWith(Number),
-        vencidos: sql<number>`count(distinct ${panel.id}) filter (where ${panel.proximoVencimiento} is not null and ${panel.proximoVencimiento} < current_date)`.mapWith(Number),
-        proximoVencimiento: sql<string | null>`min(${panel.proximoVencimiento}) filter (where ${panel.activo})`,
-        abonoTotal: sql<string | null>`sum(${panel.montoAbono}) filter (where ${panel.activo})`,
+        // Cobros: cuotas vencidas sin pagar y próximo vencimiento (solo aviso, no corta nada)
+        vencidos: sql<number>`(select count(*) from ${cuota} q where q.id_cliente = ${cliente.id} and q.estado = 'pendiente' and q.vence_en < current_date)`.mapWith(Number),
+        proximoVencimiento: sql<string | null>`(select min(q.vence_en) from ${cuota} q where q.id_cliente = ${cliente.id} and q.estado = 'pendiente')`,
+        abonoTotal: sql<string | null>`(select sum(coalesce(p.monto_abono, pl.precio_usd)) from ${panel} p join ${sitio} s2 on p.id_sitio = s2.id left join ${plan} pl on p.id_plan = pl.id where s2.id_cliente = ${cliente.id} and p.activo)`,
       })
       .from(cliente)
       .leftJoin(sitio, eq(sitio.clienteId, cliente.id))
@@ -456,25 +460,6 @@ export function registrarClientes(app: App) {
     if (!fila) return reply.code(404).send({ error: 'Cliente no encontrado' });
     await auditar(request, 'cliente', fila.id, 'editar', datos.data);
     return fila;
-  });
-
-  /** Registrar el pago de una cuenta: corre el vencimiento según su frecuencia. */
-  app.post('/paneles/:id/pago', async (request, reply) => {
-    const id = idDe(request);
-    const [fila] = await db.select().from(panel).where(eq(panel.id, id)).limit(1);
-    if (!fila) return reply.code(404).send({ error: 'Dispositivo no encontrado' });
-
-    const base = fila.proximoVencimiento ? new Date(`${fila.proximoVencimiento}T00:00:00Z`) : new Date();
-    base.setUTCMonth(base.getUTCMonth() + fila.frecuenciaMeses);
-    const nuevo = base.toISOString().slice(0, 10);
-
-    const [actualizado] = await db
-      .update(panel)
-      .set({ proximoVencimiento: nuevo })
-      .where(eq(panel.id, id))
-      .returning();
-    await auditar(request, 'panel', id, 'editar', { pago: true, proximoVencimiento: nuevo });
-    return actualizado;
   });
 
   // ---- Feriados: el vigilante de horarios los saltea ----
