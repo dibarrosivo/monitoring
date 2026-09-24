@@ -562,3 +562,32 @@ export const dispositivoPush = pgTable(
   },
   (t) => [index('dispositivo_push_usuario').on(t.usuarioId)],
 );
+
+/**
+ * Rastro de cada aviso push: a quién se le mandó, si Firebase lo aceptó,
+ * cuándo el teléfono confirmó que llegó y qué hizo la voz. También queda lo
+ * que NO se mandó (sin teléfono registrado, apagado por preferencias): la
+ * central tiene que poder responder "¿le avisamos al cliente?" con datos.
+ */
+export const envioPush = pgTable(
+  'envio_push',
+  {
+    id: serial('id').primaryKey(),
+    eventoId: integer('id_evento')
+      .notNull()
+      .references(() => evento.id),
+    usuarioId: integer('id_usuario')
+      .notNull()
+      .references(() => usuario.id),
+    dispositivoId: integer('id_dispositivo'),
+    /** enviado | token-invalido | error | omitido (preferencias/silencio) | sin-telefono */
+    resultado: varchar('resultado', { length: 16 }).notNull(),
+    detalle: text('detalle'),
+    enviadoEn: timestamp('enviado_en', { withTimezone: true }).notNull().defaultNow(),
+    /** Cuándo el teléfono acusó recibo (servicio nativo) */
+    recibidoEn: timestamp('recibido_en', { withTimezone: true }),
+    /** Estado de la voz según el teléfono ("speak=0 motor=… vol(…)") */
+    voz: text('voz'),
+  },
+  (t) => [index('envio_push_evento').on(t.eventoId), index('envio_push_usuario_fecha').on(t.usuarioId, t.enviadoEn)],
+);

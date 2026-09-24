@@ -452,6 +452,19 @@ export interface PreferenciasAviso {
   vozPush?: 'siempre' | 'solo_alarmas' | 'nunca';
 }
 
+/** Rastro de un aviso push a un usuario de la app */
+export interface AvisoPush {
+  id: number;
+  eventoId: number;
+  usuarioId: number;
+  usuarioNombre: string;
+  resultado: 'enviado' | 'token-invalido' | 'error' | 'omitido' | 'sin-telefono' | string;
+  detalle: string | null;
+  enviadoEn: string;
+  recibidoEn: string | null;
+  voz: string | null;
+}
+
 export interface AlarmaCliente {
   id: number;
   estado: string;

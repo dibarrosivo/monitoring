@@ -14,6 +14,7 @@ import {
   eliminarHorario,
   eliminarUsuarioPanel,
   eliminarZona,
+  listarAvisosPush,
   listarEventosDePanel,
   listarHorarios,
   listarPaneles,
@@ -27,7 +28,7 @@ import { enPrueba } from '../ui.js';
 import { Modal } from '../Modal.js';
 import { CampoSugerido } from '../CampoSugerido.js';
 import { ControlPanel } from '../ControlPanel.js';
-import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, tipoDe } from '../ui.js';
+import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, resumenAviso, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 
 const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
@@ -191,6 +192,16 @@ function HistorialSenales({ panelId }: { panelId: number }) {
   const [senalVisible, setSenalVisible] = useState<number | null>(null);
 
   const todos = eventos ?? [];
+  // Rastro de avisos de lo visible (sin pruebas): quién fue avisado y si le llegó
+  const idsConAviso = todos.filter((e) => tipoDe(e) !== 'prueba').slice(0, 200).map((e) => e.id);
+  const { data: avisos } = useQuery({
+    queryKey: ['avisos-push', 'panel', panelId, idsConAviso.length ? idsConAviso[0] : 0],
+    queryFn: () => listarAvisosPush(idsConAviso),
+    enabled: idsConAviso.length > 0,
+    refetchInterval: 30_000,
+  });
+  const avisosPorEvento = new Map<number, typeof avisos>();
+  for (const a of avisos ?? []) avisosPorEvento.set(a.eventoId, [...(avisosPorEvento.get(a.eventoId) ?? []), a]);
   const conteo = new Map<TipoSenal, number>();
   for (const e of todos) conteo.set(tipoDe(e), (conteo.get(tipoDe(e)) ?? 0) + 1);
   const visibles = todos.filter((e) => (tipo ? tipoDe(e) === tipo : conPruebas || tipoDe(e) !== 'prueba'));
@@ -232,6 +243,7 @@ function HistorialSenales({ panelId }: { panelId: number }) {
               <th className="px-3 py-1.5 font-medium">Código</th>
               <th className="px-3 py-1.5 font-medium">Descripción</th>
               <th className="px-3 py-1.5 font-medium">Usuario / Zona</th>
+              <th className="px-3 py-1.5 font-medium">Aviso al cliente</th>
               <th className="px-3 py-1.5" aria-label="Trama" />
             </tr>
           </thead>
@@ -248,6 +260,16 @@ function HistorialSenales({ panelId }: { panelId: number }) {
                     {e.zona ?? '—'}
                     {e.zonaDescripcion && <span className="font-ui text-texto"> - {e.zonaDescripcion}</span>}
                   </td>
+                  <td className="px-3 py-1 font-ui text-xs whitespace-nowrap">
+                    {(avisosPorEvento.get(e.id) ?? []).map((a) => {
+                      const r = resumenAviso(a);
+                      return (
+                        <span key={a.id} className={`block ${r.clase}`} title={a.detalle ?? a.voz ?? ''}>
+                          {a.usuarioNombre.split(' ')[0]}: {r.texto}
+                        </span>
+                      );
+                    })}
+                  </td>
                   <td className="px-3 py-1">
                     {e.senalId && (
                       <button onClick={() => setSenalVisible(e.senalId!)} className="text-tenue hover:text-acento text-xs underline underline-offset-2">
@@ -260,7 +282,7 @@ function HistorialSenales({ panelId }: { panelId: number }) {
             })}
             {!isLoading && visibles.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-tenue font-ui">
+                <td colSpan={7} className="px-3 py-6 text-center text-tenue font-ui">
                   {todos.length === 0 ? 'Este equipo todavía no transmitió nada.' : 'Solo hay pruebas periódicas. Márquelas arriba para verlas.'}
                 </td>
               </tr>

@@ -98,7 +98,17 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
         const cuerpo = (request.body ?? {}) as { eco?: string; estado?: string };
         const datos = typeof cuerpo.eco === 'string' ? verificarEco(cuerpo.eco) : null;
         if (!datos) return reply.code(400).send({ error: 'eco inválido' });
-        request.log.warn({ eco: datos, estado: String(cuerpo.estado ?? '').slice(0, 500) }, 'Acuse de push del teléfono');
+        const estado = String(cuerpo.estado ?? '').slice(0, 500);
+        request.log.warn({ eco: datos, estado }, 'Acuse de push del teléfono');
+        const { and: y, eq: igual, isNull: nulo, desc: descendente } = await import('drizzle-orm');
+        const { envioPush } = await import('@monitoring/db');
+        const [fila] = await db
+          .select({ id: envioPush.id })
+          .from(envioPush)
+          .where(y(igual(envioPush.eventoId, Number(datos.eventoId)), igual(envioPush.usuarioId, datos.usuarioId), nulo(envioPush.recibidoEn)))
+          .orderBy(descendente(envioPush.id))
+          .limit(1);
+        if (fila) await db.update(envioPush).set({ recibidoEn: new Date(), voz: estado }).where(igual(envioPush.id, fila.id));
         return { ok: true };
       });
       await api.register(async (sub) => registrarClientes(sub));

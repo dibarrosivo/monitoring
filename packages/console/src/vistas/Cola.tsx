@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { anotarAlarma, devolverAlarma, marcarPaso, listarAcciones, listarAlarmas, reabrirAlarma, tomarAlarma, tomarLote, verContexto } from '../api.js';
+import { anotarAlarma, devolverAlarma, listarAvisosPush, marcarPaso, listarAcciones, listarAlarmas, reabrirAlarma, tomarAlarma, tomarLote, verContexto } from '../api.js';
 import type { Alarma, TipoSenal } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
-import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, tipoDe } from '../ui.js';
+import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, NOMBRE_TIPO_PANEL, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL, resumenAviso, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 import { Modal } from '../Modal.js';
 import { ETIQUETA_DESENLACE } from '../cierres.js';
@@ -760,6 +760,7 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
         <div className="p-3 overflow-y-auto text-sm">
           <h3 className="text-tenue text-xs uppercase tracking-wider mb-2">Historial</h3>
           <Bitacora acciones={acciones} />
+          <AvisosAlCliente eventoId={alarma.evento.id} />
           {(contexto?.previas.length ?? 0) > 0 && (
             <>
               <h3 className="text-tenue text-xs uppercase tracking-wider mt-3 mb-1">Últimas alarmas de este sitio</h3>
@@ -854,5 +855,32 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
         </div>
       </div>
     </section>
+  );
+}
+
+/** A quién le avisó la app por este evento y si le llegó: la respuesta a "¿el cliente ya sabe?". */
+function AvisosAlCliente({ eventoId }: { eventoId: number }) {
+  const { data: avisos } = useQuery({ queryKey: ['avisos-push', eventoId], queryFn: () => listarAvisosPush([eventoId]), refetchInterval: 20_000 });
+  if (!avisos || avisos.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-tenue text-xs uppercase tracking-wider mt-3 mb-1">Avisos al cliente (app)</h3>
+      <ul className="text-xs font-ui flex flex-col gap-0.5">
+        {avisos.map((a) => {
+          const r = resumenAviso(a);
+          return (
+            <li key={a.id} className="flex items-center gap-2">
+              <span className="font-semibold">{a.usuarioNombre}</span>
+              <span className={r.clase}>{r.texto}</span>
+              <span className="text-tenue font-datos">
+                {fechaHora(a.enviadoEn).slice(-8)}
+                {a.recibidoEn && ` → ${fechaHora(a.recibidoEn).slice(-8)}`}
+              </span>
+              {a.detalle && a.resultado !== 'enviado' && <span className="text-tenue">· {a.detalle}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

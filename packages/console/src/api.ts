@@ -6,6 +6,7 @@ import type {
   ActividadOperador,
   Alarma,
   AlarmaCliente,
+  AvisoPush,
   Cliente,
   ClienteDetalle,
   ClienteResumen,
@@ -158,6 +159,7 @@ export const marcarPaso = (id: number, paso: string) =>
   pedir<{ ok: true }>(`/alarmas/${id}/paso`, { method: 'POST', body: JSON.stringify({ paso }) });
 
 export const listarEventos = (limite = 200) => pedir<Evento[]>(`/eventos?limite=${limite}`);
+export const listarAvisosPush = (eventoIds: number[]) => (eventoIds.length ? pedir<AvisoPush[]>(`/avisos-push?eventoIds=${eventoIds.join(',')}`) : Promise.resolve([] as AvisoPush[]));
 export const listarEventosDePanel = (panelId: number, limite = 300) => pedir<Evento[]>(`/eventos?panelId=${panelId}&limite=${limite}`);
 export const listarPaneles = () => pedir<EstadoPanel[]>('/paneles/estado');
 

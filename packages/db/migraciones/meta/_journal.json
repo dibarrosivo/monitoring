@@ -183,6 +183,13 @@
       "when": 1790188837690,
       "tag": "0025_groovy_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790252292336,
+      "tag": "0026_puzzling_lightspeed",
+      "breakpoints": true
     }
   ]
 }

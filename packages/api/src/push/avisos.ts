@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
-import { acceso, cliente, db, dispositivoPush, panel, preferenciaAviso, sitio, usuario } from '@monitoring/db';
+import { acceso, cliente, db, dispositivoPush, envioPush, panel, preferenciaAviso, sitio, usuario } from '@monitoring/db';
 import type { CategoriaEvento } from '@monitoring/shared';
 import { enviarPush, pushDisponible, type MensajePush } from './fcm.js';
 
@@ -171,19 +171,32 @@ export async function enviarAvisosPush(carga: CargaEvento, log: { info: (o: obje
     if (gente.length === 0) return 0;
     const prefs = await db.select().from(preferenciaAviso).where(inArray(preferenciaAviso.usuarioId, gente.map((g) => g.usuarioId)));
     const tokens = await db.select().from(dispositivoPush).where(inArray(dispositivoPush.usuarioId, gente.map((g) => g.usuarioId)));
+    const rastro = async (usuarioId: number, resultado: string, dispositivoId: number | null = null, detalle: string | null = null) => {
+      await db.insert(envioPush).values({ eventoId: carga.eventoId, usuarioId, dispositivoId, resultado, detalle }).catch(() => undefined);
+    };
     for (const g of gente) {
       const mensaje = mensajeParaEvento(carga, g.sitios > 1);
       if (!mensaje) continue;
       const p = prefs.find((x) => x.usuarioId === g.usuarioId) ?? POR_DEFECTO;
-      if (!quiereRecibir(p, mensaje.grupo)) continue;
+      if (!quiereRecibir(p, mensaje.grupo)) {
+        await rastro(g.usuarioId, 'omitido', null, 'apagado en sus preferencias o en silencio');
+        continue;
+      }
       const paraEste = conVoz(p, mensaje.canal) ? mensaje : { ...mensaje, habla: '' };
-      for (const t of tokens.filter((x) => x.usuarioId === g.usuarioId)) {
+      const suyos = tokens.filter((x) => x.usuarioId === g.usuarioId);
+      if (suyos.length === 0) {
+        await rastro(g.usuarioId, 'sin-telefono');
+        continue;
+      }
+      for (const t of suyos) {
         try {
           const r = await enviarPush(t.token, paraEste, g.usuarioId);
           if (r === 'enviado') enviados++;
           if (r === 'token-invalido') await db.delete(dispositivoPush).where(eq(dispositivoPush.id, t.id));
+          await rastro(g.usuarioId, r, t.id, paraEste.habla ? null : 'sin voz por preferencia');
         } catch (err) {
           log.warn({ err: (err as Error).message, usuarioId: g.usuarioId }, 'No se pudo mandar el push');
+          await rastro(g.usuarioId, 'error', t.id, (err as Error).message.slice(0, 200));
         }
       }
     }

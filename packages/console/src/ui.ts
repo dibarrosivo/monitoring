@@ -114,3 +114,23 @@ export function enVerificacion(alarma: { estado: string; enVerificacionHasta?: s
 export function enPrueba(panel: { enPruebaHasta?: string | null } | null | undefined, ahora: number = Date.now()): boolean {
   return Boolean(panel?.enPruebaHasta) && new Date(panel!.enPruebaHasta!).getTime() > ahora;
 }
+
+/** Cómo terminó un aviso push, en una palabra y un color. */
+export function resumenAviso(a: { resultado: string; recibidoEn: string | null; voz: string | null }): { texto: string; clase: string } {
+  if (a.recibidoEn) {
+    const hablo = a.voz ? /speak=0/.test(a.voz) : false;
+    return { texto: hablo ? 'recibido y hablado' : 'recibido', clase: 'text-ok' };
+  }
+  switch (a.resultado) {
+    case 'enviado':
+      return { texto: 'enviado, sin acuse', clase: 'text-prio3' };
+    case 'omitido':
+      return { texto: 'apagado por el cliente', clase: 'text-tenue' };
+    case 'sin-telefono':
+      return { texto: 'sin teléfono registrado', clase: 'text-tenue' };
+    case 'token-invalido':
+      return { texto: 'teléfono dado de baja', clase: 'text-prio2' };
+    default:
+      return { texto: 'no entregado', clase: 'text-prio1' };
+  }
+}
