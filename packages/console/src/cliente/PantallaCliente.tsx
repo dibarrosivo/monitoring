@@ -13,7 +13,7 @@ import { HistorialAvisos, useNoLeidos } from './HistorialAvisos.js';
 import { CuentaCliente } from './CuentaCliente.js';
 import { detenerPush, iniciarPush } from './push.js';
 import { AnilloEstado, type EstadoAnillo } from './AnilloEstado.js';
-import { ConfiguracionAvisos } from './ConfiguracionAvisos.js';
+import { salirDeLaApp, useBotonAtras } from './useBotonAtras.js';
 import { IconoAjustes, IconoCampana, IconoCasa, IconoFlecha, IconoLista, IconoPersona, IconoSos, MarcaFST } from './Iconos.js';
 import { SelectorTema } from '../SelectorTema.js';
 import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_SENAL, tipoDe, VAR_TIPO } from '../ui.js';
@@ -57,6 +57,16 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
   // Cada panel abre su propia pantalla: la Hikvision con control, las demás solo estado
   const [panelAbierto, setPanelAbierto] = useState<number | null>(null);
   const panelElegido = resumen?.paneles.find((p) => p.id === panelAbierto);
+  // Botón atrás de Android: cierra lo de encima, vuelve al inicio, y solo ahí pregunta si salir
+  const [confirmarSalida, setConfirmarSalida] = useState(false);
+  useBotonAtras({ modalAbierto: claveVisible || confirmarSalida, panelAbierto: panelElegido !== undefined, enInicio: pestana === 'inicio' }, (accion) => {
+    if (accion === 'cerrar-modal') {
+      setClaveVisible(false);
+      setConfirmarSalida(false);
+    } else if (accion === 'cerrar-panel') setPanelAbierto(null);
+    else if (accion === 'inicio') setPestana('inicio');
+    else setConfirmarSalida(true);
+  });
   if (panelElegido) {
     return (
       <div className="app-cliente">
@@ -192,6 +202,22 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
 
       <AvisosCliente avisos={avisos.avisos} alDescartar={avisos.descartar} />
       {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
+      {confirmarSalida && (
+        <div className="fixed inset-0 z-50 bg-fondo/80 flex items-end sm:items-center justify-center p-4" onClick={() => setConfirmarSalida(false)} role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm bg-superficie border border-borde rounded-2xl p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+            <p className="font-semibold text-base">¿Desea salir de FST Alarma?</p>
+            <p className="text-tenue text-sm">Los avisos siguen llegando aunque la app esté cerrada.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmarSalida(false)} className="px-4 py-2 rounded-lg text-sm text-tenue hover:text-texto">
+                Cancelar
+              </button>
+              <button onClick={salirDeLaApp} className="px-4 py-2 rounded-lg text-sm font-semibold bg-acento/15 border border-acento text-acento">
+                Salir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -270,7 +296,6 @@ function InicioCliente({
         </h2>
         <p className={`font-datos text-xs tracking-[0.08em] uppercase mt-1 ${enAlarma > 0 ? 'text-prio1' : 'text-tenue'}`}>{resumen}</p>
       </div>
-      <ConfiguracionAvisos compacta />
       {grupos.map((nombreCliente) => (
         <section key={nombreCliente} className="flex flex-col gap-3">
           {grupos.length > 1 && <h3 className="font-datos text-[11px] tracking-[0.14em] uppercase text-tenue">{nombreCliente}</h3>}
