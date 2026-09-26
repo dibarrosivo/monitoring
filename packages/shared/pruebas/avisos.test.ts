@@ -56,6 +56,18 @@ describe('lo que dice la app y el push (misma redacción)', () => {
     expect(fraseParaEvento(natural, variosSitios)).toMatchObject({ texto: 'Restauración de electricidad en Panadería K3', titulo: 'Restauración de electricidad' });
   });
 
+  it('las averías no nombran zona: en las de sistema ese campo es la vía o el módulo', () => {
+    const comunicacion = evento({ categoria: 'averia', codigo: 'E354', descripcion: 'No pudo comunicar un evento a la central', zona: '001' });
+    expect(fraseParaEvento(comunicacion, unSitio)?.texto).toBe('Aviso: No pudo comunicar un evento a la central');
+    const sensor = evento({ categoria: 'averia', codigo: 'E380', descripcion: 'Avería de sensor', zona: '096', zonaDescripcion: 'Depósito' });
+    expect(fraseParaEvento(sensor, variosSitios)?.texto).toBe('Aviso: Avería de sensor en Panadería K3');
+    const vuelve = evento({ categoria: 'restauracion', codigo: 'R350', descripcion: 'Restauración de comunicación con la central', zona: '002' });
+    expect(fraseParaEvento(vuelve, unSitio)?.texto).toBe('Restauración de comunicación con la central');
+    // La restauración de una alarma sí dice la zona: es la que se disparó
+    const robo = evento({ categoria: 'restauracion', codigo: 'R130', descripcion: 'Restauración: Robo', zona: '005', zonaDescripcion: 'Puerta trasera' });
+    expect(fraseParaEvento(robo, unSitio)?.texto).toBe('Restablecido: Robo en zona 5, Puerta trasera');
+  });
+
   it('las pruebas periódicas y los latidos no dicen nada', () => {
     expect(fraseParaEvento(evento({ categoria: 'prueba', codigo: 'E602', descripcion: 'Prueba periódica' }), unSitio)).toBeNull();
     expect(fraseParaEvento(evento({ categoria: 'prueba', codigo: 'PIMA-01', descripcion: 'Estado interno' }), unSitio)).toBeNull();

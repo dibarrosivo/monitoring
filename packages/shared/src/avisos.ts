@@ -73,8 +73,21 @@ function donde(carga: CargaAviso, nombrarSitio: boolean): string {
   return nombrarSitio && carga.sitioNombre ? ` en ${carga.sitioNombre}` : '';
 }
 
+/**
+ * ¿En este evento el campo "zona" es de verdad una zona? En las alarmas y en
+ * las anulaciones sí. En las averías no se dice nada más que la falla: en los
+ * códigos de sistema (electricidad, batería, comunicación) ese campo es la
+ * vía o el módulo, y aun en las de sensor el usuario prefiere solo la falla.
+ */
+function zonaAmerita(carga: CargaAviso): boolean {
+  if (carga.categoria === 'averia') return false;
+  const cid = codigoCid(carga.codigo);
+  if (carga.categoria === 'restauracion') return cid === '' || cid < '300' || cid >= '500';
+  return true;
+}
+
 function zonaHablada(carga: CargaAviso): string {
-  if (!carga.zona) return '';
+  if (!carga.zona || !zonaAmerita(carga)) return '';
   const numero = Number(carga.zona);
   const nombre = carga.zonaDescripcion ? `, ${carga.zonaDescripcion}` : '';
   return Number.isFinite(numero) && numero > 0 ? ` en zona ${numero}${nombre}` : '';
