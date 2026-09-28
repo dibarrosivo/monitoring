@@ -229,6 +229,28 @@ central (`C:\EBS\Console\cs_console.exe`, entrada "local" → `127.0.0.1:9000`):
   conectores (es copia de la de la central), así que del lado nuestro no falta
   nada para recibirlo.
 
+### Con el panel DSC no hay ida y vuelta (confirmado por el instalador)
+
+La consola ofrece para este equipo **Send RS232 data** y **comandos
+personalizados**, así que el transmisor *podría* hablarle a un equipo conectado
+a su puerto serial. Pero en Matarile **no está cableado así**: el transmisor
+está conectado solo a los **bornes del marcador telefónico** del DSC PC1832.
+Por ahí el panel marca Contact ID y el transmisor lo reenvía; es de un solo
+sentido.
+
+Consecuencias: con ese panel **no se puede armar, desarmar ni programar a
+distancia**, y no es una limitación del software sino del cableado. **Nunca
+usar ahí Send RS232 data ni comandos personalizados**: no hay nada del otro
+lado que los reciba y el manual advierte que un comando mal formado puede
+colgar el transmisor. Si algún día se quisiera control remoto en ese sitio, las
+opciones son cablear el enlace serial (visita técnica, y hay que confirmar que
+ambos equipos lo soporten) o cambiar el comunicador por uno nativo de DSC
+(TL280 / TL2803G), que habla con el panel por PC-Link, da doble vía con celular
+y de paso saca a EBS de ese cliente.
+
+Nada de esto afecta la mudanza: para el corte solo necesitamos el transmisor, y
+sobre él sí tenemos control.
+
 ### Lo que esto cambia en el plan del corte
 
 Sin SIM **no hay rescate por SMS**: si el equipo queda apuntando a un receptor
