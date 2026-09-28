@@ -205,3 +205,49 @@ correr `srvD.exe` (modo consola) en vez del servicio `svc.exe`. Lo que **no**
 se probó todavía, porque requiere un transmisor real: que un LX conecte y
 entregue eventos por Wine de punta a punta. Es lo primero a verificar el día
 del cambio, con el analizador `MONITOREO` apuntando a nuestro 10060.
+
+## 10. El transmisor, identificado y gobernable (2026-09-27)
+
+Confirmado con el equipo real, desde la consola de EBS del servidor de la
+central (`C:\EBS\Console\cs_console.exe`, entrada "local" → `127.0.0.1:9000`):
+
+- **Es un EPX400-XC, firmware 2.20.1**: el transmisor **por Ethernet** de EBS,
+  sin tarjeta SIM. Por eso depende de que el sitio tenga luz e internet a la
+  vez; no tiene una segunda vía.
+- Entra por el **puerto 5200**, el conector que el receptor llama `LX`, desde
+  una dirección fija de un proveedor de internet venezolano. **Mantiene la
+  conexión abierta** mientras tiene corriente: no es conectar-y-cortar, así que
+  cualquier orden se entrega al instante.
+- **Hay comunicación de ida y vuelta**: se le pidió la versión de firmware y
+  respondió. El receptor encola las órdenes si el equipo está caído y se las
+  entrega al reconectar.
+- La ventana de configuración que ofrece la consola para este equipo trae
+  **dirección del servidor, puerto, DNS1, DNS2, APN (nombre, usuario y clave),
+  teléfono del servidor y período de prueba**. Es decir, **se le puede cambiar
+  el servidor a distancia**, sin visitar el sitio.
+- Nuestro receptor del VPS ya publica el 5200 y tiene la misma tabla de
+  conectores (es copia de la de la central), así que del lado nuestro no falta
+  nada para recibirlo.
+
+### Lo que esto cambia en el plan del corte
+
+Sin SIM **no hay rescate por SMS**: si el equipo queda apuntando a un receptor
+que no le responde, no lo alcanza nadie y hay que ir al colegio. Dos medidas,
+en este orden:
+
+1. **Probar nuestro receptor sin tocar el equipo.** En el servidor de la
+   central se detiene el OSM y se pone en el 5200 un reenvío hacia el VPS. El
+   transmisor sigue apuntando a la dirección de siempre pero sus datos llegan a
+   nuestro receptor. Si aparece su prueba periódica de nuestro lado, queda
+   demostrado lo único que no sabemos: que OSM bajo Wine habla con un equipo
+   real. Si no aparece, se quita el reenvío y todo vuelve solo. Conviene
+   hacerlo de mañana, con el colegio abierto.
+2. **Mudarlo a un nombre de dominio, no a una IP.** El equipo tiene campos de
+   DNS, así que resuelve nombres. Si primero se lo apunta a un nombre nuestro
+   que lleve al servidor viejo y sigue reportando, después mudarlo es cambiar a
+   dónde apunta ese nombre, y volver atrás también. Nunca más habría que tocar
+   el equipo para cambiar de servidor.
+
+El período de prueba del equipo es de 4 horas (se ve en el ritmo real de sus
+señales), pero en nuestra base la cuenta está cargada con 1440 minutos, así que
+la alarma de panel mudo tarda 36 h en vez de 6.
