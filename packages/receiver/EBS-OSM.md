@@ -251,3 +251,40 @@ en este orden:
 El período de prueba del equipo es de 4 horas (se ve en el ritmo real de sus
 señales), pero en nuestra base la cuenta está cargada con 1440 minutos, así que
 la alarma de panel mudo tarda 36 h en vez de 6.
+
+### La consola de EBS sin Windows (probado el 2026-09-27)
+
+`cs_console.jar` es Java, pero trae la librería gráfica **SWT de win32**, así
+que pide un escritorio Windows... o Wine. Probado en la misma imagen que ya usa
+el receptor (`scottyhardy/docker-wine:stable`, prefijo de 32 bits): **arranca y
+se mantiene en pie**, sin excepciones, con una JRE 8 de 32 bits para Windows.
+
+```bash
+# 1. Java 8 de 32 bits para Windows (gratis, Temurin; la JRE que trae EBS
+#    también sirve, pero el .rar del respaldo está corrupto: usar el .exe)
+curl -sL -o jre8.zip "https://api.adoptium.net/v3/binary/latest/8/ga/windows/x86/jre/hotspot/normal/eclipse"
+unzip -q jre8.zip -d jre
+
+# 2. La consola sale del respaldo: 365-esencial.zip → esencial/ebs-osm/Console
+# 3. Correr (para verla de verdad, usar el DISPLAY del escritorio en vez de Xvfb)
+docker run --rm -v "$PWD":/w --user root --entrypoint bash scottyhardy/docker-wine:stable -c '
+  export WINEDEBUG=-all WINEPREFIX=/prefijo WINEARCH=win32 DISPLAY=:99
+  Xvfb :99 -screen 0 1280x900x24 & sleep 3; wineboot -i
+  cd /w/Console && wine /w/jre/*/bin/java.exe -jar cs_console.jar'
+```
+
+Con Java moderno **no** arranca: usa `javax.xml.bind`, que se quitó a partir de
+Java 11. Por eso hay que darle una JRE 8.
+
+La consola se conecta por red al puerto de comandos del receptor, así que desde
+acá se apunta al nuestro por un túnel (`ssh -L 9000:127.0.0.1:9000 monitoreo-vps`)
+y se registra el servidor `127.0.0.1:9000`.
+
+### La casilla "Reset connection"
+
+En la ventana de configuración del equipo, marcarla hace que el transmisor
+**corte y rehaga la conexión apenas procese los parámetros**. Para un cambio de
+servidor **hay que marcarla**: si no, el equipo se queda pegado a la conexión
+que ya tiene con el receptor viejo, y como la mantiene abierta mientras tenga
+corriente, el cambio podría no aplicarse por horas o días. Es, exactamente, el
+momento sin retorno del corte.
