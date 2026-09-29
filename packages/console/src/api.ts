@@ -98,6 +98,30 @@ export function cerrarSesion(): void {
 const CLAVE_IMP_TOKEN = 'monitoring.imp.token';
 const CLAVE_IMP_USUARIO = 'monitoring.imp.usuario';
 
+/*
+ * Con qué pantalla abre la app alguien que es personal de la central y además
+ * cliente de sí mismo. Por defecto la de cliente: es la que usa todos los
+ * días; la consola se abre cuando hace falta. La elección se recuerda.
+ */
+const CLAVE_VISTA = 'monitoring.vista';
+
+export function vistaPreferida(): 'cliente' | 'consola' {
+  try {
+    return localStorage.getItem(CLAVE_VISTA) === 'consola' ? 'consola' : 'cliente';
+  } catch {
+    return 'cliente';
+  }
+}
+
+export function guardarVista(vista: 'cliente' | 'consola'): void {
+  try {
+    localStorage.setItem(CLAVE_VISTA, vista);
+  } catch {
+    // sin almacenamiento vale para esta sesión
+  }
+  window.location.reload();
+}
+
 export function impersonando(): Usuario | null {
   const crudo = localStorage.getItem(CLAVE_IMP_USUARIO);
   return crudo && localStorage.getItem(CLAVE_IMP_TOKEN) ? (JSON.parse(crudo) as Usuario) : null;

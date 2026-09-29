@@ -13,11 +13,14 @@ import { PREFERENCIAS_POR_DEFECTO, tipoSenal } from '@monitoring/shared';
  */
 export function registrarClienteApp(app: App) {
   app.addHook('onRequest', app.autenticar);
-  app.addHook('onRequest', async (request, reply) => {
-    if (request.user.rol !== 'cliente') {
-      return reply.code(403).send({ error: 'Solo usuarios de la app de clientes' });
-    }
-  });
+  /*
+   * A propósito NO se exige rol cliente. Toda ruta de acá está acotada por
+   * `panelesDelUsuario`, que sale de la tabla de accesos: un usuario ve
+   * exactamente los equipos a los que tiene acceso y nada más, sea cliente,
+   * operador o administrador. Así el dueño de la empresa usa una sola cuenta
+   * para ver su propia alarma y para operar la central. Quien no tiene
+   * accesos cargados ve listas vacías.
+   */
 
   /** Paneles visibles para el usuario según sus accesos (la única guardia de aislamiento). */
   async function panelesDelUsuario(usuarioId: number) {

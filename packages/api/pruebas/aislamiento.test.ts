@@ -110,10 +110,20 @@ describe('compuerta de personal (soloPersonal)', () => {
     }
   });
 
-  it('el personal no entra a las rutas de la app de clientes', async () => {
+  /*
+   * El personal SÍ puede usar las rutas de la app: el dueño de la empresa es
+   * además cliente de sí mismo y quiere ver su alarma con una sola cuenta. Lo
+   * que protege no es el rol sino el acceso: sin accesos cargados no ve nada
+   * de nadie, por más administrador que sea.
+   */
+  it('el personal entra a las rutas de la app, pero sin accesos no ve nada de nadie', async () => {
     for (const token of [tokenAdmin, tokenOperador]) {
-      expect((await ctx.pedir('GET', '/cliente/resumen', { token })).estado).toBe(403);
-      expect((await ctx.pedir('GET', '/cliente/alarmas', { token })).estado).toBe(403);
+      const resumen = await ctx.pedir('GET', '/cliente/resumen', { token });
+      expect(resumen.estado).toBe(200);
+      expect(resumen.cuerpo.paneles).toEqual([]);
+      const alarmas = await ctx.pedir('GET', '/cliente/alarmas', { token });
+      expect(alarmas.estado).toBe(200);
+      expect(alarmas.cuerpo).toEqual([]);
     }
   });
 });

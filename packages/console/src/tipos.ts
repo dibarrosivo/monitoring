@@ -12,6 +12,8 @@ export interface Usuario {
   email: string;
   nombre: string;
   rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
+  /** Tiene accesos cargados: es además cliente de sí mismo (lo dice el login) */
+  tieneAcceso?: boolean;
 }
 
 export interface Evento {

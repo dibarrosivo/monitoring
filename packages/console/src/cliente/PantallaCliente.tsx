@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { cerrarSesion, salirImpersonacion, verAlarmasCliente, verEventosCliente, verResumenCliente } from '../api.js';
+import { cerrarSesion, guardarVista, salirImpersonacion, verAlarmasCliente, verEventosCliente, verResumenCliente } from '../api.js';
 import type { AlarmaCliente, PanelResumenCliente, Usuario } from '../tipos.js';
 import { ModalClave } from '../ModalClave.js';
 import { PanicoCliente } from './PanicoCliente.js';
@@ -40,7 +40,7 @@ function saludo(): string {
  * el teléfono y el envoltorio nativo. Pestañas arriba en pantallas anchas y
  * barra inferior en el teléfono.
  */
-export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usuario; impersonado?: boolean }) {
+export function PantallaCliente({ usuario, impersonado = false, conConsola = false }: { usuario: Usuario; impersonado?: boolean; conConsola?: boolean }) {
   const [pestana, setPestana] = useState<Pestana>('inicio');
   // Atajo del encabezado: abre Avisos con "Qué recibir" desplegado
   const [ajustesAvisos, setAjustesAvisos] = useState(0);
@@ -85,6 +85,17 @@ export function PantallaCliente({ usuario, impersonado = false }: { usuario: Usu
   return (
     <div className="app-cliente min-h-screen bg-fondo flex flex-col">
       <ActualizacionApp />
+      {conConsola && (
+        <div className="bg-superficie-2 border-b border-borde px-4 py-2 text-sm flex items-center gap-3">
+          <span className="text-tenue">Está viendo su alarma. La central sigue avisándole igual.</span>
+          <button
+            onClick={() => guardarVista('consola')}
+            className="ml-auto shrink-0 border border-acento text-acento rounded-sm px-3 py-1 font-semibold hover:bg-acento/20"
+          >
+            Abrir la consola
+          </button>
+        </div>
+      )}
       {impersonado && (
         <div className="bg-acento/15 border-b border-acento px-4 py-2 text-sm flex items-center gap-3">
           <span>

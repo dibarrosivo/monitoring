@@ -26,6 +26,7 @@ import { Buscador } from './Buscador.js';
 import { SelectorTema } from './SelectorTema.js';
 import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
 import { detenerPush, iniciarPush } from './cliente/push.js';
+import { guardarVista } from './api.js';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'cobros' | 'reportes' | 'supervision' | 'turnos' | 'calendario' | 'usuarios';
@@ -506,6 +507,8 @@ function Avatar({ nombre }: { nombre: string }) {
 /** Pie del riel: el usuario con su panel desplegable (cambiar clave, salir). */
 function PanelUsuario({ usuario, alCambiarClave, alSalir }: { usuario: Usuario; alCambiarClave: () => void; alSalir: () => void }) {
   const [abierto, setAbierto] = useState(false);
+  // El dueño, que además es cliente de sí mismo, vuelve a ver su alarma
+  const suyo = usuario.tieneAcceso === true;
   return (
     <div className="relative border-t border-borde">
       {abierto && (
@@ -519,6 +522,11 @@ function PanelUsuario({ usuario, alCambiarClave, alSalir }: { usuario: Usuario; 
           >
             Cambiar clave
           </button>
+          {suyo && (
+            <button onClick={() => guardarVista('cliente')} className="text-left px-3 py-2.5 hover:bg-borde/40 border-t border-borde/50">
+              Ver mi alarma
+            </button>
+          )}
           <SelectorTema conNombre className="px-3 py-2.5 hover:bg-borde/40 border-t border-borde/50 w-full text-sm" />
           <button onClick={alSalir} className="text-left px-3 py-2.5 text-prio1 hover:bg-borde/40 border-t border-borde/50">
             Cerrar sesión

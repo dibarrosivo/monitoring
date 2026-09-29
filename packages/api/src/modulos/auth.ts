@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db, hashearClave, sesionOperador, usuario, verificarClave } from '@monitoring/db';
+import { acceso, db, hashearClave, sesionOperador, usuario, verificarClave } from '@monitoring/db';
 import type { App } from '../tipos.js';
 
 const esquemaLogin = z.object({
@@ -36,9 +36,16 @@ export function registrarAuth(app: App) {
         agente: (request.headers['user-agent'] ?? '').toString().slice(0, 300) || null,
       });
     }
+    // ¿Es además cliente de sí mismo? Con accesos cargados, la app abre en la
+    // pantalla de cliente aunque sea personal de la central
+    const [suyo] = await db.select({ id: acceso.id }).from(acceso).where(eq(acceso.usuarioId, fila.id)).limit(1);
+    const tieneAcceso = Boolean(suyo);
+
     return {
       token,
-      usuario: { id: fila.id, email: fila.email, nombre: fila.nombre, rol: fila.rol },
+      // `tieneAcceso` decide con qué pantalla abre la app: un administrador que
+      // además es cliente de sí mismo arranca viendo su alarma, no la consola
+      usuario: { id: fila.id, email: fila.email, nombre: fila.nombre, rol: fila.rol, tieneAcceso },
     };
   });
 
