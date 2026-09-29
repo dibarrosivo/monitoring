@@ -72,7 +72,10 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
    * rol, con una caché de un minuto para no consultar en cada llamada. Efecto
    * lateral bienvenido: un cambio de rol se aplica solo, sin volver a entrar.
    */
-  const CACHE_MS = 60_000;
+  // En pruebas se apaga: ahí las tablas se vacían reiniciando los
+  // identificadores, así que un mismo id es otra persona en cada caso. En
+  // producción los ids nunca se reciclan y la caché es segura.
+  const CACHE_MS = process.env.NODE_ENV === 'test' ? 0 : 60_000;
   const vigencia = new Map<number, { hasta: number; activo: boolean; rol: CargaJwt['rol'] }>();
   async function usuarioVigente(id: number): Promise<{ activo: boolean; rol: CargaJwt['rol'] } | null> {
     const enCache = vigencia.get(id);
