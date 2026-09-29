@@ -2,6 +2,7 @@ import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { db, dispositivoPush, envioPush, usuario } from '@monitoring/db';
 import { fraseParaPersonal, type CargaAviso } from '@monitoring/shared';
 import { enviarPush, pushDisponible, type MensajePush } from './fcm.js';
+import { usuariosDeGuardia } from '../modulos/turnos.js';
 
 /**
  * Avisos al personal de la central en el teléfono.
@@ -32,8 +33,23 @@ export async function enviarAvisosPersonal(carga: CargaAviso & { numeroCuenta?: 
 
   let enviados = 0;
   try {
-    const gente = await destinatariosPersonal();
-    if (gente.length === 0) return 0;
+    const todos = await destinatariosPersonal();
+    if (todos.length === 0) return 0;
+
+    /*
+     * Las fallas de la propia central le importan a todo el mundo, estén o no
+     * de turno: si nos quedamos ciegos, se enteran todos. Una emergencia de un
+     * cliente, en cambio, es del que está de guardia; y si no hay nadie
+     * asignado, o el asignado no tiene teléfono registrado, se le avisa a
+     * todos, que es mejor que no avisarle a nadie.
+     */
+    const fallaDeLaCentral = ['SIS-GEN', 'BRIDGE', 'BRIDGE-R'].includes(carga.codigo ?? '');
+    let gente = todos;
+    if (!fallaDeLaCentral) {
+      const deGuardia = await usuariosDeGuardia();
+      const asignados = todos.filter((g) => deGuardia.includes(g.usuarioId));
+      if (asignados.length > 0) gente = asignados;
+    }
     const mensaje: MensajePush = {
       titulo: frase.titulo,
       cuerpo: frase.cuerpo,

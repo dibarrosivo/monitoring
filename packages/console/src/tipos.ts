@@ -646,6 +646,42 @@ export interface CobrosApp {
   }[];
 }
 
+/** Turnos de la central: la pauta semanal y las guardias por fecha. */
+export interface PautaTurno {
+  id: number;
+  nombre: string;
+  activa: boolean;
+}
+
+export interface TramoTurnoVista {
+  id: number;
+  pautaId: number;
+  usuarioId: number;
+  usuarioNombre: string;
+  dias: string;
+  desde: string;
+  hasta: string;
+  activo: boolean;
+}
+
+export interface GuardiaVista {
+  id: number;
+  usuarioId: number;
+  usuarioNombre: string;
+  fecha: string;
+  desde: string;
+  hasta: string;
+  nota: string | null;
+}
+
+export interface Turnos {
+  pautas: PautaTurno[];
+  tramos: TramoTurnoVista[];
+  guardias: GuardiaVista[];
+  vigente: number | null;
+  deGuardiaAhora: number[];
+}
+
 /** Tasa oficial del dólar (Bs por US$) y desde qué día rige. */
 export interface Tasa {
   valor: number;

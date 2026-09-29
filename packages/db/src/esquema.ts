@@ -734,3 +734,62 @@ export const contactoWeb = pgTable('contacto_web', {
   atendidoEn: timestamp('atendido_en', { withTimezone: true }),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Pauta semanal de turnos: un cuadrante con nombre ("Semana A", "Semana B").
+ * Se pueden tener varias y activar la que rige; con una sola, esa se usa
+ * siempre. Sirve para rotaciones: se cambia la activa y rota todo el equipo.
+ */
+export const pautaTurno = pgTable('pauta_turno', {
+  id: serial('id').primaryKey(),
+  nombre: varchar('nombre', { length: 60 }).notNull().unique(),
+  activa: boolean('activa').notNull().default(false),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Un tramo de guardia dentro de una pauta: quién cubre, qué días y de qué
+ * hora a qué hora. Si la hora de fin es menor o igual que la de inicio, el
+ * tramo cruza la medianoche (19:00 a 07:00), igual que los horarios de los
+ * clientes.
+ */
+export const turno = pgTable(
+  'turno',
+  {
+    id: serial('id').primaryKey(),
+    pautaId: integer('id_pauta')
+      .notNull()
+      .references(() => pautaTurno.id),
+    usuarioId: integer('id_usuario')
+      .notNull()
+      .references(() => usuario.id),
+    /** Días activos como 'LMXJVSD' con '-' en los libres, posición 0 = lunes */
+    dias: varchar('dias', { length: 7 }).notNull(),
+    desde: time('desde').notNull(),
+    hasta: time('hasta').notNull(),
+    activo: boolean('activo').notNull().default(true),
+  },
+  (t) => [index('turno_pauta').on(t.pautaId)],
+);
+
+/**
+ * Guardia por fecha: la excepción que manda sobre la pauta semanal
+ * (vacaciones, cambio entre operadores, feriado). Si un día tiene guardias
+ * cargadas, **esas reemplazan por completo** a la pauta ese día: así siempre
+ * se puede responder "quién está de guardia" sin sumar reglas en la cabeza.
+ */
+export const guardia = pgTable(
+  'guardia',
+  {
+    id: serial('id').primaryKey(),
+    usuarioId: integer('id_usuario')
+      .notNull()
+      .references(() => usuario.id),
+    fecha: date('fecha').notNull(),
+    desde: time('desde').notNull(),
+    hasta: time('hasta').notNull(),
+    nota: text('nota'),
+    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('guardia_fecha').on(t.fecha)],
+);

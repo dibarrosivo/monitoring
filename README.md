@@ -97,6 +97,19 @@ Marca, modelo e instalador se completan con **sugerencias de lo ya cargado**. El
 alimenta solo: al guardar un equipo con un valor nuevo, queda disponible para el siguiente. Evita
 que convivan "Bosch", "BOSCH" y "bosh" sin obligar a mantener listas a mano.
 
+**Avisos al personal en el teléfono.** El push no es solo para clientes: al personal de la
+central le llega al teléfono lo que no puede esperar, y **solo** eso. Emergencias de un cliente
+(pánico, incendio, coacción, médica) con cuenta, sitio y zona, y las fallas de la propia central
+(central muda, puente caído) por el canal con sirena; la vuelta del puente como aviso suave. Un robo
+común no interrumpe: se ve en la cola.
+
+**Turnos de la central** (vista "Turnos", admin y supervisor): una **pauta semanal** con tramos por
+persona, días y horas (admite tramos nocturnos que cruzan la medianoche), y **guardias por fecha**
+que son la excepción y reemplazan a la pauta ese día. Se pueden tener varias pautas para rotaciones:
+rige la marcada activa, y con una sola esa se usa siempre. Las emergencias le suenan a quien está de
+guardia; si no hay nadie asignado, o el asignado no tiene teléfono registrado, le suenan a todo el
+personal. Las fallas de la central le llegan a todos siempre.
+
 Supervisión de horarios (por panel, opcional): con un horario cargado, el sistema abre alarmas de
 sistema ante **apertura tarde** (`HOR-AT`), **falta de cierre** (`HOR-SC`) y **apertura fuera de
 horario** (`HOR-AF`, prioridad alta: alguien entró con código válido cuando el sitio debía estar

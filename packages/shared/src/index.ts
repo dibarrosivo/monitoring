@@ -9,3 +9,4 @@ export * from './preferencias.js';
 export * from './avisos.js';
 export * from './moneda.js';
 export * from './cobros.js';
+export * from './turnos.js';

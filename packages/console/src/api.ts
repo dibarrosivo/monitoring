@@ -48,6 +48,10 @@ import type {
   EstadoDeCuenta,
   PagoVista,
   CobrosApp,
+  Turnos,
+  PautaTurno,
+  TramoTurnoVista,
+  GuardiaVista,
 } from './tipos.js';
 
 const CLAVE_TOKEN = 'monitoring.token';
@@ -313,6 +317,18 @@ export const anularPago = (id: number) => pedir<{ ok: true }>(`/cobros/pagos/${i
 export const anularCuota = (id: number) => pedir<{ ok: true }>(`/cobros/cuotas/${id}/anular`, { method: 'POST' });
 export const correrCobros = () => pedir<{ creadas: number; nuevas: number; vencidas: number }>('/cobros/generar', { method: 'POST' });
 export const verCobrosCliente = () => pedir<CobrosApp>('/cliente/cobros');
+
+// ---- Turnos de la central ----
+export const verTurnos = () => pedir<Turnos>('/turnos');
+export const crearPauta = (nombre: string) => pedir<PautaTurno>('/turnos/pautas', { method: 'POST', body: JSON.stringify({ nombre }) });
+export const activarPauta = (id: number) => pedir<PautaTurno>(`/turnos/pautas/${id}/activar`, { method: 'POST' });
+export const eliminarPauta = (id: number) => eliminar(`/turnos/pautas/${id}`);
+export const crearTramoTurno = (datos: { pautaId: number; usuarioId: number; dias: string; desde: string; hasta: string }) =>
+  pedir<TramoTurnoVista>('/turnos/tramos', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarTramoTurno = (id: number) => eliminar(`/turnos/tramos/${id}`);
+export const crearGuardia = (datos: { usuarioId: number; fecha: string; desde: string; hasta: string; nota?: string | null }) =>
+  pedir<GuardiaVista>('/turnos/guardias', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarGuardia = (id: number) => eliminar(`/turnos/guardias/${id}`);
 
 
 export const generarReporte = (clienteId: number, desde: string, hasta: string) =>

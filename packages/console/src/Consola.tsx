@@ -17,6 +17,7 @@ import { Usuarios } from './vistas/Usuarios.js';
 import { Calendario } from './vistas/Calendario.js';
 import { Reportes } from './vistas/Reportes.js';
 import { Cobros } from './vistas/Cobros.js';
+import { Turnos } from './vistas/Turnos.js';
 import { ColaMovil } from './vistas/ColaMovil.js';
 import { ModalClave } from './ModalClave.js';
 import { HombreMuerto } from './HombreMuerto.js';
@@ -27,7 +28,7 @@ import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
 import { detenerPush, iniciarPush } from './cliente/push.js';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
-type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'cobros' | 'reportes' | 'supervision' | 'calendario' | 'usuarios';
+type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'cobros' | 'reportes' | 'supervision' | 'turnos' | 'calendario' | 'usuarios';
 
 /** Minutos sin ninguna señal para dar la central por muda: el mismo valor que usa el vigilante del servidor. */
 const LIMITE_SILENCIO_MIN = SILENCIO_GENERAL_MIN_POR_DEFECTO;
@@ -74,6 +75,7 @@ const VISTAS: { clave: Vista; nombre: string; roles?: Usuario['rol'][] }[] = [
   { clave: 'cobros', nombre: 'Cobros', roles: ['admin', 'supervisor'] },
   { clave: 'reportes', nombre: 'Reportes' },
   { clave: 'supervision', nombre: 'Supervisión', roles: ['admin', 'supervisor'] },
+  { clave: 'turnos', nombre: 'Turnos', roles: ['admin', 'supervisor'] },
   { clave: 'calendario', nombre: 'Calendario', roles: ['admin', 'supervisor'] },
   { clave: 'usuarios', nombre: 'Usuarios', roles: ['admin'] },
 ];
@@ -338,6 +340,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'cobros' && <Cobros clienteInicial={cobroObjetivo} />}
           {vista === 'reportes' && <Reportes />}
           {vista === 'supervision' && <Supervision />}
+          {vista === 'turnos' && <Turnos />}
           {vista === 'calendario' && <Calendario />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
@@ -450,6 +453,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
           {vista === 'supervision' && <Supervision />}
+          {vista === 'turnos' && <Turnos />}
           {vista === 'calendario' && <Calendario />}
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
