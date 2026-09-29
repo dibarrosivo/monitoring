@@ -24,6 +24,7 @@ import { usePantallaChica } from './pantalla.js';
 import { Buscador } from './Buscador.js';
 import { SelectorTema } from './SelectorTema.js';
 import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
+import { detenerPush, iniciarPush } from './cliente/push.js';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
 type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'cobros' | 'reportes' | 'supervision' | 'calendario' | 'usuarios';
@@ -81,6 +82,19 @@ export function Consola({ usuario }: { usuario: Usuario }) {
   const clienteConsultas = useQueryClient();
   const [vista, setVista] = useState<Vista>(usuario.rol === 'admin' || usuario.rol === 'supervisor' ? 'tablero' : 'cola');
   const [reloj, setReloj] = useState(() => new Date());
+
+  /*
+   * El teléfono del personal también recibe avisos: emergencias de un cliente
+   * y fallas de la propia central (muda, puente caído). Con la consola
+   * cerrada o en el bolsillo es la única forma de enterarse.
+   */
+  useEffect(() => {
+    void iniciarPush(() => irACola('nueva'), { personal: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Al salir, este teléfono deja de recibir avisos de la central. */
+  const salir = () => void detenerPush().finally(cerrarSesion);
   const [sonido, setSonido] = useState(() => localStorage.getItem('monitoring.sonido') !== 'no');
   const [claveVisible, setClaveVisible] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -298,7 +312,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
               </span>
               <span className="ml-auto flex gap-4 text-tenue">
                 <button onClick={() => setClaveVisible(true)}>Cambiar clave</button>
-                <button onClick={cerrarSesion} className="text-prio1">
+                <button onClick={salir} className="text-prio1">
                   Salir
                 </button>
               </span>
@@ -359,7 +373,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
             </button>
           ))}
         </div>
-        <PanelUsuario usuario={usuario} alCambiarClave={() => setClaveVisible(true)} />
+        <PanelUsuario usuario={usuario} alCambiarClave={() => setClaveVisible(true)} alSalir={salir} />
       </nav>
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -486,7 +500,7 @@ function Avatar({ nombre }: { nombre: string }) {
 }
 
 /** Pie del riel: el usuario con su panel desplegable (cambiar clave, salir). */
-function PanelUsuario({ usuario, alCambiarClave }: { usuario: Usuario; alCambiarClave: () => void }) {
+function PanelUsuario({ usuario, alCambiarClave, alSalir }: { usuario: Usuario; alCambiarClave: () => void; alSalir: () => void }) {
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="relative border-t border-borde">
@@ -502,7 +516,7 @@ function PanelUsuario({ usuario, alCambiarClave }: { usuario: Usuario; alCambiar
             Cambiar clave
           </button>
           <SelectorTema conNombre className="px-3 py-2.5 hover:bg-borde/40 border-t border-borde/50 w-full text-sm" />
-          <button onClick={cerrarSesion} className="text-left px-3 py-2.5 text-prio1 hover:bg-borde/40 border-t border-borde/50">
+          <button onClick={alSalir} className="text-left px-3 py-2.5 text-prio1 hover:bg-borde/40 border-t border-borde/50">
             Cerrar sesión
           </button>
         </div>

@@ -1,0 +1,1 @@
+ALTER TABLE "bridge" ADD COLUMN "caido_desde" timestamp with time zone;

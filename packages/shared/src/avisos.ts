@@ -193,3 +193,52 @@ export function fraseParaEvento(carga: CargaAviso, opciones: { nombrarSitio: boo
     }
   }
 }
+
+
+/**
+ * Lo que se le dice al PERSONAL de la central en el teléfono. Es otro oficio
+ * y por eso es otro texto: el operador no necesita que le endulcen nada,
+ * necesita la cuenta, el sitio y qué pasó, en ese orden, para decidir si
+ * corre a la consola.
+ *
+ * A propósito devuelve null para casi todo: al personal solo se le interrumpe
+ * por lo que no puede esperar. El resto lo ve en la cola.
+ */
+export function fraseParaPersonal(carga: CargaAviso & { numeroCuenta?: string | null; prefijo?: string | null }): Frase | null {
+  const cuenta = carga.numeroCuenta ? (carga.prefijo ? `${carga.prefijo}-${carga.numeroCuenta}` : carga.numeroCuenta) : '';
+  const donde = [cuenta, carga.sitioNombre].filter(Boolean).join(' ');
+  const zona = zonaHablada(carga);
+  const codigo = carga.codigo ?? '';
+
+  // Fallas de la propia central: lo más grave, porque dejamos de ver
+  if (codigo === 'SIS-GEN') {
+    return { titulo: 'CENTRAL MUDA', cuerpo: carga.descripcion, texto: `Atención: ${carga.descripcion}`, tono: 'alarma', persistente: true, canal: 'alarmas', grupo: null };
+  }
+  if (codigo === 'BRIDGE') {
+    return { titulo: 'PUENTE CAÍDO', cuerpo: carga.descripcion, texto: `Atención: ${carga.descripcion}`, tono: 'alarma', persistente: true, canal: 'alarmas', grupo: null };
+  }
+  if (codigo === 'BRIDGE-R') {
+    return { titulo: 'Puente restablecido', cuerpo: carga.descripcion, texto: carga.descripcion, tono: 'bien', persistente: false, canal: 'avisos', grupo: null };
+  }
+  if (codigo === 'SIS') {
+    return { titulo: 'Panel silencioso', cuerpo: `${donde}: ${sinPrefijo(carga.descripcion)}`, texto: `Panel silencioso en ${donde}`, tono: 'aviso', persistente: false, canal: 'avisos', grupo: null };
+  }
+
+  // Emergencias de un cliente: pánico, incendio, coacción, médica
+  if (carga.categoria === 'alarma') {
+    const emergencia = EMERGENCIAS[codigoCid(codigo)];
+    if (!emergencia && carga.prioridad > 1) return null;
+    const que = emergencia ?? sinPrefijo(carga.descripcion).toLowerCase();
+    return {
+      titulo: 'EMERGENCIA',
+      cuerpo: `${donde}: ${que}${zona}`,
+      texto: `Emergencia en ${donde}: ${que}${zona}`,
+      tono: 'emergencia',
+      persistente: true,
+      canal: 'alarmas',
+      grupo: null,
+    };
+  }
+
+  return null;
+}

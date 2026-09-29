@@ -41,7 +41,7 @@ function anotar(etapa: EstadoPush['etapa'], detalle?: string): void {
   window.dispatchEvent(new CustomEvent('push-estado', { detail: estado }));
   // El servidor lo anota en su registro: es la única forma de ver qué pasó en un teléfono ajeno
   if (etapa !== 'no-nativo') {
-    void pedir('/cliente/dispositivos/diagnostico', {
+    void pedir(`${rutaDispositivos}/diagnostico`, {
       method: 'POST',
       body: JSON.stringify({ etapa, detalle: `[v${__VERSION_APP__}] ${detalle ?? ''}`.slice(0, 400) }),
     }).catch(() => undefined);
@@ -88,7 +88,15 @@ function plugin(): Plugin | null {
   return PushNotifications;
 }
 
-export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
+/**
+ * Dónde registra el teléfono su token. La app de clientes usa su propia ruta
+ * (es la que trae la versión publicada); el personal de la central usa la
+ * común, porque el módulo del cliente rechaza cualquier otro rol.
+ */
+let rutaDispositivos = '/cliente/dispositivos';
+
+export async function iniciarPush(alTocarAviso: () => void, opciones: { personal?: boolean } = {}): Promise<void> {
+  rutaDispositivos = opciones.personal ? '/dispositivos-push' : '/cliente/dispositivos';
   if (iniciado) return;
   if (!esNativo()) {
     anotar('no-nativo');
@@ -119,7 +127,7 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
       } catch {
         // sin almacenamiento igual se registra
       }
-      pedir('/cliente/dispositivos', { method: 'POST', body: JSON.stringify({ token: registro.value, plataforma: 'android' }) })
+      pedir(rutaDispositivos, { method: 'POST', body: JSON.stringify({ token: registro.value, plataforma: 'android' }) })
         .then(() => anotar('registrado'))
         .catch((e) => anotar('error', `servidor: ${e instanceof Error ? e.message : String(e)}`));
     });
@@ -143,9 +151,9 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
 }
 
 /** Vuelve a intentar el alta (botón en la pestaña Cuenta). */
-export async function reintentarPush(alTocarAviso: () => void): Promise<void> {
+export async function reintentarPush(alTocarAviso: () => void, opciones: { personal?: boolean } = {}): Promise<void> {
   iniciado = false;
-  await iniciarPush(alTocarAviso);
+  await iniciarPush(alTocarAviso, opciones);
 }
 
 /** Al cerrar sesión: el servidor deja de mandarle avisos a este teléfono. */
@@ -159,5 +167,5 @@ export async function detenerPush(): Promise<void> {
     // nada
   }
   if (!token) return;
-  await pedir('/cliente/dispositivos', { method: 'DELETE', body: JSON.stringify({ token }) }).catch(() => undefined);
+  await pedir(rutaDispositivos, { method: 'DELETE', body: JSON.stringify({ token }) }).catch(() => undefined);
 }

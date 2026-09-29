@@ -3,6 +3,7 @@ import { crearApp } from './app.js';
 import { debeRecibir, refrescarAlcance } from './tiempoReal.js';
 import type { CargaAviso } from '@monitoring/shared';
 import { enviarAvisosPush } from './push/avisos.js';
+import { enviarAvisosPersonal } from './push/personal.js';
 import { pushDisponible } from './push/fcm.js';
 import { iniciarBotTasa } from './tasa/bcv.js';
 import { iniciarCobros } from './cobros/modelo.js';
@@ -19,7 +20,13 @@ const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (cana
   const datos = carga ? (JSON.parse(carga) as { panelId?: number | null }) : null;
   const mensaje = JSON.stringify({ canal, carga: datos });
   // A los teléfonos con la app cerrada les llega por push; abiertos, por el WebSocket de abajo
-  if (canal === CANAL_EVENTOS && datos) void enviarAvisosPush(datos as CargaAviso, app.log);
+  if (canal === CANAL_EVENTOS && datos) {
+    const carga = datos as CargaAviso & { soloPersonal?: boolean };
+    // Al personal: emergencias y fallas de la central. Al cliente: lo suyo,
+    // salvo los avisos internos que el vigilante marca como solo personal.
+    void enviarAvisosPersonal(carga, app.log);
+    if (!carga.soloPersonal) void enviarAvisosPush(carga, app.log);
+  }
   for (const [socket, suscriptor] of conexiones) {
     if (socket.readyState !== socket.OPEN) continue;
     void refrescarAlcance(suscriptor).then(() => {

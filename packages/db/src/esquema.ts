@@ -224,6 +224,11 @@ export const bridge = pgTable('bridge', {
   tramasRecibidas: integer('tramas_recibidas').notNull().default(0),
   supervisado: boolean('supervisado').notNull().default(true),
   intervaloLatidoSeg: integer('intervalo_latido_seg').notNull().default(60),
+  /**
+   * Desde cuándo está caído, si lo está. Marca el episodio: se avisa una vez
+   * al caer y una vez al volver, en vez de repetir el aviso cada día.
+   */
+  caidoDesde: timestamp('caido_desde', { withTimezone: true }),
   activo: boolean('activo').notNull().default(true),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 });

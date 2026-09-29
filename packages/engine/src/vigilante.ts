@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { accionAlarma, alarma, bridge, db, evento, feriado, horario, panel, senal, sitio } from '@monitoring/db';
+import { accionAlarma, alarma, bridge, CANAL_EVENTOS, db, evento, feriado, horario, notificar, panel, senal, sitio } from '@monitoring/db';
 import { abrirAlarma, tieneAlarmaSistemaAbierta } from './procesador.js';
 import { enZona, evaluarPendientesDia, fechaIsoLocal, ZONA_HORARIA_CENTRAL } from './horarios.js';
 import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
@@ -69,6 +69,8 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
       descripcion,
       numeroCuenta: p.numeroCuenta,
     });
+
+    await avisarAlPersonal(filaEvento!.id, 'SIS', descripcion, 2, { panelId: p.id, numeroCuenta: p.numeroCuenta });
     abiertas++;
   }
   return abiertas;
@@ -191,43 +193,80 @@ export async function revisarHorarios(): Promise<number> {
 }
 
 /**
- * Puentes caídos: si el programa de la PC de la central deja de latir, la
- * central deja de recibir todo un receptor sin enterarse. Es de las fallas
- * más graves posibles, así que abre alarma de prioridad 2.
+ * Puentes caídos y restablecidos. Si el programa de la PC de la central deja
+ * de latir, la central deja de recibir todo un receptor sin enterarse: es de
+ * las fallas más graves posibles.
+ *
+ * Se avisa **por episodio**, no por día: una vez cuando cae y una vez cuando
+ * vuelve, con la duración del corte. Antes se repetía el aviso cada
+ * medianoche mientras siguiera caído, que era ruido puro.
  */
 export async function revisarPuentes(): Promise<number> {
-  const silenciosos = await db
-    .select({ id: bridge.id, nombre: bridge.nombre, intervaloLatidoSeg: bridge.intervaloLatidoSeg })
+  const puentes = await db
+    .select({
+      id: bridge.id,
+      nombre: bridge.nombre,
+      intervaloLatidoSeg: bridge.intervaloLatidoSeg,
+      ultimoLatidoEn: bridge.ultimoLatidoEn,
+      creadoEn: bridge.creadoEn,
+      caidoDesde: bridge.caidoDesde,
+    })
     .from(bridge)
-    .where(
-      and(
-        eq(bridge.activo, true),
-        eq(bridge.supervisado, true),
-        sql`COALESCE(${bridge.ultimoLatidoEn}, ${bridge.creadoEn}) < now() - (${bridge.intervaloLatidoSeg} * 3 * interval '1 second')`,
-      ),
-    );
+    .where(and(eq(bridge.activo, true), eq(bridge.supervisado, true)));
 
-  let abiertas = 0;
-  for (const p of silenciosos) {
-    const descripcion = `PUENTE CAÍDO: ${p.nombre} no reporta hace más de ${p.intervaloLatidoSeg * 3} segundos`;
-    // Un aviso por puente y por día: el operador ya lo tiene en la cola
-    const inicioDia = new Date();
-    inicioDia.setHours(0, 0, 0, 0);
-    const [yaAvisado] = await db
-      .select({ id: evento.id })
-      .from(evento)
-      .where(and(eq(evento.codigo, 'BRIDGE'), eq(evento.descripcion, descripcion), gte(evento.ocurridoEn, inicioDia)))
-      .limit(1);
-    if (yaAvisado) continue;
+  const ahora = Date.now();
+  let avisos = 0;
+  for (const p of puentes) {
+    const tope = p.intervaloLatidoSeg * 3 * 1000;
+    const ultimo = p.ultimoLatidoEn ?? p.creadoEn;
+    const caido = ahora - ultimo.getTime() > tope;
 
-    const [filaEvento] = await db
-      .insert(evento)
-      .values({ categoria: 'sistema', codigo: 'BRIDGE', descripcion, prioridad: 2, ocurridoEn: new Date() })
-      .returning({ id: evento.id });
-    await abrirAlarma({ eventoId: filaEvento!.id, prioridad: 2, descripcion });
-    abiertas++;
+    if (caido && !p.caidoDesde) {
+      const descripcion = `PUENTE CAÍDO: ${p.nombre} no reporta hace más de ${p.intervaloLatidoSeg * 3} segundos`;
+      const [filaEvento] = await db
+        .insert(evento)
+        .values({ categoria: 'sistema', codigo: 'BRIDGE', descripcion, prioridad: 2, ocurridoEn: new Date() })
+        .returning({ id: evento.id });
+      await abrirAlarma({ eventoId: filaEvento!.id, prioridad: 2, descripcion });
+      await avisarAlPersonal(filaEvento!.id, 'BRIDGE', descripcion, 2);
+      // El episodio arranca en el último latido, no ahora: así la duración es la real
+      await db.update(bridge).set({ caidoDesde: ultimo }).where(eq(bridge.id, p.id));
+      avisos++;
+      continue;
+    }
+
+    if (!caido && p.caidoDesde) {
+      const minutos = Math.max(1, Math.round((ultimo.getTime() - p.caidoDesde.getTime()) / 60_000));
+      const descripcion = `PUENTE RESTABLECIDO: ${p.nombre} volvió a reportar tras ${duracionLegible(minutos)} sin latido`;
+      const [filaRestaurada] = await db
+        .insert(evento)
+        .values({ categoria: 'restauracion', codigo: 'BRIDGE-R', descripcion, prioridad: 3, ocurridoEn: new Date() })
+        .returning({ id: evento.id });
+      await avisarAlPersonal(filaRestaurada!.id, 'BRIDGE-R', descripcion, 3);
+      await db.update(bridge).set({ caidoDesde: null }).where(eq(bridge.id, p.id));
+      avisos++;
+    }
   }
-  return abiertas;
+  return avisos;
+}
+
+/**
+ * Publica un evento del vigilante para que la API se lo mande al personal.
+ * Lleva `soloPersonal` para que NO le llegue también a los clientes: el
+ * cliente no tiene nada que hacer con un puente caído de la central.
+ */
+async function avisarAlPersonal(eventoId: number, codigo: string, descripcion: string, prioridad: number, extra: Record<string, unknown> = {}): Promise<void> {
+  await notificar(CANAL_EVENTOS, { eventoId, panelId: null, categoria: codigo === 'BRIDGE-R' ? 'restauracion' : 'sistema', codigo, descripcion, prioridad, soloPersonal: true, ...extra });
+}
+
+/** "2 h 15 min", "45 min": para que el aviso diga cuánto duró el corte. */
+export function duracionLegible(minutos: number): string {
+  if (minutos < 60) return `${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  if (horas < 24) return resto ? `${horas} h ${resto} min` : `${horas} h`;
+  const dias = Math.floor(horas / 24);
+  return `${dias} d ${horas % 24} h`;
 }
 
 /** Minutos sin recibir NADA (de ningún receptor) para dar la central por muda. */
@@ -266,6 +305,7 @@ export async function revisarSilencioGeneral(ahora: Date = new Date()): Promise<
       .values({ categoria: 'sistema', codigo: CODIGO_SILENCIO_GENERAL, descripcion, prioridad: 1, ocurridoEn: ahora })
       .returning({ id: evento.id });
     await abrirAlarma({ eventoId: filaEvento!.id, prioridad: 1, descripcion });
+    await avisarAlPersonal(filaEvento!.id, CODIGO_SILENCIO_GENERAL, descripcion, 1);
     return true;
   }
 
