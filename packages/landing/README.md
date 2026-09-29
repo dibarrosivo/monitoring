@@ -23,6 +23,14 @@ a la API de la central: los pedidos quedan en la tabla `contacto_web` y se ven
 en la consola. La landing tiene que servirse en el mismo dominio que la API o
 Caddy tiene que hacer el proxy de `/api`.
 
+## Vista previa (mientras no esté publicada)
+
+Se sirve en `https://monitoreo.falconseguridadtotal.com/previa/`, **con clave y
+con `noindex`**: se puede revisar desde internet, pero no es pública ni la toma
+ningún buscador. El bloque está en `infra/caddy/Caddyfile` y la carpeta se monta
+en el contenedor web (`docker-compose.produccion.yml`). Al publicarla de verdad,
+en su propio dominio, ese bloque y ese montaje se retiran.
+
 ## Pendientes antes de publicar
 
 - Dominio: hoy `falconseguridadtotal.com` sirve el sitio actual (365). Decidir

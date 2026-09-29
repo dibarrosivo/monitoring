@@ -18,6 +18,19 @@
 		file_server
 	}
 
+	# Vista previa de la página comercial, todavía sin publicar. Va con clave
+	# y con noindex a propósito: se puede ver desde internet para revisarla,
+	# pero no es pública ni la toma ningún buscador. Cuando se decida
+	# publicarla irá en su propio dominio y este bloque se retira.
+	handle_path /previa/* {
+		root * /srv/previa
+		basic_auth {
+			fst $2a$14$n74LsMs4KMpXnOSqYdPqOu03uCybjMxmtgQfGObVLrOSZgDdcYOJy
+		}
+		header X-Robots-Tag "noindex, nofollow"
+		file_server
+	}
+
 	# La consola es una aplicación de una sola página: cualquier ruta que no
 	# sea un archivo real devuelve index.html para que el enrutador la resuelva.
 	handle {
