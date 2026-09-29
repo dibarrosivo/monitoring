@@ -36,7 +36,9 @@ async function destinatarios(panelId: number): Promise<{ usuarioId: number; siti
     .where(
       and(
         eq(usuario.activo, true),
-        eq(usuario.rol, 'cliente'),
+        // A propósito NO se filtra por rol: lo que manda es tener acceso a ese
+        // cliente. Así el dueño de la empresa puede usar una sola cuenta y
+        // recibir lo de su casa y lo de la central en el mismo teléfono.
         eq(acceso.clienteId, p.clienteId),
         or(eq(acceso.panelId, panelId), and(isNull(acceso.panelId), eq(acceso.sitioId, p.sitioId)), and(isNull(acceso.panelId), isNull(acceso.sitioId))),
       ),
@@ -60,11 +62,17 @@ async function destinatarios(panelId: number): Promise<{ usuarioId: number; siti
 }
 
 /** Manda el aviso de un evento a todos los teléfonos que corresponda. Nunca lanza: el push es lo último que puede frenar algo. */
-export async function enviarAvisosPush(carga: CargaAviso, log: { info: (o: object, m: string) => void; warn: (o: object, m: string) => void }): Promise<number> {
+export async function enviarAvisosPush(
+  carga: CargaAviso,
+  log: { info: (o: object, m: string) => void; warn: (o: object, m: string) => void },
+  yaAvisados: number[] = [],
+): Promise<number> {
   if (!pushDisponible() || carga.panelId === null) return 0;
   let enviados = 0;
   try {
-    const gente = await destinatarios(carga.panelId);
+    // Quien ya recibió este evento como personal de la central no lo recibe
+    // otra vez como cliente: un aviso por evento y por persona
+    const gente = (await destinatarios(carga.panelId)).filter((g) => !yaAvisados.includes(g.usuarioId));
     if (gente.length === 0) return 0;
     const prefs = await db.select().from(preferenciaAviso).where(inArray(preferenciaAviso.usuarioId, gente.map((g) => g.usuarioId)));
     const tokens = await db.select().from(dispositivoPush).where(inArray(dispositivoPush.usuarioId, gente.map((g) => g.usuarioId)));

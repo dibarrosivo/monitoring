@@ -24,8 +24,10 @@ const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (cana
     const carga = datos as CargaAviso & { soloPersonal?: boolean };
     // Al personal: emergencias y fallas de la central. Al cliente: lo suyo,
     // salvo los avisos internos que el vigilante marca como solo personal.
-    void enviarAvisosPersonal(carga, app.log);
-    if (!carga.soloPersonal) void enviarAvisosPush(carga, app.log);
+    void (async () => {
+      const avisados = await enviarAvisosPersonal(carga, app.log);
+      if (!carga.soloPersonal) await enviarAvisosPush(carga, app.log, avisados);
+    })();
   }
   for (const [socket, suscriptor] of conexiones) {
     if (socket.readyState !== socket.OPEN) continue;

@@ -25,16 +25,21 @@ async function destinatariosPersonal(): Promise<{ usuarioId: number; token: stri
     .where(and(eq(usuario.activo, true), inArray(usuario.rol, [...ROLES_PERSONAL]), isNotNull(dispositivoPush.token)));
 }
 
-/** Manda el aviso al personal. Nunca lanza: el push es lo último que puede frenar algo. */
-export async function enviarAvisosPersonal(carga: CargaAviso & { numeroCuenta?: string | null; prefijo?: string | null }, log: Log): Promise<number> {
-  if (!pushDisponible()) return 0;
+/**
+ * Manda el aviso al personal. Devuelve a quién se le avisó, para que el aviso
+ * al cliente no se lo mande otra vez a la misma persona. Nunca lanza: el push
+ * es lo último que puede frenar algo.
+ */
+export async function enviarAvisosPersonal(carga: CargaAviso & { numeroCuenta?: string | null; prefijo?: string | null }, log: Log): Promise<number[]> {
+  if (!pushDisponible()) return [];
   const frase = fraseParaPersonal(carga);
-  if (!frase) return 0;
+  if (!frase) return [];
 
+  const avisados = new Set<number>();
   let enviados = 0;
   try {
     const todos = await destinatariosPersonal();
-    if (todos.length === 0) return 0;
+    if (todos.length === 0) return [];
 
     /*
      * Las fallas de la propia central le importan a todo el mundo, estén o no
@@ -60,7 +65,10 @@ export async function enviarAvisosPersonal(carga: CargaAviso & { numeroCuenta?: 
     for (const g of gente) {
       try {
         const r = await enviarPush(g.token, mensaje, g.usuarioId);
-        if (r === 'enviado') enviados++;
+        if (r === 'enviado') {
+          enviados++;
+          avisados.add(g.usuarioId);
+        }
         if (r === 'token-invalido') await db.delete(dispositivoPush).where(eq(dispositivoPush.id, g.dispositivoId));
         await db
           .insert(envioPush)
@@ -74,5 +82,5 @@ export async function enviarAvisosPersonal(carga: CargaAviso & { numeroCuenta?: 
   } catch (err) {
     log.warn({ err: (err as Error).message }, 'Fallo general del aviso al personal');
   }
-  return enviados;
+  return [...avisados];
 }
