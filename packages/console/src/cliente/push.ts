@@ -1,4 +1,5 @@
 import { PushNotifications } from '@capacitor/push-notifications';
+import { CANAL_PUSH, SONIDO_ALARMA } from '@monitoring/shared';
 import { esNativo, pedir } from '../api.js';
 
 /**
@@ -40,7 +41,7 @@ function anotar(etapa: EstadoPush['etapa'], detalle?: string): void {
   window.dispatchEvent(new CustomEvent('push-estado', { detail: estado }));
   // El servidor lo anota en su registro: es la única forma de ver qué pasó en un teléfono ajeno
   if (etapa !== 'no-nativo') {
-    void pedir('/cliente/dispositivos/diagnostico', {
+    void pedir(`${rutaDispositivos}/diagnostico`, {
       method: 'POST',
       body: JSON.stringify({ etapa, detalle: `[v${__VERSION_APP__}] ${detalle ?? ''}`.slice(0, 400) }),
     }).catch(() => undefined);
@@ -87,7 +88,15 @@ function plugin(): Plugin | null {
   return PushNotifications;
 }
 
-export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
+/**
+ * Dónde registra el teléfono su token. La app de clientes usa su propia ruta
+ * (es la que trae la versión publicada); el personal de la central usa la
+ * común, porque el módulo del cliente rechaza cualquier otro rol.
+ */
+let rutaDispositivos = '/cliente/dispositivos';
+
+export async function iniciarPush(alTocarAviso: () => void, opciones: { personal?: boolean } = {}): Promise<void> {
+  rutaDispositivos = opciones.personal ? '/dispositivos-push' : '/cliente/dispositivos';
   if (iniciado) return;
   if (!esNativo()) {
     anotar('no-nativo');
@@ -102,8 +111,8 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
   try {
     // Canales de Android: el de alarmas suena con sirena y pasa el modo silencio del teléfono.
     // Android no deja cambiar un canal ya creado: si cambia el sonido, cambia el id (y el servidor lo acompaña).
-    await conTope('canal alarmas', push.createChannel({ id: 'alarmas-v2', name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan con sirena, siempre.', importance: 5, sound: 'sirena.wav', vibration: true, visibility: 1, lights: true }));
-    await conTope('canal avisos', push.createChannel({ id: 'avisos-v2', name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 4, sound: 'default', vibration: true, visibility: 1 }));
+    await conTope('canal alarmas', push.createChannel({ id: CANAL_PUSH.alarmas, name: 'Alarmas y emergencias', description: 'Alarmas de su sistema. Suenan con sirena, siempre.', importance: 5, sound: SONIDO_ALARMA, vibration: true, visibility: 1, lights: true }));
+    await conTope('canal avisos', push.createChannel({ id: CANAL_PUSH.avisos, name: 'Avisos', description: 'Armados, desarmados, fallas y avisos de la central.', importance: 4, sound: 'default', vibration: true, visibility: 1 }));
     for (const viejo of ['alarmas', 'avisos']) await push.deleteChannel({ id: viejo }).catch(() => undefined);
     anotar('canales-listos');
   } catch (e) {
@@ -118,7 +127,7 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
       } catch {
         // sin almacenamiento igual se registra
       }
-      pedir('/cliente/dispositivos', { method: 'POST', body: JSON.stringify({ token: registro.value, plataforma: 'android' }) })
+      pedir(rutaDispositivos, { method: 'POST', body: JSON.stringify({ token: registro.value, plataforma: 'android' }) })
         .then(() => anotar('registrado'))
         .catch((e) => anotar('error', `servidor: ${e instanceof Error ? e.message : String(e)}`));
     });
@@ -142,9 +151,9 @@ export async function iniciarPush(alTocarAviso: () => void): Promise<void> {
 }
 
 /** Vuelve a intentar el alta (botón en la pestaña Cuenta). */
-export async function reintentarPush(alTocarAviso: () => void): Promise<void> {
+export async function reintentarPush(alTocarAviso: () => void, opciones: { personal?: boolean } = {}): Promise<void> {
   iniciado = false;
-  await iniciarPush(alTocarAviso);
+  await iniciarPush(alTocarAviso, opciones);
 }
 
 /** Al cerrar sesión: el servidor deja de mandarle avisos a este teléfono. */
@@ -158,5 +167,5 @@ export async function detenerPush(): Promise<void> {
     // nada
   }
   if (!token) return;
-  await pedir('/cliente/dispositivos', { method: 'DELETE', body: JSON.stringify({ token }) }).catch(() => undefined);
+  await pedir(rutaDispositivos, { method: 'DELETE', body: JSON.stringify({ token }) }).catch(() => undefined);
 }

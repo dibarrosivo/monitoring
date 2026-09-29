@@ -26,9 +26,36 @@ packages/
   api/         Fastify: auth JWT, CRUD, cola de alarmas, WebSocket en tiempo real (todo bajo /api)
   console/     Consola de operador: React + Vite + Tailwind, tema oscuro, cola en vivo con sonido
   pima-bridge/ Puente para la PC de la central: lee el receptor y reenvía las tramas crudas
+  landing/     Página comercial estática (falconseguridadtotal.com): un index.html, capturas reales en media/
 tools/
   simulator/   Envía tramas DC-09 reales para probar sin hardware
 ```
+
+### Una sola fuente para lo que tiene que coincidir
+
+Todo lo que el servidor y la consola/app tienen que entender igual vive en `packages/shared` y se
+importa desde `@monitoring/shared` en los dos lados (la consola lo consume como dependencia del
+monorepo, sin alias). No se copia: una copia se olvida al cambiar la original.
+
+| Qué | Dónde |
+| --- | --- |
+| Categorías, tipos de señal, nombre y orden de los tipos | `shared/src/tipos.ts`, `shared/src/tiposSenal.ts` |
+| Motivos de cierre, desenlaces, resultados de llamada | `shared/src/cierres.ts` |
+| Frases de los avisos (push con la app cerrada y WebSocket con la app abierta) | `shared/src/avisos.ts` |
+| Preferencias de avisos, franja de silencio, voz | `shared/src/preferencias.ts` |
+| Huso horario por defecto, límite de silencio general, canales push, sonido | `shared/src/central.ts` |
+
+Reglas:
+- Un valor que el servidor ajusta por variable de entorno (`ZONA_HORARIA_CENTRAL`, `SILENCIO_GENERAL_MIN`)
+  tiene su **valor por defecto** en `shared/src/central.ts`; el paquete que lee la variable hace
+  `process.env.X ?? X_POR_DEFECTO`. La consola usa el valor por defecto directamente.
+- `shared` no importa nada de Node (`fs`, `crypto`, `process`): tiene que correr en el navegador.
+- Los tipos que la consola comparte con el servidor se reexportan desde `console/src/tipos.ts`, así
+  las pantallas siguen importando de un solo lugar.
+- Las clases repetidas de campos y botones de la consola están en `console/src/estilos.ts`
+  (`CAMPO`, `BOTON`, `BOTON_MINI`, `BOTON_MINI_ROJO` y las variantes `_APP` para la app del cliente).
+- Java no puede importar `shared`: los ids de canal en `AvisosService.java` son la única copia
+  permitida y llevan un comentario que apunta a `central.ts`.
 
 Reglas de oro del receptor:
 1. Toda trama cruda se persiste en `senal` **antes** de responder ACK (diario legal/auditoría).
@@ -51,9 +78,37 @@ Cada sitio puede fijar su **zona horaria**; vacío significa la del servidor. La
 horarios evalúa cada sitio con su hora local, así un cliente en otra franja no dispara falsos
 avisos de apertura tarde.
 
+Los planes y las cuotas están en **dólares**; a bolívares se convierte al consultar, con la tasa
+oficial. La API lee la portada del BCV cada `TASA_BCV_CADA_HORAS` (12 por defecto) y guarda una fila
+por fecha de valor en `tasa_cambio`; una lectura con un salto mayor al 25 % no se guarda y queda en
+el log. `GET /api/tasa` devuelve la vigente (cualquier sesión) y `POST /api/tasa` la carga a mano
+(administrador) si el BCV no responde. Nunca se guarda un monto en bolívares.
+
+**Cobros** (control interno, no facturación fiscal): cada dispositivo tiene un plan (precio en
+dólares y frecuencia) o un monto propio, y una fecha de inicio del próximo período. La API genera la
+cuota cuando llega esa fecha (corrida al arrancar y cada `COBROS_CADA_HORAS`, 6 por defecto), la
+cuota vence `COBROS_DIAS_PARA_PAGAR` días después (5) y se le avisa al cliente por push al crearse y
+al vencer. Los pagos se registran por cliente, en dólares o en bolívares con la tasa del día, y se
+aplican a las cuotas más viejas primero; lo que sobra queda a favor y cubre la siguiente. Un cliente o un dispositivo marcado **exonerado** no genera cuotas (el monitoreo sigue igual). La mora
+solo se marca y se avisa: **nunca corta el monitoreo**. Vista "Cobros" en la consola (admin y
+supervisor), sección "Mi plan y mis pagos" en la app.
+
 Marca, modelo e instalador se completan con **sugerencias de lo ya cargado**. El catálogo se
 alimenta solo: al guardar un equipo con un valor nuevo, queda disponible para el siguiente. Evita
 que convivan "Bosch", "BOSCH" y "bosh" sin obligar a mantener listas a mano.
+
+**Avisos al personal en el teléfono.** El push no es solo para clientes: al personal de la
+central le llega al teléfono lo que no puede esperar, y **solo** eso. Emergencias de un cliente
+(pánico, incendio, coacción, médica) con cuenta, sitio y zona, y las fallas de la propia central
+(central muda, puente caído) por el canal con sirena; la vuelta del puente como aviso suave. Un robo
+común no interrumpe: se ve en la cola.
+
+**Turnos de la central** (vista "Turnos", admin y supervisor): una **pauta semanal** con tramos por
+persona, días y horas (admite tramos nocturnos que cruzan la medianoche), y **guardias por fecha**
+que son la excepción y reemplazan a la pauta ese día. Se pueden tener varias pautas para rotaciones:
+rige la marcada activa, y con una sola esa se usa siempre. Las emergencias le suenan a quien está de
+guardia; si no hay nadie asignado, o el asignado no tiene teléfono registrado, le suenan a todo el
+personal. Las fallas de la central le llegan a todos siempre.
 
 Supervisión de horarios (por panel, opcional): con un horario cargado, el sistema abre alarmas de
 sistema ante **apertura tarde** (`HOR-AT`), **falta de cierre** (`HOR-SC`) y **apertura fuera de

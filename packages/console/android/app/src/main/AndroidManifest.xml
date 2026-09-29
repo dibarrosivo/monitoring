@@ -36,6 +36,16 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+            Avisos que arma Android por su cuenta (el reenvio de respaldo, cuando el
+            telefono no acusa el mensaje de datos). Sin esto usaria el icono de la
+            aplicacion; asi queda el mismo icono y el mismo color que en los avisos
+            que arma el servicio nativo.
+        -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_notificacion" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/fst_verde" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="avisos-v2" />
     </application>
 
     <!-- Para encontrar el motor de voz del teléfono (Android 11+) -->

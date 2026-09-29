@@ -1,5 +1,6 @@
 import { createHmac, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { CANAL_PUSH, SONIDO_ALARMA, type CanalPush } from '@monitoring/shared';
 
 /**
  * Envío por Firebase Cloud Messaging (API HTTP v1) sin SDK: la cuenta de
@@ -83,7 +84,7 @@ export interface MensajePush {
   /** Lo que el teléfono dice en voz alta (motor de voz de Android) con la app cerrada */
   habla?: string;
   /** 'alarmas' suena fuerte y pasa el modo silencio; 'avisos' es una notificación normal */
-  canal: 'alarmas' | 'avisos';
+  canal: CanalPush;
   datos?: Record<string, string>;
 }
 
@@ -136,8 +137,8 @@ export async function enviarPushSimple(token: string, mensaje: MensajePush): Pro
         android: {
           priority: 'high',
           notification: {
-            channel_id: mensaje.canal === 'alarmas' ? 'alarmas-v2' : 'avisos-v2',
-            sound: mensaje.canal === 'alarmas' ? 'sirena.wav' : 'default',
+            channel_id: CANAL_PUSH[mensaje.canal],
+            sound: mensaje.canal === 'alarmas' ? SONIDO_ALARMA : 'default',
             notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
           },
         },

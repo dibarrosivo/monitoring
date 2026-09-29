@@ -3,10 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { guardarPreferenciasCliente, verEventosCliente, verPreferenciasCliente } from '../api.js';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { PREFERENCIAS_POR_DEFECTO, quiereRecibir } from './preferencias.js';
 import { IconoAlerta, IconoCandado, IconoCheck, IconoInfo } from './Iconos.js';
 import type { EventoCliente, PanelResumenCliente, PreferenciasAviso } from '../tipos.js';
-import { fraseParaEvento, type Frase } from './frases.js';
+import { fraseParaEvento, PREFERENCIAS_POR_DEFECTO, quiereRecibir, type Frase } from '@monitoring/shared';
 
 /**
  * Pestaña de avisos: lo mismo que la app dijo o mostró como emergente, pero
@@ -56,12 +55,10 @@ export function avisosDeEventos(eventos: EventoCliente[], paneles: PanelResumenC
         zona: e.zona,
         zonaDescripcion: e.zonaDescripcion,
         sitioNombre: p?.sitioNombre ?? null,
-        prefijo: p?.prefijo ?? null,
-        numeroCuenta: p?.numeroCuenta ?? null,
       },
       { nombrarSitio: sitios > 1 },
     );
-    if (frase && quiereRecibir(prefs, { categoria: e.categoria, tono: frase.tono }, new Date(e.ocurridoEn))) lista.push({ ...frase, id: e.id, ocurridoEn: e.ocurridoEn });
+    if (frase && quiereRecibir(prefs, frase.grupo, new Date(e.ocurridoEn))) lista.push({ ...frase, id: e.id, ocurridoEn: e.ocurridoEn });
   }
   return lista;
 }

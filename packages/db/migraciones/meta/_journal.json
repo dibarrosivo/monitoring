@@ -190,6 +190,48 @@
       "when": 1790252292336,
       "tag": "0026_puzzling_lightspeed",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790281973141,
+      "tag": "0027_gigantic_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1790283186634,
+      "tag": "0028_serious_wind_dancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790285102124,
+      "tag": "0029_chilly_steve_rogers",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790287941031,
+      "tag": "0030_slimy_tana_nile",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790701810958,
+      "tag": "0031_dazzling_prima",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790702632576,
+      "tag": "0032_illegal_talos",
+      "breakpoints": true
     }
   ]
 }

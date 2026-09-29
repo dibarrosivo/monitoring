@@ -7,8 +7,10 @@
  * nocturnas (apertura 18:00, cierre 04:00 del día siguiente).
  */
 
+import { ZONA_HORARIA_POR_DEFECTO } from '@monitoring/shared';
+
 /** Huso de la central: se usa para todo sitio que no tenga el suyo cargado. */
-export const ZONA_HORARIA_CENTRAL = process.env.ZONA_HORARIA_CENTRAL ?? 'America/Caracas';
+export const ZONA_HORARIA_CENTRAL = process.env.ZONA_HORARIA_CENTRAL ?? ZONA_HORARIA_POR_DEFECTO;
 
 export interface DefinicionHorario {
   /** 'LMXJVSD' con '-' en los días libres, posición 0 = lunes */

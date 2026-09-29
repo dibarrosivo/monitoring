@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Verde de la marca FST: tiñe el icono de las notificaciones que arma Android -->
+    <color name="fst_verde">#22855A</color>
+</resources>

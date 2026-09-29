@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PanelHikvision } from '../src/cliente/PanelHikvision.js';
 import '../src/index.css';
 
-// Muestra con datos fijos: la forma exacta que devuelve el servidor para el panel 7037
+// Muestra con datos fijos: la forma exacta que devuelve el servidor para el panel 5137
 const respuestas: Record<string, unknown> = {
   'estado-detallado': {
     particiones: [{ particion: 1, nombre: 'Bella Nova', habilitada: true, estado: 'armado_casa', enAlarma: false }],
@@ -35,7 +35,7 @@ window.fetch = async (entrada: RequestInfo | URL) => {
 };
 
 const panel = {
-  id: 2, numeroCuenta: '7037', tipo: 'hikvision', activo: true, ultimaSenalEn: '2026-09-16T19:05:00Z',
+  id: 2, numeroCuenta: '5137', tipo: 'hikvision', activo: true, ultimaSenalEn: '2026-09-16T19:05:00Z',
   sitioId: 2, sitioNombre: 'Oficina Falcon', sitioDireccion: 'Coro', clienteId: 1, clienteNombre: 'Falcon Seguridad Total',
   estadoArmado: 'armado' as const, ultimoMovimientoEn: '2026-09-16T19:02:00Z',
 };

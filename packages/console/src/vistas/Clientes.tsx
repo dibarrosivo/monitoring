@@ -24,17 +24,14 @@ import {
   listarPaneles,
   listarUsuarios,
   usuarioGuardado,
-  verCliente,
-} from '../api.js';
+  verCliente, listarPlanes } from '../api.js';
 import type { Cliente, Contacto, EstadoCliente, EstadoPanel, Sitio, TipoSitio } from '../tipos.js';
 import { Modal } from '../Modal.js';
 import { fechaHora } from '../tiempo.js';
+import { ZONA_HORARIA_POR_DEFECTO } from '@monitoring/shared';
 import { enPrueba, nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
 
-const CAMPO = 'bg-fondo border border-borde rounded-sm px-3 py-1.5 text-sm';
-const BOTON = 'bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm disabled:opacity-50';
-const BOTON_MINI = 'text-xs text-tenue hover:text-acento underline underline-offset-2';
-const BOTON_MINI_ROJO = 'text-xs text-tenue hover:text-prio1 underline underline-offset-2';
+import { BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO } from '../estilos.js';
 
 const ESTADO: Record<EstadoCliente, { nombre: string; clase: string }> = {
   activo: { nombre: 'Activo', clase: 'text-ok' },
@@ -194,7 +191,7 @@ function zonasHorarias(): string[] {
     // Navegador viejo: se usa la lista corta de abajo
   }
   return [
-    'America/Caracas',
+    ZONA_HORARIA_POR_DEFECTO,
     'America/Bogota',
     'America/Panama',
     'America/Santo_Domingo',
@@ -240,6 +237,7 @@ function Campo({
 /** Alta en un paso: cliente + sitio + dispositivo + primer contacto. */
 function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clienteId: number) => void }) {
   const clienteConsultas = useQueryClient();
+  const { data: planes } = useQuery({ queryKey: ['planes'], queryFn: listarPlanes });
   const [d, setD] = useState({
     nombre: '',
     documento: '',
@@ -253,7 +251,7 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
     tipo: 'hikvision' as EstadoPanel['tipo'],
     marca: '',
     modelo: '',
-    montoAbono: '',
+    planId: '',
     proximoVencimiento: '',
     contactoNombre: '',
     contactoTelefono: '',
@@ -280,7 +278,7 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
           tipo: d.tipo,
           marca: d.marca || undefined,
           modelo: d.modelo || undefined,
-          montoAbono: d.montoAbono || undefined,
+          planId: d.planId ? Number(d.planId) : undefined,
           proximoVencimiento: d.proximoVencimiento || undefined,
         },
         contacto:
@@ -362,13 +360,20 @@ function ModalAlta({ alCerrar, alCrear }: { alCerrar: () => void; alCrear: (clie
           </label>
           <Campo etiqueta="Marca" valor={d.marca} alCambiar={(v) => setD({ ...d, marca: v })} />
           <Campo etiqueta="Modelo" valor={d.modelo} alCambiar={(v) => setD({ ...d, modelo: v })} />
-          <Campo etiqueta="Abono" valor={d.montoAbono} alCambiar={(v) => setD({ ...d, montoAbono: v })} />
-          <Campo
-            etiqueta="Próximo vencimiento"
-            tipo="date"
-            valor={d.proximoVencimiento}
-            alCambiar={(v) => setD({ ...d, proximoVencimiento: v })}
-          />
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-tenue">Plan de cobro</span>
+            <select value={d.planId} onChange={(e) => setD({ ...d, planId: e.target.value })} className={CAMPO}>
+              <option value="">Sin plan</option>
+              {(planes ?? [])
+                .filter((p) => p.activo)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre} · US$ {p.precioUsd}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <Campo etiqueta="Cobrar desde" tipo="date" valor={d.proximoVencimiento} alCambiar={(v) => setD({ ...d, proximoVencimiento: v })} />
         </section>
 
         <section className="grid md:grid-cols-2 gap-3">
@@ -433,6 +438,7 @@ function DetalleCliente({
           {ESTADO[detalle.estado].nombre.toUpperCase()}
           {detalle.motivoEstado && <span className="text-tenue font-normal"> · {detalle.motivoEstado}</span>}
         </span>
+        {detalle.exonerado && <span className="text-xs font-semibold text-ok">EXONERADO DE COBRO</span>}
         <button onClick={() => setEditando(true)} className={BOTON_MINI} title="Editar cliente">
           ✎ Editar
         </button>
@@ -618,6 +624,7 @@ function ModalEditarCliente({
     fechaAlta: cliente.fechaAlta ?? '',
     instrucciones: cliente.instrucciones ?? '',
     notas: cliente.notas ?? '',
+    exonerado: cliente.exonerado ?? false,
   });
   const [error, setError] = useState<string | null>(null);
   const guardar = useMutation({
@@ -633,6 +640,7 @@ function ModalEditarCliente({
         fechaAlta: d.fechaAlta || undefined,
         instrucciones: d.instrucciones || undefined,
         notas: d.notas || undefined,
+        exonerado: d.exonerado,
       } as Partial<Cliente>),
     onSuccess: () => {
       alCambiar();
@@ -689,6 +697,10 @@ function ModalEditarCliente({
             rows={2}
             className={`${CAMPO} resize-none`}
           />
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={d.exonerado} onChange={(e) => setD({ ...d, exonerado: e.target.checked })} />
+          Exonerado de cobro (no se generan cuotas para ninguno de sus dispositivos; el monitoreo sigue igual)
         </label>
         {error && <p className="text-prio1">{error}</p>}
         <div className="flex justify-end gap-2">

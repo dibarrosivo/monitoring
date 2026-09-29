@@ -1,8 +1,12 @@
 import { CANAL_ALARMAS, CANAL_EVENTOS, escucharCanal, pool } from '@monitoring/db';
 import { crearApp } from './app.js';
 import { debeRecibir, refrescarAlcance } from './tiempoReal.js';
-import { enviarAvisosPush, type CargaEvento } from './push/avisos.js';
+import type { CargaAviso } from '@monitoring/shared';
+import { enviarAvisosPush } from './push/avisos.js';
+import { enviarAvisosPersonal } from './push/personal.js';
 import { pushDisponible } from './push/fcm.js';
+import { iniciarBotTasa } from './tasa/bcv.js';
+import { iniciarCobros } from './cobros/modelo.js';
 
 try {
   process.loadEnvFile();
@@ -16,7 +20,15 @@ const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (cana
   const datos = carga ? (JSON.parse(carga) as { panelId?: number | null }) : null;
   const mensaje = JSON.stringify({ canal, carga: datos });
   // A los teléfonos con la app cerrada les llega por push; abiertos, por el WebSocket de abajo
-  if (canal === CANAL_EVENTOS && datos) void enviarAvisosPush(datos as CargaEvento, app.log);
+  if (canal === CANAL_EVENTOS && datos) {
+    const carga = datos as CargaAviso & { soloPersonal?: boolean };
+    // Al personal: emergencias y fallas de la central. Al cliente: lo suyo,
+    // salvo los avisos internos que el vigilante marca como solo personal.
+    void (async () => {
+      const avisados = await enviarAvisosPersonal(carga, app.log);
+      if (!carga.soloPersonal) await enviarAvisosPush(carga, app.log, avisados);
+    })();
+  }
   for (const [socket, suscriptor] of conexiones) {
     if (socket.readyState !== socket.OPEN) continue;
     void refrescarAlcance(suscriptor).then(() => {
@@ -28,8 +40,14 @@ const detenerEscucha = await escucharCanal([CANAL_ALARMAS, CANAL_EVENTOS], (cana
 const puerto = Number(process.env.PUERTO_API ?? 3000);
 await app.listen({ port: puerto, host: '0.0.0.0' });
 app.log.info({ push: pushDisponible() }, pushDisponible() ? 'Avisos push por Firebase activos' : 'Avisos push apagados: sin FIREBASE_CREDENCIALES');
+// Tasa del BCV: una lectura al arrancar y otra cada 12 h; los cobros convierten con la vigente
+const detenerBotTasa = iniciarBotTasa(app.log);
+// Cobros: genera las cuotas cuyo período empezó y avisa a los clientes (nuevas y vencidas)
+const detenerCobros = iniciarCobros(app.log);
 
 async function apagar() {
+  detenerBotTasa();
+  detenerCobros();
   await detenerEscucha();
   await app.close();
   await pool.end();

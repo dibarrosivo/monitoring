@@ -1,33 +1,18 @@
+/**
+ * Tipos de la consola. Los que también usa el servidor (categorías, tipos de
+ * señal, desenlaces, preferencias) viven en @monitoring/shared y acá solo se
+ * reexportan, para que las pantallas sigan importando de un solo lugar.
+ */
+import type { CategoriaEvento, DesenlaceAlarma, EstadoCuota, EstadoPago, FormaPago, PreferenciasAviso, TipoSenal } from '@monitoring/shared';
+
+export type { CategoriaEvento, DesenlaceAlarma, PreferenciasAviso, TipoSenal };
+
 export interface Usuario {
   id: number;
   email: string;
   nombre: string;
   rol: 'admin' | 'supervisor' | 'operador' | 'cliente';
 }
-
-export type CategoriaEvento =
-  | 'alarma'
-  | 'restauracion'
-  | 'apertura'
-  | 'cierre'
-  | 'averia'
-  | 'anulacion'
-  | 'prueba'
-  | 'cancelacion'
-  | 'sistema'
-  | 'desconocido';
-
-/** Familia de la señal, con color fijo en toda la consola (ver ui.ts). La calcula la API. */
-export type TipoSenal =
-  | 'emergencia'
-  | 'robo'
-  | 'averia'
-  | 'horario'
-  | 'apertura_cierre'
-  | 'restauracion'
-  | 'anulacion'
-  | 'prueba'
-  | 'sistema';
 
 export interface Evento {
   id: number;
@@ -175,8 +160,13 @@ export interface EstadoPanel {
   instalador?: string | null;
   fechaInstalacion?: string | null;
   propiedad?: PropiedadEquipo;
+  /** Cobro: plan (precio y frecuencia) o monto propio; montoAbono con plan es precio especial */
+  planId?: number | null;
+  /** Exonerado de cobro este dispositivo */
+  exonerado?: boolean;
   montoAbono?: string | null;
   frecuenciaMeses?: number;
+  /** Inicio del próximo período a cobrar; el servidor lo corre al generar cada cuota */
   proximoVencimiento?: string | null;
   /** Presentes solo en /paneles/estado (la lista enriquecida) */
   sitioNombre?: string;
@@ -275,6 +265,8 @@ export interface Cliente {
   motivoEstado: string | null;
   estadoDesde: string | null;
   fechaAlta: string | null;
+  /** Exonerado de cobro: sin cuotas para ninguno de sus dispositivos */
+  exonerado?: boolean;
   activo: boolean;
 }
 
@@ -376,9 +368,6 @@ export interface ContextoAlarma {
   }[];
 }
 
-/** Cómo terminó una alarma. Separado del texto libre para poder medirlo. */
-export type DesenlaceAlarma = 'resuelta' | 'falsa_alarma' | 'escalada';
-
 /** Resumen para la vista de clientes (rol 'cliente'). */
 export interface PanelResumenCliente {
   id: number;
@@ -440,18 +429,6 @@ export interface EventoCliente {
   zona: string | null;
   zonaDescripcion: string | null;
   ocurridoEn: string;
-}
-
-/** Qué quiere recibir el usuario de la app; emergencias y alarmas no se apagan */
-export interface PreferenciasAviso {
-  armadoDesarmado: boolean;
-  averias: boolean;
-  sistema: boolean;
-  /** 'HH:MM' ambas, o null ambas */
-  silencioDesde: string | null;
-  silencioHasta: string | null;
-  /** Voz en los avisos con la app cerrada; la notificación llega igual */
-  vozPush?: 'siempre' | 'solo_alarmas' | 'nunca';
 }
 
 /** Rastro de un aviso push a un usuario de la app */
@@ -533,9 +510,11 @@ export interface Tablero {
       panelId: number;
       numeroCuenta: string;
       prefijo?: string | null;
+      clienteId: number;
       clienteNombre: string;
-      proximoVencimiento: string | null;
-      montoAbono: string | null;
+      concepto: string;
+      venceEn: string;
+      montoUsd: number;
     }[];
   };
   eventosHoyPorCategoria: { categoria: CategoriaEvento; cantidad: number }[];
@@ -558,6 +537,157 @@ export interface ResultadoBusqueda {
   sitios: { id: number; nombre: string; direccion: string | null; clienteId: number }[];
   paneles: { id: number; numeroCuenta: string; prefijo?: string | null; tipo: string; clienteId: number; sitioNombre: string }[];
   contactos: { id: number; nombre: string; telefono: string; clienteId: number }[];
+}
+
+/** Plan comercial: precio en dólares por período, asignado por dispositivo. */
+export interface Plan {
+  id: number;
+  nombre: string;
+  precioUsd: number;
+  frecuenciaMeses: number;
+  descripcion: string | null;
+  activo: boolean;
+}
+
+export interface CuotaVista {
+  id: number;
+  panelId: number;
+  numeroCuenta: string;
+  prefijo: string | null;
+  concepto: string;
+  periodoDesde: string;
+  periodoHasta: string;
+  venceEn: string;
+  montoUsd: number;
+  pagadoUsd: number;
+  estado: EstadoCuota;
+}
+
+export interface PagoVista {
+  id: number;
+  montoUsd: number;
+  montoBs: number | null;
+  tasa: number | null;
+  forma: FormaPago;
+  referencia: string | null;
+  fecha: string;
+  nota: string | null;
+  estado: EstadoPago;
+  registradoPorNombre: string | null;
+  creadoEn: string;
+}
+
+export interface DispositivoCobro {
+  panelId: number;
+  numeroCuenta: string;
+  prefijo: string | null;
+  sitioNombre: string;
+  activo: boolean;
+  exonerado: boolean;
+  planId: number | null;
+  planNombre: string | null;
+  planPrecioUsd: number | null;
+  montoAbono: number | null;
+  /** Lo que se cobra por período (precio especial o el del plan); null = sin cobro configurado */
+  precioUsd: number | null;
+  meses: number;
+  proximoVencimiento: string | null;
+}
+
+/** Estado de cuenta de un cliente. */
+export interface EstadoDeCuenta {
+  cliente: { id: number; nombre: string; exonerado: boolean };
+  dispositivos: DispositivoCobro[];
+  cuotas: CuotaVista[];
+  pagos: PagoVista[];
+  pendienteUsd: number;
+  vencidoUsd: number;
+  saldoAFavorUsd: number;
+  tasa: Tasa | null;
+}
+
+export interface ResumenCobros {
+  morosos: number;
+  vencidoUsd: number;
+  pendienteUsd: number;
+  porVencer: number;
+  cobradoMesUsd: number;
+  facturadoMesUsd: number;
+  tasa: Tasa | null;
+}
+
+export interface FilaCobros {
+  clienteId: number;
+  nombre: string;
+  telefono: string | null;
+  exonerado: boolean;
+  dispositivos: number;
+  pendienteUsd: number;
+  vencidoUsd: number;
+  cuotasVencidas: number;
+  proximaVence: string | null;
+  ultimoPago: string | null;
+}
+
+/** Lo que ve el cliente en la app sobre sus cobros. */
+export interface CobrosApp {
+  tasa: Tasa | null;
+  clientes: {
+    clienteId: number;
+    nombre: string;
+    exonerado: boolean;
+    dispositivos: { panelId: number; numeroCuenta: string; prefijo: string | null; sitioNombre: string; exonerado: boolean; plan: string | null; precioUsd: number | null; meses: number; proximoVencimiento: string | null }[];
+    cuotasPendientes: { id: number; concepto: string; numeroCuenta: string; prefijo: string | null; venceEn: string; montoUsd: number; pagadoUsd: number; vencida: boolean }[];
+    ultimosPagos: { id: number; fecha: string; montoUsd: number; montoBs: number | null; forma: FormaPago; referencia: string | null; estado: EstadoPago }[];
+    pendienteUsd: number;
+    vencidoUsd: number;
+    saldoAFavorUsd: number;
+    pendienteBs: number | null;
+  }[];
+}
+
+/** Turnos de la central: la pauta semanal y las guardias por fecha. */
+export interface PautaTurno {
+  id: number;
+  nombre: string;
+  activa: boolean;
+}
+
+export interface TramoTurnoVista {
+  id: number;
+  pautaId: number;
+  usuarioId: number;
+  usuarioNombre: string;
+  dias: string;
+  desde: string;
+  hasta: string;
+  activo: boolean;
+}
+
+export interface GuardiaVista {
+  id: number;
+  usuarioId: number;
+  usuarioNombre: string;
+  fecha: string;
+  desde: string;
+  hasta: string;
+  nota: string | null;
+}
+
+export interface Turnos {
+  pautas: PautaTurno[];
+  tramos: TramoTurnoVista[];
+  guardias: GuardiaVista[];
+  vigente: number | null;
+  deGuardiaAhora: number[];
+}
+
+/** Tasa oficial del dólar (Bs por US$) y desde qué día rige. */
+export interface Tasa {
+  valor: number;
+  fechaValor: string;
+  fuente: string;
+  obtenidoEn: string;
 }
 
 /** Mensajes que llegan por el WebSocket (NOTIFY de Postgres). */

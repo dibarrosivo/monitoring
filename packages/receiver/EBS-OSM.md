@@ -205,3 +205,108 @@ correr `srvD.exe` (modo consola) en vez del servicio `svc.exe`. Lo que **no**
 se probó todavía, porque requiere un transmisor real: que un LX conecte y
 entregue eventos por Wine de punta a punta. Es lo primero a verificar el día
 del cambio, con el analizador `MONITOREO` apuntando a nuestro 10060.
+
+## 10. El transmisor, identificado y gobernable (2026-09-27)
+
+Confirmado con el equipo real, desde la consola de EBS del servidor de la
+central (`C:\EBS\Console\cs_console.exe`, entrada "local" → `127.0.0.1:9000`):
+
+- **Es un EPX400-XC, firmware 2.20.1**: el transmisor **por Ethernet** de EBS,
+  sin tarjeta SIM. Por eso depende de que el sitio tenga luz e internet a la
+  vez; no tiene una segunda vía.
+- Entra por el **puerto 5200**, el conector que el receptor llama `LX`, desde
+  una dirección fija de un proveedor de internet venezolano. **Mantiene la
+  conexión abierta** mientras tiene corriente: no es conectar-y-cortar, así que
+  cualquier orden se entrega al instante.
+- **Hay comunicación de ida y vuelta**: se le pidió la versión de firmware y
+  respondió. El receptor encola las órdenes si el equipo está caído y se las
+  entrega al reconectar.
+- La ventana de configuración que ofrece la consola para este equipo trae
+  **dirección del servidor, puerto, DNS1, DNS2, APN (nombre, usuario y clave),
+  teléfono del servidor y período de prueba**. Es decir, **se le puede cambiar
+  el servidor a distancia**, sin visitar el sitio.
+- Nuestro receptor del VPS ya publica el 5200 y tiene la misma tabla de
+  conectores (es copia de la de la central), así que del lado nuestro no falta
+  nada para recibirlo.
+
+### Con el panel DSC no hay ida y vuelta (confirmado por el instalador)
+
+La consola ofrece para este equipo **Send RS232 data** y **comandos
+personalizados**, así que el transmisor *podría* hablarle a un equipo conectado
+a su puerto serial. Pero en Matarile **no está cableado así**: el transmisor
+está conectado solo a los **bornes del marcador telefónico** del DSC PC1832.
+Por ahí el panel marca Contact ID y el transmisor lo reenvía; es de un solo
+sentido.
+
+Consecuencias: con ese panel **no se puede armar, desarmar ni programar a
+distancia**, y no es una limitación del software sino del cableado. **Nunca
+usar ahí Send RS232 data ni comandos personalizados**: no hay nada del otro
+lado que los reciba y el manual advierte que un comando mal formado puede
+colgar el transmisor. Si algún día se quisiera control remoto en ese sitio, las
+opciones son cablear el enlace serial (visita técnica, y hay que confirmar que
+ambos equipos lo soporten) o cambiar el comunicador por uno nativo de DSC
+(TL280 / TL2803G), que habla con el panel por PC-Link, da doble vía con celular
+y de paso saca a EBS de ese cliente.
+
+Nada de esto afecta la mudanza: para el corte solo necesitamos el transmisor, y
+sobre él sí tenemos control.
+
+### Lo que esto cambia en el plan del corte
+
+Sin SIM **no hay rescate por SMS**: si el equipo queda apuntando a un receptor
+que no le responde, no lo alcanza nadie y hay que ir al colegio. Dos medidas,
+en este orden:
+
+1. **Probar nuestro receptor sin tocar el equipo.** En el servidor de la
+   central se detiene el OSM y se pone en el 5200 un reenvío hacia el VPS. El
+   transmisor sigue apuntando a la dirección de siempre pero sus datos llegan a
+   nuestro receptor. Si aparece su prueba periódica de nuestro lado, queda
+   demostrado lo único que no sabemos: que OSM bajo Wine habla con un equipo
+   real. Si no aparece, se quita el reenvío y todo vuelve solo. Conviene
+   hacerlo de mañana, con el colegio abierto.
+2. **Mudarlo a un nombre de dominio, no a una IP.** El equipo tiene campos de
+   DNS, así que resuelve nombres. Si primero se lo apunta a un nombre nuestro
+   que lleve al servidor viejo y sigue reportando, después mudarlo es cambiar a
+   dónde apunta ese nombre, y volver atrás también. Nunca más habría que tocar
+   el equipo para cambiar de servidor.
+
+El período de prueba del equipo es de 4 horas (se ve en el ritmo real de sus
+señales), pero en nuestra base la cuenta está cargada con 1440 minutos, así que
+la alarma de panel mudo tarda 36 h en vez de 6.
+
+### La consola de EBS sin Windows (probado el 2026-09-27)
+
+`cs_console.jar` es Java, pero trae la librería gráfica **SWT de win32**, así
+que pide un escritorio Windows... o Wine. Probado en la misma imagen que ya usa
+el receptor (`scottyhardy/docker-wine:stable`, prefijo de 32 bits): **arranca y
+se mantiene en pie**, sin excepciones, con una JRE 8 de 32 bits para Windows.
+
+```bash
+# 1. Java 8 de 32 bits para Windows (gratis, Temurin; la JRE que trae EBS
+#    también sirve, pero el .rar del respaldo está corrupto: usar el .exe)
+curl -sL -o jre8.zip "https://api.adoptium.net/v3/binary/latest/8/ga/windows/x86/jre/hotspot/normal/eclipse"
+unzip -q jre8.zip -d jre
+
+# 2. La consola sale del respaldo: 365-esencial.zip → esencial/ebs-osm/Console
+# 3. Correr (para verla de verdad, usar el DISPLAY del escritorio en vez de Xvfb)
+docker run --rm -v "$PWD":/w --user root --entrypoint bash scottyhardy/docker-wine:stable -c '
+  export WINEDEBUG=-all WINEPREFIX=/prefijo WINEARCH=win32 DISPLAY=:99
+  Xvfb :99 -screen 0 1280x900x24 & sleep 3; wineboot -i
+  cd /w/Console && wine /w/jre/*/bin/java.exe -jar cs_console.jar'
+```
+
+Con Java moderno **no** arranca: usa `javax.xml.bind`, que se quitó a partir de
+Java 11. Por eso hay que darle una JRE 8.
+
+La consola se conecta por red al puerto de comandos del receptor, así que desde
+acá se apunta al nuestro por un túnel (`ssh -L 9000:127.0.0.1:9000 monitoreo-vps`)
+y se registra el servidor `127.0.0.1:9000`.
+
+### La casilla "Reset connection"
+
+En la ventana de configuración del equipo, marcarla hace que el transmisor
+**corte y rehaga la conexión apenas procese los parámetros**. Para un cambio de
+servidor **hay que marcarla**: si no, el equipo se queda pegado a la conexión
+que ya tiene con el receptor viejo, y como la mantiene abierta mientras tenga
+corriente, el cambio podría no aplicarse por horas o días. Es, exactamente, el
+momento sin retorno del corte.

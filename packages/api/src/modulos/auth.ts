@@ -23,10 +23,11 @@ export function registrarAuth(app: App) {
       return reply.code(401).send({ error: 'Credenciales inválidas' });
     }
 
-    const token = app.jwt.sign(
-      { id: fila.id, email: fila.email, rol: fila.rol },
-      { expiresIn: fila.rol === 'cliente' ? '30d' : '12h' },
-    );
+    // 30 días para todos: la central se opera desde el teléfono y nadie quiere
+    // volver a entrar a mitad de turno. Lo que antes cuidaba la caducidad corta
+    // (dar de baja a alguien y que pierda el acceso) ahora lo hace la
+    // verificación de cada pedido contra la base, en app.ts.
+    const token = app.jwt.sign({ id: fila.id, email: fila.email, rol: fila.rol }, { expiresIn: '30d' });
     // El personal deja rastro de cuándo entró en servicio (los clientes no)
     if (fila.rol !== 'cliente') {
       await db.insert(sesionOperador).values({

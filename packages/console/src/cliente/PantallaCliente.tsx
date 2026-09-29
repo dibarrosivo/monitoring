@@ -16,7 +16,9 @@ import { AnilloEstado, type EstadoAnillo } from './AnilloEstado.js';
 import { salirDeLaApp, useBotonAtras } from './useBotonAtras.js';
 import { IconoAjustes, IconoCampana, IconoCasa, IconoFlecha, IconoLista, IconoPersona, IconoSos, MarcaFST } from './Iconos.js';
 import { SelectorTema } from '../SelectorTema.js';
-import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_SENAL, tipoDe, VAR_TIPO } from '../ui.js';
+import { NOMBRE_TIPO_SENAL } from '@monitoring/shared';
+import { CLASES_TIPO, nombreCuenta, tipoDe, VAR_TIPO } from '../ui.js';
+import { transcurrido } from '../tiempo.js';
 
 type Pestana = 'inicio' | 'avisos' | 'eventos' | 'panico' | 'cuenta';
 
@@ -235,15 +237,6 @@ function Contador({ n, flotante = false }: { n: number; flotante?: boolean }) {
   );
 }
 
-function transcurrido(iso: string): string {
-  const minutos = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (minutos < 1) return 'recién';
-  if (minutos < 60) return `hace ${minutos} min`;
-  const horas = Math.floor(minutos / 60);
-  if (horas < 24) return `hace ${horas} h`;
-  return `hace ${Math.floor(horas / 24)} d`;
-}
-
 const ESTADO_TEXTO: Record<EstadoAnillo, { titulo: string; clase: string }> = {
   armado: { titulo: 'Protegido', clase: 'text-ok' },
   desarmado: { titulo: 'Desarmado', clase: 'text-prio2' },
@@ -337,8 +330,8 @@ function TarjetaSitio({ panel, alarmas, alAbrir }: { panel: PanelResumenCliente;
         {alarmaAqui && <span className="text-prio1 text-sm font-semibold">{alarmaAqui.descripcion}</span>}
         <span className="font-datos text-[11px] text-tenue flex flex-wrap gap-x-3 mt-1">
           <span>{nombreCuenta(panel.prefijo, panel.numeroCuenta)}</span>
-          <span className={enLinea ? '' : 'text-prio2'}>{panel.ultimaSenalEn ? `señal ${transcurrido(panel.ultimaSenalEn)}` : 'sin señales'}</span>
-          {panel.ultimoMovimientoEn && <span>{panel.estadoArmado === 'armado' ? 'armado' : 'desarmado'} {transcurrido(panel.ultimoMovimientoEn)}</span>}
+          <span className={enLinea ? '' : 'text-prio2'}>{panel.ultimaSenalEn ? `señal ${transcurrido(panel.ultimaSenalEn, Date.now(), { grueso: true })}` : 'sin señales'}</span>
+          {panel.ultimoMovimientoEn && <span>{panel.estadoArmado === 'armado' ? 'armado' : 'desarmado'} {transcurrido(panel.ultimoMovimientoEn, Date.now(), { grueso: true })}</span>}
         </span>
       </span>
       {alAbrir && <IconoFlecha className="text-tenue shrink-0" />}

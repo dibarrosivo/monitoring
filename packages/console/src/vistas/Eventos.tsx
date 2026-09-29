@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listarEventos, listarSenales } from '../api.js';
 import { fechaHora } from '../tiempo.js';
-import { CLASES_TIPO, NOMBRE_TIPO_SENAL, nombreCuenta, tipoDe } from '../ui.js';
+import { NOMBRE_TIPO_SENAL } from '@monitoring/shared';
+import { CLASES_TIPO, nombreCuenta, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 import type { Senal } from '../tipos.js';
 

@@ -6,8 +6,8 @@ import '../src/index.css';
 const respuestas: Record<string, unknown> = {
   'cliente/resumen': {
     paneles: [
-      { id: 2, numeroCuenta: '7037', tipo: 'hikvision', activo: true, ultimaSenalEn: '2026-09-16T19:05:00Z', sitioId: 2, sitioNombre: 'Oficina Falcon', sitioDireccion: 'Av. Manaure, Coro', clienteId: 1, clienteNombre: 'Falcon Seguridad Total', estadoArmado: 'armado', ultimoMovimientoEn: '2026-09-16T19:02:00Z' },
-      { id: 3, numeroCuenta: '7002', tipo: 'pima', activo: true, ultimaSenalEn: '2026-09-16T18:54:00Z', sitioId: 3, sitioNombre: 'Panadería K3', sitioDireccion: 'Calle Zamora, Coro', clienteId: 1, clienteNombre: 'Falcon Seguridad Total', estadoArmado: 'desarmado', ultimoMovimientoEn: '2026-09-16T10:44:00Z' },
+      { id: 2, numeroCuenta: '5137', tipo: 'hikvision', activo: true, ultimaSenalEn: '2026-09-16T19:05:00Z', sitioId: 2, sitioNombre: 'Oficina Falcon', sitioDireccion: 'Av. Manaure, Coro', clienteId: 1, clienteNombre: 'Falcon Seguridad Total', estadoArmado: 'armado', ultimoMovimientoEn: '2026-09-16T19:02:00Z' },
+      { id: 3, numeroCuenta: '5102', tipo: 'pima', activo: true, ultimaSenalEn: '2026-09-16T18:54:00Z', sitioId: 3, sitioNombre: 'Panadería La Espiga', sitioDireccion: 'Calle Zamora, Coro', clienteId: 1, clienteNombre: 'Falcon Seguridad Total', estadoArmado: 'desarmado', ultimoMovimientoEn: '2026-09-16T10:44:00Z' },
     ],
   },
   'cliente/alarmas': [],
@@ -30,7 +30,7 @@ const pestana = new URLSearchParams(location.search).get('p');
 if (pestana) localStorage.setItem('harness.pestana', pestana);
 createRoot(document.getElementById('raiz')!).render(
   <QueryClientProvider client={new QueryClient()}>
-    <PantallaCliente usuario={{ id: 5, email: 'ana@cliente.com', nombre: 'Ana Pérez', rol: 'cliente' }} />
+    <PantallaCliente usuario={{ id: 5, email: 'ana@cliente.com', nombre: 'Laura Ríos', rol: 'cliente' }} />
   </QueryClientProvider>,
 );
 // ?p=eventos: abre la pestaña de eventos una vez montada la pantalla

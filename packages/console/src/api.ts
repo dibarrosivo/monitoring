@@ -1,4 +1,4 @@
-import type { ResultadoLlamada } from './cierres.js';
+import type { FormaPago, ResultadoLlamada } from '@monitoring/shared';
 import type {
   Acceso,
   AccionAlarma,
@@ -41,6 +41,17 @@ import type {
   UsuarioApp,
   UsuarioPanel,
   Zona,
+  Tasa,
+  Plan,
+  ResumenCobros,
+  FilaCobros,
+  EstadoDeCuenta,
+  PagoVista,
+  CobrosApp,
+  Turnos,
+  PautaTurno,
+  TramoTurnoVista,
+  GuardiaVista,
 } from './tipos.js';
 
 const CLAVE_TOKEN = 'monitoring.token';
@@ -202,8 +213,6 @@ export const crearAlta = (datos: {
 export const cambiarEstadoCliente = (id: number, estado: EstadoCliente, motivoEstado?: string) =>
   pedir<Cliente>(`/clientes/${id}/estado`, { method: 'PUT', body: JSON.stringify({ estado, motivoEstado }) });
 
-export const registrarPago = (panelId: number) =>
-  pedir<EstadoPanel>(`/paneles/${panelId}/pago`, { method: 'POST' });
 
 export const listarPuentes = () => pedir<Puente[]>('/bridges');
 export const editarPuente = (id: number, datos: { descripcion?: string; supervisado?: boolean; intervaloLatidoSeg?: number; activo?: boolean }) =>
@@ -286,6 +295,41 @@ export const crearUsuario = (datos: {
 export const editarUsuario = (id: number, datos: { nombre?: string; rol?: 'admin' | 'supervisor' | 'operador'; activo?: boolean; clave?: string }) =>
   editar<UsuarioAdmin>(`/usuarios/${id}`, datos);
 export const verTablero = () => pedir<Tablero>('/tablero');
+export const verTasa = () => pedir<{ vigente: Tasa | null; ultimas: Tasa[] }>('/tasa');
+
+// ---- Cobros ----
+export const listarPlanes = () => pedir<Plan[]>('/planes');
+export const crearPlan = (datos: { nombre: string; precioUsd: number; frecuenciaMeses: number; descripcion?: string | null }) =>
+  pedir<Plan>('/planes', { method: 'POST', body: JSON.stringify(datos) });
+export const editarPlan = (id: number, datos: Partial<Omit<Plan, 'id'>>) => editar<Plan>(`/planes/${id}`, datos);
+export const verResumenCobros = () => pedir<ResumenCobros>('/cobros/resumen');
+export const listarCobros = () => pedir<FilaCobros[]>('/cobros/clientes');
+export const verEstadoDeCuenta = (clienteId: number) => pedir<EstadoDeCuenta>(`/cobros/clientes/${clienteId}`);
+export const registrarPagoCliente = (
+  clienteId: number,
+  datos: { montoUsd?: number; montoBs?: number; tasa?: number; forma: FormaPago; referencia?: string | null; fecha: string; nota?: string | null },
+) =>
+  pedir<{ pago: PagoVista; aplicadoUsd: number; saldoAFavorUsd: number }>(`/cobros/clientes/${clienteId}/pagos`, {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  });
+export const anularPago = (id: number) => pedir<{ ok: true }>(`/cobros/pagos/${id}/anular`, { method: 'POST' });
+export const anularCuota = (id: number) => pedir<{ ok: true }>(`/cobros/cuotas/${id}/anular`, { method: 'POST' });
+export const correrCobros = () => pedir<{ creadas: number; nuevas: number; vencidas: number }>('/cobros/generar', { method: 'POST' });
+export const verCobrosCliente = () => pedir<CobrosApp>('/cliente/cobros');
+
+// ---- Turnos de la central ----
+export const verTurnos = () => pedir<Turnos>('/turnos');
+export const crearPauta = (nombre: string) => pedir<PautaTurno>('/turnos/pautas', { method: 'POST', body: JSON.stringify({ nombre }) });
+export const activarPauta = (id: number) => pedir<PautaTurno>(`/turnos/pautas/${id}/activar`, { method: 'POST' });
+export const eliminarPauta = (id: number) => eliminar(`/turnos/pautas/${id}`);
+export const crearTramoTurno = (datos: { pautaId: number; usuarioId: number; dias: string; desde: string; hasta: string }) =>
+  pedir<TramoTurnoVista>('/turnos/tramos', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarTramoTurno = (id: number) => eliminar(`/turnos/tramos/${id}`);
+export const crearGuardia = (datos: { usuarioId: number; fecha: string; desde: string; hasta: string; nota?: string | null }) =>
+  pedir<GuardiaVista>('/turnos/guardias', { method: 'POST', body: JSON.stringify(datos) });
+export const eliminarGuardia = (id: number) => eliminar(`/turnos/guardias/${id}`);
+
 
 export const generarReporte = (clienteId: number, desde: string, hasta: string) =>
   pedir<Reporte>(`/reportes?clienteId=${clienteId}&desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);

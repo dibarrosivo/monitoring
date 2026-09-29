@@ -2,10 +2,9 @@ import type { ReactElement } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { verPreferenciasCliente } from '../api.js';
-import { PREFERENCIAS_POR_DEFECTO, quiereRecibir } from './preferencias.js';
 import { useTiempoReal } from '../tiempoReal.js';
 import type { MensajeTiempoReal } from '../tipos.js';
-import { fraseParaEvento, type Frase, type Tono } from './frases.js';
+import { fraseParaEvento, PREFERENCIAS_POR_DEFECTO, quiereRecibir, type Frase, type Tono } from '@monitoring/shared';
 import { guardarVoz, hablar, prepararVoz, vozActiva, vozDisponible } from './voz.js';
 import { esNativo } from '../api.js';
 import { IconoAlerta, IconoAltavoz, IconoCampana, IconoCandado, IconoCheck, IconoInfo } from './Iconos.js';
@@ -69,7 +68,7 @@ export function useAvisosCliente(opciones: { nombrarSitio: boolean }): {
 
       const frase = fraseParaEvento(mensaje.carga, { nombrarSitio: nombrarSitio.current });
       if (!frase) return;
-      if (!quiereRecibir(prefsRef.current, { categoria: mensaje.carga.categoria, tono: frase.tono })) return;
+      if (!quiereRecibir(prefsRef.current, frase.grupo)) return;
 
       const aviso: Aviso = { ...frase, id: mensaje.carga.eventoId, recibidoEn: Date.now() };
       setAvisos((lista) => [aviso, ...lista.filter((a) => a.id !== aviso.id)].slice(0, 5));

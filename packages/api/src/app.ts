@@ -5,7 +5,7 @@ import websocket from '@fastify/websocket';
 import type { WebSocket } from 'ws';
 import { crearSuscriptor, type Suscriptor } from './tiempoReal.js';
 import type { CargaJwt } from './tipos.js';
-import { db, pool, sesionOperador } from '@monitoring/db';
+import { db, pool, sesionOperador, usuario } from '@monitoring/db';
 import { desc, eq, sql } from 'drizzle-orm';
 import { registrarAuth } from './modulos/auth.js';
 import { registrarClientes } from './modulos/clientes.js';
@@ -17,6 +17,11 @@ import { registrarClienteApp } from './modulos/clienteApp.js';
 import { registrarReportes } from './modulos/reportes.js';
 import { registrarConfiguracion } from './modulos/configuracion.js';
 import { registrarTablero } from './modulos/tablero.js';
+import { registrarTasa } from './modulos/tasa.js';
+import { registrarCobros } from './modulos/cobros.js';
+import { registrarContactoPublico, registrarContactos } from './modulos/contacto.js';
+import { registrarDispositivosPush } from './modulos/dispositivos.js';
+import { registrarTurnos } from './modulos/turnos.js';
 import { registrarSupervision } from './modulos/supervision.js';
 import { registrarBridge, registrarBridgesConsulta } from './modulos/bridge.js';
 import './tipos.js';
@@ -59,6 +64,28 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
    * permite saber quién está en servicio y desde cuándo no toca la consola.
    */
   const ultimoToque = new Map<number, number>();
+
+  /*
+   * Con sesiones largas, el token por sí solo no alcanza: si se da de baja a
+   * alguien o se le cambia el rol, su sesión seguiría valiendo un mes. Por eso
+   * cada pedido comprueba contra la base que el usuario siga activo y con qué
+   * rol, con una caché de un minuto para no consultar en cada llamada. Efecto
+   * lateral bienvenido: un cambio de rol se aplica solo, sin volver a entrar.
+   */
+  // En pruebas se apaga: ahí las tablas se vacían reiniciando los
+  // identificadores, así que un mismo id es otra persona en cada caso. En
+  // producción los ids nunca se reciclan y la caché es segura.
+  const CACHE_MS = process.env.NODE_ENV === 'test' ? 0 : 60_000;
+  const vigencia = new Map<number, { hasta: number; activo: boolean; rol: CargaJwt['rol'] }>();
+  async function usuarioVigente(id: number): Promise<{ activo: boolean; rol: CargaJwt['rol'] } | null> {
+    const enCache = vigencia.get(id);
+    if (enCache && enCache.hasta > Date.now()) return enCache;
+    const [fila] = await db.select({ activo: usuario.activo, rol: usuario.rol }).from(usuario).where(eq(usuario.id, id)).limit(1);
+    if (!fila) return null;
+    vigencia.set(id, { hasta: Date.now() + CACHE_MS, activo: fila.activo, rol: fila.rol });
+    return fila;
+  }
+
   app.decorate('autenticar', async (request, reply) => {
     try {
       await request.jwtVerify();
@@ -66,6 +93,9 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       return reply.code(401).send({ error: 'No autorizado' });
     }
     const u = request.user;
+    const vigente = await usuarioVigente(u.id);
+    if (!vigente || !vigente.activo) return reply.code(401).send({ error: 'No autorizado' });
+    u.rol = vigente.rol;
     if (u.rol !== 'cliente' && Date.now() - (ultimoToque.get(u.id) ?? 0) > 60_000) {
       ultimoToque.set(u.id, Date.now());
       void tocarSesion(u.id).catch((err) => app.log.warn({ err }, 'No se pudo anotar la actividad de la sesión'));
@@ -92,6 +122,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       });
 
       registrarAuth(api);
+      registrarContactoPublico(api);
       // Acuse de recibo del push desde el servicio nativo del teléfono (sin sesión; la clave va firmada)
       api.post('/push/eco', async (request, reply) => {
         const { verificarEco } = await import('./push/fcm.js');
@@ -127,6 +158,11 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       await api.register(async (sub) => registrarReportes(sub));
       await api.register(async (sub) => registrarConfiguracion(sub));
       await api.register(async (sub) => registrarTablero(sub));
+      await api.register(async (sub) => registrarTasa(sub));
+      await api.register(async (sub) => registrarCobros(sub));
+      await api.register(async (sub) => registrarContactos(sub));
+      await api.register(async (sub) => registrarDispositivosPush(sub));
+      await api.register(async (sub) => registrarTurnos(sub));
       await api.register(async (sub) => registrarSupervision(sub));
       await api.register(async (sub) => registrarBridge(sub));
       await api.register(async (sub) => registrarBridgesConsulta(sub));

@@ -4,7 +4,7 @@ import { verActividadOperador, verSupervision } from '../api.js';
 import type { OperadorSupervision } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
 import { nombreCuenta } from '../ui.js';
-import { ETIQUETA_DESENLACE, MOTIVOS_CIERRE } from '../cierres.js';
+import { ETIQUETA_DESENLACE, MOTIVOS_CIERRE } from '@monitoring/shared';
 
 /**
  * Supervisión del personal: qué hizo cada operador y cómo, en un período.

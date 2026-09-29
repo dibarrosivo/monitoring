@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { acceso, alarma, auditoria, cliente, contacto, db, dispositivoPush, evento, hashearClave, panel, preferenciaAviso, sitio, usuario, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
 import type { App } from '../tipos.js';
-import { tipoSenal } from '@monitoring/shared';
+import { PREFERENCIAS_POR_DEFECTO, tipoSenal } from '@monitoring/shared';
 
 /**
  * API de la app de clientes. El alcance sale de la tabla `acceso` en CADA
@@ -356,7 +356,6 @@ export function registrarClienteApp(app: App) {
    * Preferencias de avisos del usuario. Las lee la app al arrancar y las
    * usará el envío push: lo que el usuario apagó no le llega por ningún canal.
    */
-  const PREFERENCIAS_POR_DEFECTO = { armadoDesarmado: true, averias: true, sistema: true, silencioDesde: null, silencioHasta: null, vozPush: 'siempre' as const };
   const hora = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/);
   const esquemaPreferencias = z
     .object({
@@ -368,6 +367,14 @@ export function registrarClienteApp(app: App) {
       vozPush: z.enum(['siempre', 'solo_alarmas', 'nunca']).default('siempre'),
     })
     .refine((p) => (p.silencioDesde === null) === (p.silencioHasta === null), { message: 'La franja de silencio necesita inicio y fin' });
+
+  /** Plan, cuotas pendientes y pagos de los clientes que el usuario ve, en dólares y en bolívares del día. */
+  app.get('/cliente/cobros', async (request) => {
+    const paneles = await panelesDelUsuario(request.user.id);
+    const clientes = [...new Set(paneles.map((p) => p.clienteId))];
+    const { cobrosParaApp } = await import('../cobros/modelo.js');
+    return cobrosParaApp(clientes);
+  });
 
   app.get('/cliente/preferencias', async (request) => {
     const [fila] = await db.select().from(preferenciaAviso).where(eq(preferenciaAviso.usuarioId, request.user.id)).limit(1);
