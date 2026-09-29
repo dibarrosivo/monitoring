@@ -5,7 +5,7 @@ import websocket from '@fastify/websocket';
 import type { WebSocket } from 'ws';
 import { crearSuscriptor, type Suscriptor } from './tiempoReal.js';
 import type { CargaJwt } from './tipos.js';
-import { db, pool, sesionOperador } from '@monitoring/db';
+import { db, pool, sesionOperador, usuario } from '@monitoring/db';
 import { desc, eq, sql } from 'drizzle-orm';
 import { registrarAuth } from './modulos/auth.js';
 import { registrarClientes } from './modulos/clientes.js';
@@ -64,6 +64,25 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
    * permite saber quién está en servicio y desde cuándo no toca la consola.
    */
   const ultimoToque = new Map<number, number>();
+
+  /*
+   * Con sesiones largas, el token por sí solo no alcanza: si se da de baja a
+   * alguien o se le cambia el rol, su sesión seguiría valiendo un mes. Por eso
+   * cada pedido comprueba contra la base que el usuario siga activo y con qué
+   * rol, con una caché de un minuto para no consultar en cada llamada. Efecto
+   * lateral bienvenido: un cambio de rol se aplica solo, sin volver a entrar.
+   */
+  const CACHE_MS = 60_000;
+  const vigencia = new Map<number, { hasta: number; activo: boolean; rol: CargaJwt['rol'] }>();
+  async function usuarioVigente(id: number): Promise<{ activo: boolean; rol: CargaJwt['rol'] } | null> {
+    const enCache = vigencia.get(id);
+    if (enCache && enCache.hasta > Date.now()) return enCache;
+    const [fila] = await db.select({ activo: usuario.activo, rol: usuario.rol }).from(usuario).where(eq(usuario.id, id)).limit(1);
+    if (!fila) return null;
+    vigencia.set(id, { hasta: Date.now() + CACHE_MS, activo: fila.activo, rol: fila.rol });
+    return fila;
+  }
+
   app.decorate('autenticar', async (request, reply) => {
     try {
       await request.jwtVerify();
@@ -71,6 +90,9 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       return reply.code(401).send({ error: 'No autorizado' });
     }
     const u = request.user;
+    const vigente = await usuarioVigente(u.id);
+    if (!vigente || !vigente.activo) return reply.code(401).send({ error: 'No autorizado' });
+    u.rol = vigente.rol;
     if (u.rol !== 'cliente' && Date.now() - (ultimoToque.get(u.id) ?? 0) > 60_000) {
       ultimoToque.set(u.id, Date.now());
       void tocarSesion(u.id).catch((err) => app.log.warn({ err }, 'No se pudo anotar la actividad de la sesión'));
