@@ -306,6 +306,11 @@ export function Consola({ usuario }: { usuario: Usuario }) {
                 {v.nombre}
               </button>
             ))}
+            {usuario.tieneAcceso === true && (
+              <button onClick={() => guardarVista('cliente')} className="text-left px-4 py-2.5 border-t border-borde text-acento font-semibold">
+                Ver mi alarma
+              </button>
+            )}
             <SelectorTema conNombre className="border-t border-borde px-4 py-2.5 w-full" />
             <div className="border-t border-borde flex items-center gap-3 px-4 py-2.5 font-ui">
               <Avatar nombre={usuario.nombre} />
