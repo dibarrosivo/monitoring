@@ -16,9 +16,11 @@ describe('lo que dice la app y el push (misma redacción)', () => {
     expect(fraseParaEvento(apertura, unSitio)).toMatchObject({ texto: 'Sistema desarmado', titulo: 'Sistema desarmado', cuerpo: 'Desarmado' });
   });
 
-  it('armado en casa se distingue', () => {
+  it('armado en casa se distingue, y sin chocar con el sitio', () => {
     const e = evento({ categoria: 'cierre', codigo: 'R441', descripcion: 'Cierre (armado): Armado en modo presente' });
-    expect(fraseParaEvento(e, unSitio)).toMatchObject({ texto: 'Sistema armado en casa', cuerpo: 'Armado en casa' });
+    expect(fraseParaEvento(e, unSitio)).toMatchObject({ texto: 'Sistema armado modo casa', cuerpo: 'Armado modo casa' });
+    // "armado en casa en Panadería K3" sonaba a error; por eso "modo casa"
+    expect(fraseParaEvento(e, variosSitios)?.cuerpo).toBe('Armado modo casa en Panadería K3');
   });
 
   it('con varios sitios se nombra el lugar', () => {
@@ -35,7 +37,7 @@ describe('lo que dice la app y el push (misma redacción)', () => {
 
   it('las emergencias tienen nombre propio y no se apagan', () => {
     const panico = evento({ categoria: 'alarma', codigo: 'E120', descripcion: 'Pánico', prioridad: 1 });
-    expect(fraseParaEvento(panico, variosSitios)).toMatchObject({ texto: 'Emergencia: pánico en Panadería K3', titulo: 'EMERGENCIA', cuerpo: 'pánico en Panadería K3', tono: 'emergencia', persistente: true, canal: 'alarmas', grupo: null });
+    expect(fraseParaEvento(panico, variosSitios)).toMatchObject({ texto: 'Emergencia: pánico en Panadería K3', titulo: 'EMERGENCIA', cuerpo: 'Pánico en Panadería K3', tono: 'emergencia', persistente: true, canal: 'alarmas', grupo: null });
     expect(fraseParaEvento(evento({ categoria: 'alarma', codigo: 'E110', descripcion: 'Incendio', prioridad: 1 }), unSitio)?.texto).toBe('Emergencia: incendio');
     expect(fraseParaEvento(evento({ categoria: 'alarma', codigo: 'E121', descripcion: 'Coacción', prioridad: 1 }), unSitio)?.texto).toBe('Emergencia: coacción');
     // Prioridad máxima sin nombre propio: se usa la descripción
@@ -57,8 +59,9 @@ describe('lo que dice la app y el push (misma redacción)', () => {
   });
 
   it('las averías no nombran zona: en las de sistema ese campo es la vía o el módulo', () => {
+    // El texto del manual ("No pudo comunicar un evento a la central") queda para la consola; al cliente se le habla claro
     const comunicacion = evento({ categoria: 'averia', codigo: 'E354', descripcion: 'No pudo comunicar un evento a la central', zona: '001' });
-    expect(fraseParaEvento(comunicacion, unSitio)?.texto).toBe('Aviso: No pudo comunicar un evento a la central');
+    expect(fraseParaEvento(comunicacion, unSitio)?.texto).toBe('Aviso: Falla al reportar a la central');
     const sensor = evento({ categoria: 'averia', codigo: 'E380', descripcion: 'Avería de sensor', zona: '096', zonaDescripcion: 'Depósito' });
     expect(fraseParaEvento(sensor, variosSitios)?.texto).toBe('Aviso: Avería de sensor en Panadería K3');
     const vuelve = evento({ categoria: 'restauracion', codigo: 'R350', descripcion: 'Restauración de comunicación con la central', zona: '002' });
@@ -66,6 +69,16 @@ describe('lo que dice la app y el push (misma redacción)', () => {
     // La restauración de una alarma sí dice la zona: es la que se disparó
     const robo = evento({ categoria: 'restauracion', codigo: 'R130', descripcion: 'Restauración: Robo', zona: '005', zonaDescripcion: 'Puerta trasera' });
     expect(fraseParaEvento(robo, unSitio)?.texto).toBe('Restablecido: Robo en zona 5, Puerta trasera');
+  });
+
+  it('la anulación nombra la zona sin repetir la preposición', () => {
+    const conNombre = evento({ categoria: 'anulacion', codigo: 'E570', descripcion: 'Anulación de zona (bypass)', zona: '007', zonaDescripcion: 'Puerta trasera' });
+    expect(fraseParaEvento(conNombre, variosSitios)?.cuerpo).toBe('Zona 7, Puerta trasera, anulada en Panadería K3');
+    const sinNombre = evento({ categoria: 'anulacion', codigo: 'E570', descripcion: 'Anulación de zona (bypass)', zona: '007' });
+    expect(fraseParaEvento(sinNombre, unSitio)?.cuerpo).toBe('Zona 7 anulada');
+    // Sin número de zona no se inventa ninguno
+    const grupo = evento({ categoria: 'anulacion', codigo: 'E574', descripcion: 'Anulación de grupo' });
+    expect(fraseParaEvento(grupo, unSitio)?.cuerpo).toBe('Zona anulada');
   });
 
   it('las pruebas periódicas y los latidos no dicen nada', () => {

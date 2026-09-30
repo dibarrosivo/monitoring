@@ -63,6 +63,22 @@ const EMERGENCIAS: Record<string, string> = {
   '162': 'monóxido de carbono',
 };
 
+/**
+ * Averías cuyo nombre técnico no le dice nada al dueño de la alarma. El
+ * operador sigue viendo el texto del manual de Contact ID en la consola; en
+ * el teléfono del cliente se cambia por lo que de verdad le pasó a su equipo.
+ */
+const AVERIAS_PARA_EL_CLIENTE: Record<string, string> = {
+  E350: 'Problema de comunicación con la central',
+  E354: 'Falla al reportar a la central',
+  R354: 'Restauración de comunicación con la central',
+};
+
+/** Primera letra en mayúscula; el resto queda igual (siglas y nombres propios intactos). */
+function mayuscula(texto: string): string {
+  return texto ? `${texto[0]!.toUpperCase()}${texto.slice(1)}` : texto;
+}
+
 function codigoCid(codigo: string | undefined): string {
   const m = /^[ER](\d{3})$/.exec(codigo ?? '');
   return m ? m[1]! : '';
@@ -151,9 +167,10 @@ export function fraseParaEvento(carga: CargaAviso, opciones: { nombrarSitio: boo
   switch (categoria) {
     case 'cierre': {
       const quien = persona(carga.descripcion);
-      const modo = codigo === 'R441' ? 'armado en casa' : 'armado';
+      // "armado modo casa" y no "armado en casa": si no, el sitio queda como "en casa en Panadería"
+      const modo = codigo === 'R441' ? 'armado modo casa' : 'armado';
       const resto = `${lugar}${quien ? ` por ${quien}` : ''}`;
-      return armar(carga, { titulo: 'Sistema armado', cuerpo: `${modo[0]!.toUpperCase()}${modo.slice(1)}${resto}`, texto: `Sistema ${modo}${resto}`, tono: 'estado' });
+      return armar(carga, { titulo: 'Sistema armado', cuerpo: `${mayuscula(modo)}${resto}`, texto: `Sistema ${modo}${resto}`, tono: 'estado' });
     }
     case 'apertura': {
       const quien = persona(carga.descripcion);
@@ -164,7 +181,7 @@ export function fraseParaEvento(carga: CargaAviso, opciones: { nombrarSitio: boo
       const emergencia = EMERGENCIAS[codigoCid(codigo)];
       if (emergencia || carga.prioridad <= 1) {
         const que = `${emergencia ?? sinPrefijo(carga.descripcion).toLowerCase()}${lugar}`;
-        return armar(carga, { titulo: 'EMERGENCIA', cuerpo: que, texto: `Emergencia: ${que}`, tono: 'emergencia' });
+        return armar(carga, { titulo: 'EMERGENCIA', cuerpo: mayuscula(que), texto: `Emergencia: ${que}`, tono: 'emergencia' });
       }
       const zona = zonaHablada(carga);
       const detalle = zona ? '' : `: ${sinPrefijo(carga.descripcion)}`;
@@ -174,17 +191,25 @@ export function fraseParaEvento(carga: CargaAviso, opciones: { nombrarSitio: boo
       return armar(carga, { titulo: 'Alarma cancelada', cuerpo: `Alarma cancelada${lugar}`, tono: 'bien' });
     case 'restauracion': {
       // "Restauración de electricidad en Gerald's Café"; con prefijo genérico ("Restauración: Robo") se dice como restablecido
-      const natural = !/^[^:]{1,30}:\s/.test(carga.descripcion);
-      if (natural) return armar(carga, { titulo: carga.descripcion, cuerpo: `${carga.descripcion}${zonaHablada(carga)}${lugar}`, tono: 'bien' });
-      const que = `${sinPrefijo(carga.descripcion)}${zonaHablada(carga)}${lugar}`;
+      const vuelve = AVERIAS_PARA_EL_CLIENTE[codigo] ?? carga.descripcion;
+      const natural = !/^[^:]{1,30}:\s/.test(vuelve);
+      if (natural) return armar(carga, { titulo: vuelve, cuerpo: `${vuelve}${zonaHablada(carga)}${lugar}`, tono: 'bien' });
+      const que = `${sinPrefijo(vuelve)}${zonaHablada(carga)}${lugar}`;
       return armar(carga, { titulo: 'Restablecido', cuerpo: que, texto: `Restablecido: ${que}`, tono: 'bien' });
     }
     case 'averia': {
-      const que = `${carga.descripcion}${zonaHablada(carga)}${lugar}`;
+      const que = `${AVERIAS_PARA_EL_CLIENTE[codigo] ?? carga.descripcion}${zonaHablada(carga)}${lugar}`;
       return armar(carga, { titulo: 'Aviso', cuerpo: que, texto: `Aviso: ${que}`, tono: 'aviso' });
     }
-    case 'anulacion':
-      return armar(carga, { titulo: 'Zona anulada', cuerpo: `Zona anulada${zonaHablada(carga)}${lugar}`, tono: 'aviso' });
+    case 'anulacion': {
+      // "Zona 7 anulada", no "Zona anulada en zona 7"
+      const numero = Number(carga.zona);
+      const cual =
+        carga.zona && Number.isFinite(numero) && numero > 0
+          ? `Zona ${numero}${carga.zonaDescripcion ? `, ${carga.zonaDescripcion},` : ''} anulada`
+          : 'Zona anulada';
+      return armar(carga, { titulo: 'Zona anulada', cuerpo: `${cual}${lugar}`, tono: 'aviso' });
+    }
     default: {
       // Avisos del sistema (motor, receptor): los de prioridad máxima suenan como alarma y no se apagan
       const que = `${carga.descripcion}${lugar}`;
@@ -210,15 +235,22 @@ export function fraseParaPersonal(carga: CargaAviso & { numeroCuenta?: string | 
   const zona = zonaHablada(carga);
   const codigo = carga.codigo ?? '';
 
-  // Fallas de la propia central: lo más grave, porque dejamos de ver
+  /*
+   * Fallas de la propia central: lo más grave, porque dejamos de ver. La
+   * descripción que se guarda empieza por su propio rótulo ("PUENTE CAÍDO:
+   * ..."), que en la consola sirve y en el teléfono repetiría el título; acá
+   * se le quita. En voz tampoco se leen las mayúsculas, que el sintetizador
+   * deletrea.
+   */
+  const deSistema = mayuscula(sinPrefijo(carga.descripcion));
   if (codigo === 'SIS-GEN') {
-    return { titulo: 'CENTRAL MUDA', cuerpo: carga.descripcion, texto: `Atención: ${carga.descripcion}`, tono: 'alarma', persistente: true, canal: 'alarmas', grupo: null };
+    return { titulo: 'CENTRAL MUDA', cuerpo: deSistema, texto: `Atención. ${deSistema}`, tono: 'alarma', persistente: true, canal: 'alarmas', grupo: null };
   }
   if (codigo === 'BRIDGE') {
-    return { titulo: 'PUENTE CAÍDO', cuerpo: carga.descripcion, texto: `Atención: ${carga.descripcion}`, tono: 'alarma', persistente: true, canal: 'alarmas', grupo: null };
+    return { titulo: 'PUENTE CAÍDO', cuerpo: deSistema, texto: `Atención. ${deSistema}`, tono: 'alarma', persistente: true, canal: 'alarmas', grupo: null };
   }
   if (codigo === 'BRIDGE-R') {
-    return { titulo: 'Puente restablecido', cuerpo: carga.descripcion, texto: carga.descripcion, tono: 'bien', persistente: false, canal: 'avisos', grupo: null };
+    return { titulo: 'Puente restablecido', cuerpo: deSistema, texto: deSistema, tono: 'bien', persistente: false, canal: 'avisos', grupo: null };
   }
   if (codigo === 'SIS') {
     return { titulo: 'Panel silencioso', cuerpo: `${donde}: ${sinPrefijo(carga.descripcion)}`, texto: `Panel silencioso en ${donde}`, tono: 'aviso', persistente: false, canal: 'avisos', grupo: null };

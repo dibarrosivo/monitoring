@@ -45,9 +45,9 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
      */
     if (await yaAvisadoSilencio(p.id, p.ultimaSenalEn ?? p.creadoEn)) continue;
 
-    const descripcion = `Panel silencioso: cuenta ${p.numeroCuenta} sin señales por más de ${Math.round(
-      p.intervaloPruebaMin * FACTOR_TOLERANCIA,
-    )} minutos`;
+    const descripcion = `Panel silencioso: sin señales hace más de ${duracionLegible(
+      Math.round(p.intervaloPruebaMin * FACTOR_TOLERANCIA),
+    )}`;
 
     const [filaEvento] = await db
       .insert(evento)
@@ -222,7 +222,10 @@ export async function revisarPuentes(): Promise<number> {
     const caido = ahora - ultimo.getTime() > tope;
 
     if (caido && !p.caidoDesde) {
-      const descripcion = `PUENTE CAÍDO: ${p.nombre} no reporta hace más de ${p.intervaloLatidoSeg * 3} segundos`;
+      const espera = p.intervaloLatidoSeg * 3;
+      const descripcion = `PUENTE CAÍDO: sin latido de ${p.nombre} hace más de ${
+        espera < 60 ? `${espera} s` : duracionLegible(Math.round(espera / 60))
+      }`;
       const [filaEvento] = await db
         .insert(evento)
         .values({ categoria: 'sistema', codigo: 'BRIDGE', descripcion, prioridad: 2, ocurridoEn: new Date() })
@@ -237,7 +240,7 @@ export async function revisarPuentes(): Promise<number> {
 
     if (!caido && p.caidoDesde) {
       const minutos = Math.max(1, Math.round((ultimo.getTime() - p.caidoDesde.getTime()) / 60_000));
-      const descripcion = `PUENTE RESTABLECIDO: ${p.nombre} volvió a reportar tras ${duracionLegible(minutos)} sin latido`;
+      const descripcion = `PUENTE RESTABLECIDO: volvió el latido de ${p.nombre} tras ${duracionLegible(minutos)} sin reportar`;
       const [filaRestaurada] = await db
         .insert(evento)
         .values({ categoria: 'restauracion', codigo: 'BRIDGE-R', descripcion, prioridad: 3, ocurridoEn: new Date() })
@@ -299,7 +302,7 @@ export async function revisarSilencioGeneral(ahora: Date = new Date()): Promise<
   if (haySilencioGeneral(ultima, ahora)) {
     if (abierta) return false;
     const hora = ultima ? ultima.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', timeZone: ZONA_HORARIA_CENTRAL }) : 'nunca';
-    const descripcion = `SIN SEÑALES EN LA CENTRAL: ningún receptor recibió nada hace más de ${SILENCIO_GENERAL_MIN} min (última ${hora})`;
+    const descripcion = `SIN SEÑALES EN LA CENTRAL: ningún receptor recibió nada hace más de ${duracionLegible(SILENCIO_GENERAL_MIN)} (última ${hora})`;
     const [filaEvento] = await db
       .insert(evento)
       .values({ categoria: 'sistema', codigo: CODIGO_SILENCIO_GENERAL, descripcion, prioridad: 1, ocurridoEn: ahora })
