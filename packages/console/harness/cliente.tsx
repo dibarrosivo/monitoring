@@ -28,7 +28,8 @@ const respuestas: Record<string, unknown> = {
       { numero: 7, nombre: 'Puerta trasera exterior', estado: 'anulada', armada: false, enAlarma: false, tipo: 'pulsador', descripcion: null },
     ],
     bateria: { porcentaje: 96, estado: 'normal' },
-    comunicaciones: { cable: 'conectado', wifi: 'conectado', senalWifi: 82, nube: 'en línea' },
+    // Los valores son los que manda el equipo Hikvision: 'normal' o 'break', y la señal es un nivel de 1 a 4
+    comunicaciones: { cable: 'normal', wifi: 'normal', senalWifi: 4, nube: 'normal' },
     perifericos: [{ tipo: 'sirena', nombre: 'Sirena exterior', estado: 'normal', sabotaje: false }, { tipo: 'teclado', nombre: 'Teclado entrada', estado: 'normal', sabotaje: false }],
   },
   '/comandos': [

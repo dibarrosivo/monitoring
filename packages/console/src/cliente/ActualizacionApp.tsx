@@ -2,10 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { esNativo, servidorGuardado } from '../api.js';
 
 /**
- * Aviso de versión nueva para la app instalada. Sin tienda de aplicaciones,
- * la actualización es bajar el APK del servidor de la central: acá se
+ * Aviso de versión nueva para la app instalada por fuera de la tienda: se
  * compara la versión que corre con la publicada en /app/version.json y, si
  * hay una más nueva, se ofrece el enlace. Nada de esto aplica en la web.
+ *
+ * Solo existe en el canal directo. En el build que va a Google Play la
+ * constante es false y el componente entero se cae del paquete, porque la
+ * tienda prohíbe que una app suya se actualice bajando un APK por fuera.
  */
 
 interface VersionPublicada {
@@ -26,7 +29,7 @@ export function esMasNueva(publicada: string, actual: string): boolean {
   return false;
 }
 
-export function ActualizacionApp() {
+function AvisoDeVersion() {
   const { data } = useQuery({
     queryKey: ['version-app'],
     queryFn: async (): Promise<VersionPublicada | null> => {
@@ -51,3 +54,6 @@ export function ActualizacionApp() {
     </div>
   );
 }
+
+/** En el build de Play no hay aviso de versión: la tienda se encarga. */
+export const ActualizacionApp = __CANAL_DIRECTO__ ? AvisoDeVersion : () => null;

@@ -7,8 +7,18 @@ const version = (JSON.parse(readFileSync(new URL('./package.json', import.meta.u
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // La app muestra su versión y la compara con la publicada en el servidor
-  define: { __VERSION_APP__: JSON.stringify(version) },
+  /*
+   * __CANAL_DIRECTO__ separa los dos destinos de la app y existe por la
+   * política de Google Play (Device and Network Abuse): una app distribuida
+   * por la tienda no puede actualizarse bajando un APK por fuera. El build
+   * normal es el que va a Play y no lleva el aviso de versión nueva; el de
+   * `build:directo` es el APK que se instala a mano desde el servidor de la
+   * central y sí lo lleva.
+   */
+  define: {
+    __VERSION_APP__: JSON.stringify(version),
+    __CANAL_DIRECTO__: JSON.stringify(process.env.CANAL_DIRECTO === '1'),
+  },
   server: {
     proxy: {
       '/api': {

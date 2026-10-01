@@ -16,3 +16,8 @@ osm/
 # Claves de servicio (Firebase) y configuración de la app: solo en el servidor y en la máquina de compilación
 secretos/
 packages/console/android/app/google-services.json
+# Paquetes de la app Android que genera scripts/empaquetar-android.sh
+fst-alarma-*.aab
+fst-alarma-*.apk
+# Capturas sin marco: intermedias de scripts/capturas-play.sh
+packages/console/assets/play/crudas/

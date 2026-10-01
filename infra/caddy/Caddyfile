@@ -33,9 +33,12 @@
 
 	# La consola es una aplicación de una sola página: cualquier ruta que no
 	# sea un archivo real devuelve index.html para que el enrutador la resuelva.
+	# El {path}/index.html del medio es para /privacidad/ y /terminos/, que son
+	# documentos sueltos y no rutas de la consola: Google Play exige una URL
+	# pública y estable para la política de privacidad.
 	handle {
 		root * /srv
-		try_files {path} /index.html
+		try_files {path} {path}/index.html /index.html
 		file_server
 	}
 
