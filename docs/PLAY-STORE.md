@@ -176,21 +176,60 @@ Si en la revisión lo objetan, la salida es quitarlo: los mensajes de prioridad
 alta de Firebase atraviesan el modo de ahorro igual, y lo que se pierde es
 margen, no la función. No conviene adelantarse a quitarlo.
 
-## Cuenta de prueba (para el revisor de Google y para los testers)
+## Cuenta de prueba — TEMPORAL, se borra al terminar
 
-Hace falta **antes** de subir, porque sin credenciales el revisor no puede entrar
-y rechaza la app. Se propone replicar lo que se hizo en TrueTracker:
+Hace falta **antes** de subir: sin credenciales el revisor de Google no puede
+entrar y rechaza la app. Decidido el 01-10-2026, con señales simuladas.
 
-- Un cliente **«Pruebas»** en producción, con un panel y un par de zonas.
-- Un usuario `pruebas@falconseguridadtotal.com` con contraseña fija, cargado en
-  el formulario «Acceso a la app» del Play Console y entregado a los testers.
-- Señales simuladas para que al abrir la app se vea actividad y no una pantalla
-  vacía: armado y desarmado un par de veces al día, alguna avería y su
-  restauración.
-- **Es deuda con fecha de vencimiento**: al terminar el período de pruebas hay
-  que borrar el cliente, su panel y sus señales.
+### Sembrarla
 
-No está hecho todavía: toca producción y hay que decidirlo.
+```bash
+# en el servidor, con el DATABASE_URL de producción
+npm run pruebas:sembrar -- --clave <una clave>     # sin --clave, la genera
+```
+
+Crea el cliente **«Pruebas»** (exonerado de cobro), el sitio «Local de pruebas»,
+el panel **AL-5199** con cuatro zonas y **sin supervisión**, y el usuario
+`pruebas@falconseguridadtotal.com` como propietario. Es idempotente: volver a
+correrlo no duplica nada, solo cambia la clave.
+
+La clave se imprime una sola vez. Va en el formulario «Acceso a la app» del Play
+Console y se le entrega a los testers.
+
+### Darle historial
+
+El panel no existe, así que las señales las manda un simulador: el mismo
+protocolo SIA DC-09 que usaría un equipo real, con un día de trabajo creíble
+(abre a las 7:40, cierra a las 18:50, prueba periódica cada 6 h, una anulación
+de zona y un corte de luz con sus restauraciones).
+
+**A propósito no manda ninguna alarma de robo**: una cuenta de pruebas
+disparando alarmas le mete ruido a la cola de los operadores de verdad. Está
+verificado que las diez señales entran y no abren ni una alarma.
+
+Se enciende poniendo `pruebas` en `COMPOSE_PROFILES` del `.env` del servidor y
+se apaga sacándola de ahí, sin desplegar nada:
+
+```bash
+# /opt/monitoring/.env
+COMPOSE_PROFILES=pruebas
+```
+
+Para probarlo a mano, `PRUEBAS_RITMO=rapido npm run simulador:pruebas` manda el
+día entero en un minuto.
+
+### Borrarla al terminar
+
+```bash
+npm run pruebas:borrar                # muestra qué borraría, sin tocar nada
+npm run pruebas:borrar -- --de-verdad # lo hace
+```
+
+El orden de borrado no está escrito a mano: el script lee del propio Postgres
+qué tablas apuntan a cliente, sitio, panel y usuario, y borra por pasadas hasta
+que no queda nada, todo en una transacción. Así sigue funcionando aunque el
+esquema cambie entre hoy y el día en que se corra. Probado de punta a punta
+contra una base local: sembrar, mandar señales y borrar no deja ni una fila.
 
 ## Escalera de publicación
 
@@ -202,25 +241,37 @@ No está hecho todavía: toca producción y hay que decidirlo.
 3. **Solicitar producción** → revisión (la primera vez tarda días) → publicar por
    etapas (10 % → 100 %).
 
-## Decisiones pendientes (no las puedo tomar yo)
+## Decisiones tomadas el 01-10-2026
 
-1. **¿Qué cuenta de desarrollador?** Es lo que más cambia el calendario:
-   - *La misma de TrueTracker*: los 12 testers × 14 días son un requisito de la
-     CUENTA, no de cada app. Si TrueTracker ya está cumpliendo ese plazo, FST
-     Alarma entra después sin volver a esperarlo, y se ahorran los US$ 25. En
-     contra: en la ficha aparece el nombre de desarrollador de esa cuenta.
-   - *Una cuenta propia de Falcón Seguridad Total*: US$ 25 más y su propio plazo
-     de 14 días, pero la app queda a nombre de la empresa desde el primer día,
-     que es lo que van a ver sus clientes.
-2. **Los correos públicos.** `/privacidad/` y `/terminos/` dicen hoy
+- **Cuenta de desarrollador: la misma de TrueTracker.** Los 12 testers × 14 días
+  son un requisito de la CUENTA, no de cada app: si esa cuenta ya está
+  cumpliendo el plazo, FST Alarma entra después sin volver a esperarlo. Más
+  adelante se puede transferir la app a una cuenta de Falcón Seguridad Total,
+  que es el mismo plan que ya tiene TrueTracker.
+  **Antes de crear la app hay que confirmar en el Play Console si esa cuenta ya
+  tiene acceso a producción o sigue dentro de los 14 días.**
+- **Cliente «Pruebas» con señales simuladas**: hecho, ver la sección anterior.
+- **Correos públicos**: reenvío gratis. Ojo con el detalle de abajo.
+
+## Lo que falta, y es trámite
+
+1. **Los buzones de correo.** `/privacidad/` y `/terminos/` dicen
    `privacidad@falconseguridadtotal.com` y `soporte@falconseguridadtotal.com`, y
-   el Play Console exige un correo de contacto visible. Esos buzones tienen que
-   existir y alguien tiene que leerlos. En TrueTracker se resolvió con reenvío
-   gratis (Cloudflare Email Routing).
-3. **Desplegar las páginas legales.** Están en el repositorio pero no en
-   producción: Play no acepta una URL que no responda. Entra en el próximo
-   despliegue a `main`.
-4. **El cliente «Pruebas»** de la sección anterior.
+   el Play Console exige además un correo de contacto visible en la ficha. Hoy
+   **el dominio no tiene ningún registro MX**: no recibe correo.
+
+   El DNS de `falconseguridadtotal.com` está en GoDaddy (`domaincontrol.com`),
+   no en Cloudflare, así que el camino de TrueTracker (Cloudflare Email Routing)
+   obligaría a mudar los nameservers, y de ese dominio todavía cuelga el sitio
+   viejo de 365. Sale más barato y más seguro un reenviador que solo pida
+   registros MX, como ImprovMX, que se agregan en GoDaddy sin mover nada:
+   dos MX y un TXT de verificación. Es una tarea de navegador, no de código.
+
+2. **Desplegar las páginas legales.** Están en el repositorio pero no en
+   producción, y Play no acepta una URL que no responda. Entra en el próximo
+   despliegue a `main`, que hay que pedir.
+
+3. **Retirar el canal directo** antes de empezar el testing (ver más arriba).
 
 ## Cada versión nueva
 

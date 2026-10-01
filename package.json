@@ -27,7 +27,10 @@
     "db:depurar": "npm run depurar -w @monitoring/db",
     "puente": "npm run dev -w @monitoring/pima-bridge",
     "simulador:pima": "tsx tools/simulator/src/receptorPima.ts",
-    "puente:exe": "npm run empaquetar -w @monitoring/pima-bridge"
+    "puente:exe": "npm run empaquetar -w @monitoring/pima-bridge",
+    "simulador:pruebas": "tsx tools/simulator/src/panelPruebas.ts",
+    "pruebas:sembrar": "tsx scripts/sembrar-pruebas.ts",
+    "pruebas:borrar": "tsx scripts/borrar-pruebas.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -120,6 +120,27 @@ services:
     depends_on:
       - receptor
 
+  # Panel inventado para el período de pruebas de Google Play: manda señales
+  # al receptor para que la cuenta de pruebas tenga historial y los testers no
+  # vean una app vacía. No abre alarmas y su cuenta está exonerada de cobro.
+  #
+  # TEMPORAL. Se enciende con COMPOSE_PROFILES=pruebas en /opt/monitoring/.env
+  # y se apaga quitando esa palabra, sin desplegar nada. Al terminar el período
+  # hay que correr además `npm run pruebas:borrar` (ver docs/PLAY-STORE.md).
+  simulador-pruebas:
+    build:
+      context: .
+      target: app
+    image: monitoring-app
+    profiles: ['pruebas']
+    command: npx tsx tools/simulator/src/panelPruebas.ts
+    restart: unless-stopped
+    environment:
+      PRUEBAS_HOST: receptor
+      PRUEBAS_CUENTA: '5199'
+    depends_on:
+      - receptor
+
 volumes:
   datos-postgres:
   datos-caddy:
