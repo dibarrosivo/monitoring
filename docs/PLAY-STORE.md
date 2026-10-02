@@ -44,23 +44,66 @@ aviso de versión **se cae entero del paquete** — está verificado: la cadena
 `version.json` no aparece en el JavaScript compilado. Así no se puede subir por
 descuido una app que incumpla.
 
-### Retirar el canal directo — ANTES de empezar el testing con Google
+### El canal directo NO se retira antes del testing: se congela en 1.5.7
 
-Mientras el enlace siga vivo existe un canal paralelo de actualización. Hay que
-desmontarlo cuando se empiece el testing, en este orden:
+**Cambio de plan del 03-10-2026.** Lo de retirarlo antes del testing venía
+copiado de TrueTracker, que no tenía usuarios reales. FST sí los tiene, y con
+la firma de abajo los dos canales pueden convivir: retirarlo antes dejaría sin
+forma de instalar a los clientes nuevos mientras la ficha todavía no es pública.
 
-1. Publicar un último APK directo cuyo aviso diga que a partir de ahí la app se
-   actualiza desde Google Play, con el enlace de la tienda. Es el puente para
-   los que ya la tienen instalada.
-2. Borrar `/opt/monitoring/app/` del VPS (el APK, `version.json` y la página).
-3. Quitar el bloque `handle_path /app/*` de `infra/caddy/Caddyfile`.
-4. Quitar el volumen `./app:/srv/app:ro` de `docker-compose.produccion.yml`.
-5. Borrar `packages/console/src/cliente/ActualizacionApp.tsx`, su uso en
-   `PantallaCliente.tsx`, la bandera `__CANAL_DIRECTO__` y el script
-   `build:directo`.
+La regla que hace falta, a cambio: **desde que exista la primera versión en
+Play, no se publica ningún APK directo más.** Con la misma llave, un APK directo
+de versionCode mayor se instala encima de la versión de Play, y los dos canales
+se pisan. El enlace queda solo para instalar, no para actualizar.
 
-Los pasos 1 y 2 se pueden hacer el mismo día; del 3 al 5 conviene esperar a que
-la app esté publicada y la gente haya migrado.
+Para mover a la tienda a los que siguen en el canal directo no hace falta un
+APK nuevo: se edita `/opt/monitoring/app/version.json` con una versión mayor y
+`url` apuntando a la ficha de Play, y el aviso de «versión nueva» que ya traen
+los 1.5.7 los manda solos.
+
+```json
+{ "version": "1.6.0", "url": "https://play.google.com/store/apps/details?id=com.falconseguridadtotal.alarma",
+  "notas": "La app ahora se actualiza desde Google Play." }
+```
+
+Cuando ya estén todos en Play, recién ahí se desmonta: `/opt/monitoring/app/`,
+el bloque `handle_path /app/*` de Caddy, el volumen `./app` del compose, y
+`ActualizacionApp.tsx` con la bandera `__CANAL_DIRECTO__`.
+
+## La firma — la única decisión que casi no se deshace
+
+Al subir el primer AAB, Play pregunta con qué llave firmar la app. La opción
+que viene marcada es **que la genere Google: NO hay que aceptarla.** Hay que
+elegir **«Exportar y subir una llave desde un almacén de claves Java»** y subir
+la llave existente con la herramienta PEPK que da el propio Console.
+
+Por qué, verificado el 03-10-2026:
+
+| | |
+|---|---|
+| APK 1.5.7 que tienen instalado los clientes (versionCode 22) | firmado con `d71691da…2b39c2` |
+| `~/dev/monitoring-secretos/falcon-alarma.keystore` | `d71691da…2b39c2` — **la misma** |
+| Vigencia de la llave | hasta 2056 |
+| Algoritmo | RSA 2048 |
+
+Con esta llave la versión de Play se instala encima de la que ya tienen, sin
+desinstalar y sin perder el registro de los avisos push. Con una llave nueva,
+cada cliente tendría que borrar la app y volver a entrar.
+
+**La prueba de que salió bien:** en *Integridad de la app → Firma de apps de
+Play*, el certificado de la llave de firma tiene que ser
+
+```
+SHA-256  D7:16:91:DA:BE:2D:26:97:1A:89:D8:04:8B:D1:23:3F:E5:42:F4:DB:F9:4C:55:82:DF:3C:92:70:1D:2B:39:C2
+```
+
+Si dice otra cosa, no se publica nada: mientras no haya una versión publicada
+todavía se puede corregir.
+
+La misma llave sirve de llave de subida, que es como ya compila
+`empaquetar-android.sh`. Google recomienda una de subida aparte; es opcional y
+se agrega después sin drama, porque cambiar la de subida sí es un trámite
+común. La que no se cambia es la de firma.
 
 ## Textos de la ficha (copiar y pegar)
 
@@ -124,16 +167,18 @@ La app no usa la ubicación del teléfono, ni la cámara, ni el micrófono, ni s
 contactos.
 ```
 
-**Categoría**: Empresa (Business).
-**Etiquetas**: seguridad, alarma, monitoreo.
-**Sitio web**: https://monitoreo.falconseguridadtotal.com
+**Categoría**: Herramientas. (TrueTracker usa Empresa, pero los clientes de FST
+son casas y comercios, no empresas con flota; Casa y hogar también calza.)
+**Correo de contacto**: soporte@falconseguridadtotal.com
+**Sitio web**: vacío por ahora. `monitoreo.` es la consola de operadores, no un
+sitio para clientes; se completa cuando se publique la landing.
+**Teléfono**: opcional y público.
 **Política de privacidad**: https://monitoreo.falconseguridadtotal.com/privacidad/
-**Correo de contacto**: por definir (ver «Decisiones pendientes»).
 
 ## Formulario Data Safety (respuestas)
 
-La app manda al servidor tres cosas y nada más, lo que hace este formulario
-corto y fácil de defender.
+Revisado contra el manifiesto real del AAB el 03-10-2026: no pide ubicación,
+cámara, micrófono, contactos del teléfono, SMS ni ID de publicidad.
 
 | Pregunta | Respuesta |
 |---|---|
@@ -141,11 +186,13 @@ corto y fácil de defender.
 | Información personal: nombre y correo | Sí — gestión de la cuenta y funciones de la app. Obligatorio. No se comparte. Las cuentas las crea la central, no hay registro público. |
 | Identificadores del dispositivo | Sí — el identificador de notificaciones (token de Firebase) y la plataforma. Solo para entregar los avisos. Obligatorio. No se comparte. |
 | Diagnóstico / rendimiento de la app | Sí — en qué etapa quedó el registro de avisos y qué versión corre, para averiguar por qué un aviso no llegó. No se comparte. |
+| Información personal: número de teléfono | **Sí** — faltaba en la primera versión: el propietario carga desde la app los nombres y teléfonos de su lista de llamadas. Funciones de la app. No se comparte. |
+| Actividad en la app: otras acciones | Sí — armar y desarmar desde la app queda registrado con el nombre de quien lo hizo. Funciones de la app. No se comparte. |
 | Ubicación | **No** |
 | Fotos, archivos, contactos, micrófono | **No** |
 | Información financiera | **No** — la app muestra el estado de la cuota, pero no cobra ni pide datos de pago |
 | ¿Datos cifrados en tránsito? | Sí (HTTPS/TLS) |
-| ¿El usuario puede pedir la eliminación? | Sí — por el correo de privacidad, igual que dice `/privacidad/` |
+| ¿El usuario puede pedir la eliminación? | Sí — por `privacidad@falconseguridadtotal.com`. Enlace: https://monitoreo.falconseguridadtotal.com/privacidad/#eliminacion |
 | ¿Se venden o comparten con terceros? | No |
 
 Nota: las señales de los paneles de alarma las manda el equipo instalado en el
@@ -162,7 +209,18 @@ dispositivo.
 | Público objetivo | Adultos (18+) |
 | Contenido generado por usuarios | No |
 | App de noticias / finanzas / salud / gobierno | No |
-| Clasificación de contenido (IARC) | App de negocios, sin contenido sensible → apto para todo público |
+| Clasificación de contenido (IARC) | No es juego ni red social; No a todo (violencia, sexo, lenguaje, drogas, apuestas, compras, interacción entre usuarios, compartir ubicación) → apto para todo público |
+| ID de publicidad | **No** — verificado: el manifiesto no trae `com.google.android.gms.permission.AD_ID` |
+
+### Riesgo conocido: el borrado de cuenta desde la app
+
+Google exige que las apps donde se crean cuentas **desde la app** permitan
+pedir su eliminación también desde la app, además del enlace web. FST no tiene
+registro propio, pero el propietario sí da de alta usuarios desde la app, y un
+revisor puede leer eso como creación de cuentas. El enlace web ya existe. Lo
+seguro es agregar en la pantalla Cuenta un «Pedir la eliminación de mi cuenta»
+antes de mandar la prueba cerrada a revisión. TrueTracker tiene el mismo
+hueco.
 
 ### Riesgo conocido: el permiso de ahorro de batería
 
@@ -182,7 +240,7 @@ margen, no la función. No conviene adelantarse a quitarlo.
 |---|---|
 | Cliente | `Pruebas` (id 93), exonerado de cobro |
 | Panel | `AL-5199` (id 93), sin supervisión, 4 zonas |
-| Usuario de la app | `pruebas@falconseguridadtotal.com` · clave `pruebas2026` |
+| Usuario de la app | `pruebas@falconseguridadtotal.com` · la clave está en `/opt/monitoring/pruebas-credenciales.txt` (600, solo en el servidor) |
 | Simulador | servicio `simulador-pruebas`, con `COMPOSE_PROFILES=ebs,pruebas` en el `.env` |
 
 Verificado el día que se sembró: el usuario entra, ve su panel y sus eventos,
@@ -229,6 +287,9 @@ entrar y rechaza la app. Decidido el 01-10-2026, con señales simuladas.
 # en el servidor, con el DATABASE_URL de producción
 npm run pruebas:sembrar -- --clave <una clave>     # sin --clave, la genera
 ```
+
+**La clave nunca va al chat ni a este archivo** (práctica de TrueTracker). La que
+estuvo escrita acá se rotó el 03-10-2026.
 
 Crea el cliente **«Pruebas»** (exonerado de cobro), el sitio «Local de pruebas»,
 el panel **AL-5199** con cuatro zonas y **sin supervisión**, y el usuario
@@ -283,37 +344,29 @@ contra una base local: sembrar, mandar señales y borrar no deja ni una fila.
 3. **Solicitar producción** → revisión (la primera vez tarda días) → publicar por
    etapas (10 % → 100 %).
 
-## Decisiones tomadas el 01-10-2026
+TrueTracker todavía no empezó su prueba cerrada, así que la cuenta no tiene
+acceso a producción para compartir. Lo que más tiempo ahorra es **correr las dos
+pruebas cerradas en paralelo con los mismos testers**: los dos relojes de 14 días
+corren a la vez, y cubre las dos lecturas de la regla (por cuenta o por app).
+Ese día hay que encender la cuenta de pruebas.
 
-- **Cuenta de desarrollador: la misma de TrueTracker.** Los 12 testers × 14 días
-  son un requisito de la CUENTA, no de cada app: si esa cuenta ya está
-  cumpliendo el plazo, FST Alarma entra después sin volver a esperarlo. Más
-  adelante se puede transferir la app a una cuenta de Falcón Seguridad Total,
-  que es el mismo plan que ya tiene TrueTracker.
-  **Antes de crear la app hay que confirmar en el Play Console si esa cuenta ya
-  tiene acceso a producción o sigue dentro de los 14 días.**
-- **Cliente «Pruebas» con señales simuladas**: hecho, ver la sección anterior.
-- **Correos públicos**: reenvío gratis. Ojo con el detalle de abajo.
+Cada subida exige un versionCode mayor que **cualquiera ya subido**, aunque esa
+versión no se haya publicado (TrueTracker tuvo que pasar a versionCode 2 por
+eso). FST arranca en 23.
 
-## Lo que falta, y es trámite
+## Estado al 03-10-2026
 
-1. **Los buzones de correo.** `/privacidad/` y `/terminos/` dicen
-   `privacidad@falconseguridadtotal.com` y `soporte@falconseguridadtotal.com`, y
-   el Play Console exige además un correo de contacto visible en la ficha. Hoy
-   **el dominio no tiene ningún registro MX**: no recibe correo.
-
-   El DNS de `falconseguridadtotal.com` está en GoDaddy (`domaincontrol.com`),
-   no en Cloudflare, así que el camino de TrueTracker (Cloudflare Email Routing)
-   obligaría a mudar los nameservers, y de ese dominio todavía cuelga el sitio
-   viejo de 365. Sale más barato y más seguro un reenviador que solo pida
-   registros MX, como ImprovMX, que se agregan en GoDaddy sin mover nada:
-   dos MX y un TXT de verificación. Es una tarea de navegador, no de código.
-
-2. **Desplegar las páginas legales.** Están en el repositorio pero no en
-   producción, y Play no acepta una URL que no responda. Entra en el próximo
-   despliegue a `main`, que hay que pedir.
-
-3. **Retirar el canal directo** antes de empezar el testing (ver más arriba).
+| | |
+|---|---|
+| Cuenta de desarrollador | la misma de TrueTracker |
+| Páginas legales | en producción, 200 |
+| Correo | `privacidad@` y `soporte@` reciben por reenvío de ImprovMX (MX en GoDaddy, sin mudar el DNS). Falta confirmar con un correo de prueba de punta a punta |
+| AAB | `fst-alarma-1.6.0.aab`, versionCode 23, recompilado el 03-10 con el código al día; sin actualizador; firmado con la llave correcta |
+| Gráficos | regenerados el 03-10 con el logo alineado |
+| Cuenta de pruebas | sembrada y **apagada**; se enciende el día de la prueba cerrada |
+| Firma | **decisión al subir el primer AAB: la llave existente** |
+| Canal directo | vivo; se congela en 1.5.7 desde la primera versión en Play |
+| Borrado de cuenta en la app | pendiente de decidir (riesgo de revisión) |
 
 ## Cada versión nueva
 
