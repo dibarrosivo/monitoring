@@ -108,11 +108,20 @@ describe('códigos de teclado que nadie registró', () => {
     expect(fraseParaEvento(e, unSitio)?.cuerpo).toBe('Desarmado por Laura Ríos');
   });
 
-  it('el 000 no es una persona sin registrar: es armar sin código, y no se nombra', () => {
-    // Son casi la mitad de las aperturas en producción; decir "desconocido" sería mentir, seguido
-    const e = evento({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario', zona: '000' });
-    expect(fraseParaEvento(e, unSitio)?.cuerpo).toBe('Armado');
+  it('el 000 no es una persona sin registrar: se dice qué pasó', () => {
+    // Son casi la mitad de los casos en producción; decir "desconocido" sería mentir, seguido
+    const armado = evento({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario', zona: '000' });
+    expect(fraseParaEvento(armado, variosSitios)?.cuerpo).toBe('Armado rápido en Panadería K3');
+    // Desarmar no se puede llamar "armado rápido"
+    const desarmado = evento({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura (desarmado): Apertura/Cierre por usuario', zona: '000' });
+    expect(fraseParaEvento(desarmado, unSitio)?.cuerpo).toBe('Desarmado sin código de usuario');
     expect(usuarioDesconocido('000')).toBeNull();
     expect(usuarioDesconocido(null)).toBeNull();
+  });
+
+  it('si la cuenta tiene un nombre dado de alta para el 000, manda el nombre', () => {
+    // Pasa de verdad: hay cuentas donde el 000 es una persona
+    const e = evento({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario — Oswaldo Ferreira (cód. 0)', zona: '000' });
+    expect(fraseParaEvento(e, unSitio)?.cuerpo).toBe('Armado por Oswaldo Ferreira');
   });
 });

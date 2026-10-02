@@ -137,6 +137,18 @@ export function usuarioDesconocido(zona: string | null | undefined): string | nu
   return `usuario ${numero} desconocido`;
 }
 
+/**
+ * El código 000 es armar o desarmar sin que nadie teclee un código de usuario
+ * («armado rápido» en la jerga de la central, y así lo llamaba 365). No es una
+ * persona sin registrar, así que se dice lo que pasó en vez de llamarla
+ * desconocida. Si la cuenta tiene un nombre dado de alta para el 000, ese
+ * nombre manda y esto no se usa.
+ */
+export function sinCodigoDeUsuario(zona: string | null | undefined): boolean {
+  const numero = (zona ?? '').trim();
+  return /^\d+$/.test(numero) && Number(numero) === 0;
+}
+
 /** Grupo de preferencia de un aviso según su categoría; alarmas y emergencias no tienen. */
 export function grupoDeAviso(categoria: CategoriaEvento | undefined, tono: Tono): GrupoAviso | null {
   if (tono === 'emergencia' || tono === 'alarma') return null;
@@ -182,14 +194,17 @@ export function fraseParaEvento(carga: CargaAviso, opciones: { nombrarSitio: boo
   switch (categoria) {
     case 'cierre': {
       const quien = persona(carga.descripcion) ?? usuarioDesconocido(carga.zona);
+      const rapido = !quien && sinCodigoDeUsuario(carga.zona);
       // "armado modo casa" y no "armado en casa": si no, el sitio queda como "en casa en Panadería"
-      const modo = codigo === 'R441' ? 'armado modo casa' : 'armado';
+      const modo = rapido ? 'armado rápido' : codigo === 'R441' ? 'armado modo casa' : 'armado';
       const resto = `${lugar}${quien ? ` por ${quien}` : ''}`;
       return armar(carga, { titulo: 'Sistema armado', cuerpo: `${mayuscula(modo)}${resto}`, texto: `Sistema ${modo}${resto}`, tono: 'estado' });
     }
     case 'apertura': {
       const quien = persona(carga.descripcion) ?? usuarioDesconocido(carga.zona);
-      const resto = `${lugar}${quien ? ` por ${quien}` : ''}`;
+      // Desarmar no se puede llamar "armado rápido": se dice que no hubo código
+      const sinCodigo = !quien && sinCodigoDeUsuario(carga.zona);
+      const resto = `${lugar}${quien ? ` por ${quien}` : sinCodigo ? ' sin código de usuario' : ''}`;
       return armar(carga, { titulo: 'Sistema desarmado', cuerpo: `Desarmado${resto}`, texto: `Sistema desarmado${resto}`, tono: 'estado' });
     }
     case 'alarma': {
