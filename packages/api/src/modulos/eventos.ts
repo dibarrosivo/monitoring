@@ -1,6 +1,7 @@
-import { and, desc, eq, getTableColumns, inArray, notInArray } from 'drizzle-orm';
-import { cliente, db, envioPush, evento, panel, senal, sitio, usuario, zona } from '@monitoring/db';
+import { desc, eq, getTableColumns, inArray } from 'drizzle-orm';
+import { cliente, db, envioPush, evento, panel, senal, sitio, usuario, usuarioPanel, zona } from '@monitoring/db';
 import { tipoSenal } from '@monitoring/shared';
+import { unirUsuarioPanel, unirZona } from './_evento.js';
 import type { App } from '../tipos.js';
 
 export function registrarEventos(app: App) {
@@ -11,9 +12,16 @@ export function registrarEventos(app: App) {
     const { panelId, limite } = request.query as { panelId?: string; limite?: string };
     const max = Math.min(Number(limite ?? 100), 1000);
     const base = db
-      .select({ ...getTableColumns(evento), zonaDescripcion: zona.descripcion, clienteNombre: cliente.nombre, prefijo: panel.prefijo })
+      .select({
+        ...getTableColumns(evento),
+        zonaDescripcion: zona.descripcion,
+        usuarioPanelNombre: usuarioPanel.nombre,
+        clienteNombre: cliente.nombre,
+        prefijo: panel.prefijo,
+      })
       .from(evento)
-      .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona), notInArray(evento.categoria, ['apertura', 'cierre'])))
+      .leftJoin(zona, unirZona(evento.panelId))
+      .leftJoin(usuarioPanel, unirUsuarioPanel(evento.panelId))
       .leftJoin(panel, eq(evento.panelId, panel.id))
       .leftJoin(sitio, eq(panel.sitioId, sitio.id))
       .leftJoin(cliente, eq(sitio.clienteId, cliente.id));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { interpretarCid } from '../src/contactId.js';
 import { interpretarPima } from '../src/pima.js';
-import { tipoSenal } from '../src/tiposSenal.js';
+import { campoZonaEsUsuario, tipoSenal } from '../src/tiposSenal.js';
 
 const cid = (codigoCid: string, calificador: 1 | 3 = 1) =>
   interpretarCid({ numeroCuenta: '1234', calificador, codigoCid, particion: '01', zona: '001' });
@@ -39,5 +39,27 @@ describe('tipoSenal', () => {
     expect(tipoSenal(interpretarPima({ numeroCuenta: '7048', codigo: 'RQ' }))).toBe('sistema'); // reset de sirena
     expect(tipoSenal({ codigo: 'X', categoria: 'desconocido', prioridad: 3 })).toBe('sistema');
     expect(tipoSenal(interpretarPima({ numeroCuenta: '7048', codigo: 'AA' }))).toBe('robo'); // alarma zona 1
+  });
+});
+
+describe('campoZonaEsUsuario', () => {
+  it('en los 4xx el número es la persona del teclado, no una zona', () => {
+    expect(campoZonaEsUsuario({ codigo: 'E401', categoria: 'apertura' })).toBe(true);
+    expect(campoZonaEsUsuario({ codigo: 'R401', categoria: 'cierre' })).toBe(true);
+    expect(campoZonaEsUsuario({ codigo: 'E406', categoria: 'cancelacion' })).toBe(true);
+  });
+
+  it('las alarmas de horario se llevan ese número consigo', () => {
+    // Nacen de una apertura: el número que copian es el código de usuario.
+    // Resolverlo contra la tabla de zonas mostraba "zona 001 - INFRARROJO ENTRADA".
+    expect(campoZonaEsUsuario({ codigo: 'HOR-AF', categoria: 'sistema' })).toBe(true);
+    expect(campoZonaEsUsuario({ codigo: 'HOR-AT', categoria: 'sistema' })).toBe(true);
+  });
+
+  it('en alarmas, averías y anulaciones el número sí es una zona', () => {
+    expect(campoZonaEsUsuario({ codigo: 'E130', categoria: 'alarma' })).toBe(false);
+    expect(campoZonaEsUsuario({ codigo: 'E301', categoria: 'averia' })).toBe(false);
+    expect(campoZonaEsUsuario({ codigo: 'E570', categoria: 'anulacion' })).toBe(false);
+    expect(campoZonaEsUsuario({ codigo: 'R130', categoria: 'restauracion' })).toBe(false);
   });
 });

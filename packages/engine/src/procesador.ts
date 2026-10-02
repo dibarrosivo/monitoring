@@ -14,7 +14,7 @@ import {
   usuarioPanel,
   zona,
 } from '@monitoring/db';
-import { abreAlarma, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
+import { abreAlarma, campoZonaEsUsuario, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
 import { enZona, esAperturaFueraDeHorario } from './horarios.js';
 import { esCancelacionDelUsuario, estaEnPrueba, ventanaDeVerificacion } from './verificacion.js';
 import { etiquetaMotivo } from '@monitoring/shared';
@@ -113,7 +113,7 @@ async function contextoParaAviso(
     contexto.sitioNombre = s?.nombre ?? null;
   }
   // En aperturas y cierres el campo zona es el usuario, no una zona física
-  if (normalizado.zona && !['apertura', 'cierre', 'cancelacion'].includes(normalizado.categoria)) {
+  if (normalizado.zona && !campoZonaEsUsuario(normalizado)) {
     const [z] = await db
       .select({ descripcion: zona.descripcion })
       .from(zona)
@@ -150,18 +150,16 @@ export async function procesarEvento(entrada: {
 
   // En los eventos 4xx el campo zona es el número de usuario del teclado:
   // si está dado de alta, el evento nombra a la persona.
-  if (
-    panelEncontrado &&
-    normalizado.zona &&
-    ['apertura', 'cierre', 'cancelacion'].includes(normalizado.categoria)
-  ) {
+  let quien: string | null = null;
+  if (panelEncontrado && normalizado.zona && campoZonaEsUsuario(normalizado)) {
     const [personaPanel] = await db
       .select({ nombre: usuarioPanel.nombre })
       .from(usuarioPanel)
       .where(and(eq(usuarioPanel.panelId, panelEncontrado.id), eq(usuarioPanel.numero, normalizado.zona)))
       .limit(1);
-    if (personaPanel) descripcion += ` — ${personaPanel.nombre} (cód. ${Number(normalizado.zona)})`;
+    if (personaPanel) quien = ` — ${personaPanel.nombre} (cód. ${Number(normalizado.zona)})`;
   }
+  if (quien) descripcion += quien;
 
   const [filaEvento] = await db
     .insert(evento)
@@ -219,7 +217,7 @@ export async function procesarEvento(entrada: {
       ? await db.select({ zonaHoraria: sitio.zonaHoraria }).from(sitio).where(eq(sitio.id, panelEncontrado.sitioId)).limit(1)
       : [];
     if (esAperturaFueraDeHorario(horarios, enZona(sitioDelPanel?.zonaHoraria, recibidaEn))) {
-      const descripcionFuera = `Apertura fuera de horario (cuenta ${normalizado.numeroCuenta})`;
+      const descripcionFuera = `Apertura fuera de horario (cuenta ${normalizado.numeroCuenta})${quien ?? ''}`;
       const [filaFuera] = await db
         .insert(evento)
         .values({

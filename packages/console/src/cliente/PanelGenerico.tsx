@@ -3,6 +3,7 @@ import { verEventosCliente, verZonasCliente } from '../api.js';
 import type { AlarmaCliente, PanelResumenCliente } from '../tipos.js';
 import { VAR_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, tipoDe } from '../ui.js';
 import { IconoAlerta, IconoCandado, IconoCandadoAbierto, IconoInfo } from './Iconos.js';
+import { numeroDelEvento } from '../numeroDelEvento.js';
 
 /**
  * La pantalla del panel para equipos que no se controlan desde la app
@@ -114,10 +115,10 @@ export function PanelGenerico({ panel, alarmas, alVolver }: { panel: PanelResume
                   <span className="block" style={{ color: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? VAR_TIPO[tipoDe(ev)] : 'var(--color-texto)', fontWeight: tipoDe(ev) === 'emergencia' || tipoDe(ev) === 'robo' ? 600 : 400 }}>
                     {ev.descripcion}
                   </span>
-                  {ev.zona && (
+                  {numeroDelEvento(ev) && (
                     <span className="block text-xs text-tenue">
-                      {['apertura', 'cierre', 'cancelacion'].includes(ev.categoria) ? 'usuario' : 'zona'} {Number(ev.zona) || ev.zona}
-                      {ev.zonaDescripcion && ` · ${ev.zonaDescripcion}`}
+                      {numeroDelEvento(ev)!.rotulo} {numeroDelEvento(ev)!.numero}
+                      {numeroDelEvento(ev)!.nombre && ` · ${numeroDelEvento(ev)!.nombre}`}
                     </span>
                   )}
                 </span>

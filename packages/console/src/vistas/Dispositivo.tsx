@@ -31,6 +31,7 @@ import { CLASES_TIPO, nombreCuenta, NOMBRE_TIPO_PANEL, resumenAviso, tipoDe } fr
 import { ModalSenal } from '../ModalSenal.js';
 
 import { BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO } from '../estilos.js';
+import { numeroDelEvento } from '../numeroDelEvento.js';
 const DIAS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const;
 
 function fechaCorta(iso: string | null | undefined): string {
@@ -240,6 +241,7 @@ function HistorialSenales({ panelId }: { panelId: number }) {
           <tbody className="font-datos">
             {visibles.map((e) => {
               const c = CLASES_TIPO[tipoDe(e)];
+              const numero = numeroDelEvento(e);
               return (
                 <tr key={e.id} className="border-t border-borde/40">
                   <td className={`p-0 ${c.barra}`} aria-hidden />
@@ -247,8 +249,8 @@ function HistorialSenales({ panelId }: { panelId: number }) {
                   <td className={`px-3 py-1 font-semibold whitespace-nowrap ${c.texto}`}>{e.codigo}</td>
                   <td className="px-3 py-1 font-ui">{e.descripcion}</td>
                   <td className="px-3 py-1 text-tenue whitespace-nowrap">
-                    {e.zona ?? '—'}
-                    {e.zonaDescripcion && <span className="font-ui text-texto"> - {e.zonaDescripcion}</span>}
+                    {numero ? `${numero.rotulo === 'usuario' ? 'usr' : 'zona'} ${numero.numero}` : '—'}
+                    {numero?.nombre && <span className="font-ui text-texto"> - {numero.nombre}</span>}
                   </td>
                   <td className="px-3 py-1 font-ui text-xs whitespace-nowrap">
                     {(avisosPorEvento.get(e.id) ?? []).map((a) => {

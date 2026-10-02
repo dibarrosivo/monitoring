@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, inArray, ne, notInArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
-import { ETIQUETA_DESENLACE, etiquetaMotivo, protocoloPara, RESULTADOS_LLAMADA, tipoSenal } from '@monitoring/shared';
+import { campoZonaEsUsuario, ETIQUETA_DESENLACE, etiquetaMotivo, protocoloPara, RESULTADOS_LLAMADA, tipoSenal } from '@monitoring/shared';
 import { accionAlarma, alarma, cliente, contacto, db, evento, horario, panel, sitio, usuario, usuarioPanel, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
+import { unirUsuarioPanel, unirZona } from './_evento.js';
 import type { App } from '../tipos.js';
 
 const esquemaNota = z.object({ detalle: z.string().min(1) });
@@ -83,6 +84,8 @@ export function registrarAlarmas(app: App) {
           prioridad: evento.prioridad,
         },
         zonaDescripcion: zona.descripcion,
+        /** Quién armó o desarmó: en los 4xx el número del evento es el código del teclado, no una zona */
+        usuarioPanelNombre: usuarioPanel.nombre,
         clienteId: cliente.id,
         clienteNombre: cliente.nombre,
         prefijo: panel.prefijo,
@@ -90,7 +93,8 @@ export function registrarAlarmas(app: App) {
       })
       .from(alarma)
       .innerJoin(evento, eq(alarma.eventoId, evento.id))
-      .leftJoin(zona, and(eq(zona.panelId, alarma.panelId), eq(zona.numero, evento.zona), notInArray(evento.categoria, ['apertura', 'cierre'])))
+      .leftJoin(zona, unirZona(alarma.panelId))
+      .leftJoin(usuarioPanel, unirUsuarioPanel(alarma.panelId))
       .leftJoin(panel, eq(alarma.panelId, panel.id))
       .leftJoin(sitio, eq(panel.sitioId, sitio.id))
       .leftJoin(cliente, eq(sitio.clienteId, cliente.id))
@@ -177,8 +181,21 @@ export function registrarAlarmas(app: App) {
       .where(eq(contacto.clienteId, contexto.cliente.id))
       .orderBy(asc(contacto.orden));
 
+    /*
+     * El número del evento es una zona o el código de usuario del teclado según
+     * el tipo de evento, nunca las dos cosas: resolverlo siempre contra la tabla
+     * de zonas le mostraba al operador una zona que no tenía nada que ver.
+     */
     let zonaDescripcion: string | null = null;
-    if (fila.zona) {
+    let usuarioPanelNombre: string | null = null;
+    if (fila.zona && campoZonaEsUsuario(fila)) {
+      const [persona] = await db
+        .select({ nombre: usuarioPanel.nombre })
+        .from(usuarioPanel)
+        .where(and(eq(usuarioPanel.panelId, fila.panelId), eq(usuarioPanel.numero, fila.zona)))
+        .limit(1);
+      usuarioPanelNombre = persona?.nombre ?? null;
+    } else if (fila.zona) {
       const [filaZona] = await db
         .select({ descripcion: zona.descripcion })
         .from(zona)
@@ -230,7 +247,7 @@ export function registrarAlarmas(app: App) {
         .limit(5),
     ]);
 
-    return { ...contexto, contactos, zonaDescripcion, pasos, pasosCumplidos: cumplidos, horarios, usuariosPanel, previas };
+    return { ...contexto, contactos, zonaDescripcion, usuarioPanelNombre, pasos, pasosCumplidos: cumplidos, horarios, usuariosPanel, previas };
   });
 
   /** Bitácora con el nombre de quien hizo cada cosa; lo de sistema va sin autor. */

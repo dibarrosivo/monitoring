@@ -38,6 +38,22 @@ export const ORDEN_TIPOS_SENAL: TipoSenal[] = ['emergencia', 'robo', 'averia', '
 /** Códigos PIMA de control de horario: aperturas y cierres tarde o temprano, no abrió, no cerró, aviso previo. */
 const PIMA_HORARIO = new Set(['OA', 'OM', 'OT', 'SP', 'SQ', 'SR', 'SS', 'TO', 'TP', 'SW']);
 
+/**
+ * ¿El número que el evento trae en el campo "zona" es en realidad el código de
+ * usuario del teclado? En los eventos 4xx de Contact ID (apertura, cierre,
+ * cancelación) el panel reporta ahí QUIÉN lo hizo, no una zona física. Lo
+ * mismo vale para las alarmas de horario que el motor deriva de una apertura y
+ * que se llevan ese número consigo.
+ *
+ * Importa porque resolver ese número contra la tabla de zonas le muestra al
+ * operador una zona que no tiene nada que ver con lo que pasó: «zona 001 -
+ * INFRARROJO ENTRADA» en una apertura que en realidad hizo el usuario 1.
+ */
+export function campoZonaEsUsuario(evento: { codigo: string; categoria: CategoriaEvento }): boolean {
+  if (evento.codigo.startsWith('HOR-')) return true;
+  return evento.categoria === 'apertura' || evento.categoria === 'cierre' || evento.categoria === 'cancelacion';
+}
+
 export function tipoSenal(evento: { codigo: string; categoria: CategoriaEvento; prioridad: number }): TipoSenal {
   const { codigo, categoria, prioridad } = evento;
   // Control de horario: lo genera el motor (HOR-*), lo reporta PIMA con códigos

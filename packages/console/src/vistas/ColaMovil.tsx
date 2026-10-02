@@ -5,6 +5,7 @@ import type { Alarma } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { CLASES_TIPO, clasesPrioridad, nombreCuenta, tipoDe } from '../ui.js';
 import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
+import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
 
@@ -44,6 +45,7 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
   const prio = clasesPrioridad(alarma.prioridad);
   const tipo = CLASES_TIPO[tipoDe(alarma.evento)];
   const fondo = alarma.estado === 'nueva' && alarma.prioridad <= 2 ? (alarma.prioridad <= 1 ? 'bg-prio1/15' : 'bg-prio2/10') : '';
+  const numero = numeroDelEvento({ ...alarma.evento, zonaDescripcion: alarma.zonaDescripcion, usuarioPanelNombre: alarma.usuarioPanelNombre });
 
   return (
     <li className={`bg-superficie border rounded-lg overflow-hidden ${tipo.borde} ${fondo}`}>
@@ -57,10 +59,10 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
             cuenta {nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta)}
             {alarma.clienteNombre && <span className="font-ui text-texto"> · {alarma.clienteNombre}</span>}
           </span>
-          {alarma.evento.zona && (
+          {numero && (
             <span>
-              zona {alarma.evento.zona}
-              {alarma.zonaDescripcion && ` - ${alarma.zonaDescripcion}`}
+              {numero.rotulo} {numero.numero}
+              {numero.nombre && ` - ${numero.nombre}`}
             </span>
           )}
           <span className={alarma.estado === 'nueva' ? prio.texto : 'text-acento'}>
@@ -80,6 +82,7 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
   const { data: contexto } = useQuery({ queryKey: ['contexto', alarma.id], queryFn: () => verContexto(alarma.id) });
   const { data: acciones } = useQuery({ queryKey: ['acciones', alarma.id], queryFn: () => listarAcciones(alarma.id) });
   const [nota, setNota] = useState('');
+  const detalle = contexto && numeroDelEvento({ ...alarma.evento, ...contexto });
 
   function refrescar() {
     void clienteConsultas.invalidateQueries({ queryKey: ['alarmas'] });
@@ -113,9 +116,12 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
             {contexto.sitio?.nombre}
             {contexto.sitio?.direccion && ` · ${contexto.sitio.direccion}`}
           </p>
-          {contexto.zonaDescripcion && (
+          {detalle?.nombre && (
             <p>
-              <span className="text-tenue">Zona {alarma.evento.zona}:</span> <span className="font-semibold">{contexto.zonaDescripcion}</span>
+              <span className="text-tenue">
+                {detalle.rotulo === 'usuario' ? 'Usuario' : 'Zona'} {detalle.numero}:
+              </span>{' '}
+              <span className="font-semibold">{detalle.nombre}</span>
             </p>
           )}
           <ListaLlamadas alarma={alarma} contactos={contexto.contactos} compacta />

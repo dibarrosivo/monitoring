@@ -31,6 +31,8 @@ export interface Evento {
   tipo?: TipoSenal;
   ocurridoEn: string;
   zonaDescripcion?: string | null;
+  /** Nombre de la persona del teclado: en los 4xx y en las alarmas de horario el número no es una zona */
+  usuarioPanelNombre?: string | null;
   clienteNombre?: string | null;
 }
 
@@ -118,6 +120,7 @@ export interface Alarma {
   operadorNombre: string | null;
   panelId: number | null;
   zonaDescripcion: string | null;
+  usuarioPanelNombre?: string | null;
   clienteId?: number | null;
   clienteNombre: string | null;
   prefijo?: string | null;

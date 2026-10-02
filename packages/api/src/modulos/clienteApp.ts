@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { acceso, alarma, auditoria, cliente, contacto, db, dispositivoPush, evento, hashearClave, panel, preferenciaAviso, sitio, usuario, zona } from '@monitoring/db';
+import { acceso, alarma, auditoria, cliente, contacto, db, dispositivoPush, evento, hashearClave, panel, preferenciaAviso, sitio, usuario, usuarioPanel, zona } from '@monitoring/db';
 import { abrirAlarma } from '@monitoring/engine';
+import { unirUsuarioPanel, unirZona } from './_evento.js';
 import type { App } from '../tipos.js';
 import { PREFERENCIAS_POR_DEFECTO, tipoSenal } from '@monitoring/shared';
 
@@ -306,10 +307,12 @@ export function registrarClienteApp(app: App) {
         zona: evento.zona,
         ocurridoEn: evento.ocurridoEn,
         zonaDescripcion: zona.descripcion,
+        usuarioPanelNombre: usuarioPanel.nombre,
         prefijo: panel.prefijo,
       })
       .from(evento)
-      .leftJoin(zona, and(eq(zona.panelId, evento.panelId), eq(zona.numero, evento.zona), notInArray(evento.categoria, ['apertura', 'cierre'])))
+      .leftJoin(zona, unirZona(evento.panelId))
+      .leftJoin(usuarioPanel, unirUsuarioPanel(evento.panelId))
       .leftJoin(panel, eq(evento.panelId, panel.id))
       .where(
         and(

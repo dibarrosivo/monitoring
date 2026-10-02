@@ -8,6 +8,7 @@ import { ModalSenal } from '../ModalSenal.js';
 import { Modal } from '../Modal.js';
 import { ETIQUETA_DESENLACE, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
 import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
+import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
 const NOMBRE_ESTADO = { nueva: 'NUEVA', en_atencion: 'EN ATENCIÓN', cerrada: 'CERRADA' } as const;
@@ -401,6 +402,7 @@ function FilaAlarma({
   const clienteConsultas = useQueryClient();
   const prio = clasesPrioridad(alarma.prioridad);
   const tipo = CLASES_TIPO[tipoDe(alarma.evento)];
+  const numero = numeroDelEvento({ ...alarma.evento, zonaDescripcion: alarma.zonaDescripcion, usuarioPanelNombre: alarma.usuarioPanelNombre });
   const tomar = useMutation({
     mutationFn: () => tomarAlarma(alarma.id),
     onSuccess: () => {
@@ -473,8 +475,8 @@ function FilaAlarma({
         {alarma.clienteNombre && <span className="font-ui text-texto"> {alarma.clienteNombre}</span>}
       </td>
       <td className="px-3 py-1.5 text-tenue">
-        {alarma.evento.zona ?? '—'}
-        {alarma.zonaDescripcion && <span className="font-ui text-texto"> - {alarma.zonaDescripcion}</span>}
+        {numero ? `${numero.rotulo === 'usuario' ? 'usr' : 'zona'} ${numero.numero}` : '—'}
+        {numero?.nombre && <span className="font-ui text-texto"> - {numero.nombre}</span>}
       </td>
       {cerradas ? (
         <>
@@ -552,6 +554,7 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
   });
   const [nota, setNota] = useState('');
   const [senalVisible, setSenalVisible] = useState(false);
+  const numeroDetalle = contexto && numeroDelEvento({ ...alarma.evento, ...contexto });
 
   // Reloj propio para que los tiempos de la cabecera corran a la vista
   const [ahora, setAhora] = useState(() => Date.now());
@@ -739,10 +742,12 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
                     Ver ubicación en el mapa
                   </a>
                 )}
-                {contexto.zonaDescripcion && (
+                {numeroDetalle?.nombre && (
                   <p className="mt-1">
-                    <span className="text-tenue">Zona {alarma.evento.zona}:</span>{' '}
-                    <span className="font-semibold">{contexto.zonaDescripcion}</span>
+                    <span className="text-tenue">
+                      {numeroDetalle.rotulo === 'usuario' ? 'Usuario' : 'Zona'} {numeroDetalle.numero}:
+                    </span>{' '}
+                    <span className="font-semibold">{numeroDetalle.nombre}</span>
                   </p>
                 )}
               </div>

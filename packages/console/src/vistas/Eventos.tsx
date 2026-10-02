@@ -6,6 +6,7 @@ import { NOMBRE_TIPO_SENAL } from '@monitoring/shared';
 import { CLASES_TIPO, nombreCuenta, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 import type { Senal } from '../tipos.js';
+import { numeroDelEvento } from '../numeroDelEvento.js';
 
 /**
  * Dos solapas, como en toda central: "Eventos" (lo decodificado y clasificado)
@@ -78,7 +79,9 @@ function TablaEventos({ alVerSenal }: { alVerSenal: (id: number) => void }) {
           </tr>
         </thead>
         <tbody className="font-datos">
-          {(eventos ?? []).map((evento) => (
+          {(eventos ?? []).map((evento) => {
+            const numero = numeroDelEvento(evento);
+            return (
             <tr key={evento.id} className="border-b border-borde/50 last:border-0">
               <td className="px-3 py-1.5 text-tenue whitespace-nowrap">{fechaHora(evento.ocurridoEn)}</td>
               <td className={`px-3 py-1.5 font-semibold ${CLASES_TIPO[tipoDe(evento)].texto}`}>{evento.codigo}</td>
@@ -94,8 +97,8 @@ function TablaEventos({ alVerSenal }: { alVerSenal: (id: number) => void }) {
                 {evento.clienteNombre && <span className="font-ui text-texto"> {evento.clienteNombre}</span>}
               </td>
               <td className="px-3 py-1.5 text-tenue">
-                {evento.zona ?? '—'}
-                {evento.zonaDescripcion && <span className="font-ui text-texto"> - {evento.zonaDescripcion}</span>}
+                {numero ? `${numero.rotulo === 'usuario' ? 'usr' : 'zona'} ${numero.numero}` : '—'}
+                {numero?.nombre && <span className="font-ui text-texto"> - {numero.nombre}</span>}
               </td>
               <td className="px-3 py-1.5">
                 {evento.senalId && (
@@ -108,7 +111,8 @@ function TablaEventos({ alVerSenal }: { alVerSenal: (id: number) => void }) {
                 )}
               </td>
             </tr>
-          ))}
+            );
+          })}
           {(eventos ?? []).length === 0 && (
             <tr>
               <td colSpan={7} className="px-4 py-6 text-center text-tenue font-ui">
