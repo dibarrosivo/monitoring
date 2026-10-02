@@ -14,7 +14,7 @@ import {
   usuarioPanel,
   zona,
 } from '@monitoring/db';
-import { abreAlarma, campoZonaEsUsuario, interpretarCid, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
+import { abreAlarma, campoZonaEsUsuario, interpretarCid, usuarioDesconocido, type EventoNormalizado, type FuenteSenal } from '@monitoring/shared';
 import { enZona, esAperturaFueraDeHorario } from './horarios.js';
 import { esCancelacionDelUsuario, estaEnPrueba, ventanaDeVerificacion } from './verificacion.js';
 import { etiquetaMotivo } from '@monitoring/shared';
@@ -151,6 +151,7 @@ export async function procesarEvento(entrada: {
   // En los eventos 4xx el campo zona es el número de usuario del teclado:
   // si está dado de alta, el evento nombra a la persona.
   let quien: string | null = null;
+  let desconocido: string | null = null;
   if (panelEncontrado && normalizado.zona && campoZonaEsUsuario(normalizado)) {
     const [personaPanel] = await db
       .select({ nombre: usuarioPanel.nombre })
@@ -158,6 +159,12 @@ export async function procesarEvento(entrada: {
       .where(and(eq(usuarioPanel.panelId, panelEncontrado.id), eq(usuarioPanel.numero, normalizado.zona)))
       .limit(1);
     if (personaPanel) quien = ` — ${personaPanel.nombre} (cód. ${Number(normalizado.zona)})`;
+    else {
+      // Código que nadie registró: en una apertura fuera de horario es justo lo
+      // que el operador necesita saber, y no aparece en ninguna otra parte
+      const sinRegistrar = usuarioDesconocido(normalizado.zona);
+      if (sinRegistrar) desconocido = ` — ${sinRegistrar}`;
+    }
   }
   if (quien) descripcion += quien;
 
@@ -217,7 +224,7 @@ export async function procesarEvento(entrada: {
       ? await db.select({ zonaHoraria: sitio.zonaHoraria }).from(sitio).where(eq(sitio.id, panelEncontrado.sitioId)).limit(1)
       : [];
     if (esAperturaFueraDeHorario(horarios, enZona(sitioDelPanel?.zonaHoraria, recibidaEn))) {
-      const descripcionFuera = `Apertura fuera de horario (cuenta ${normalizado.numeroCuenta})${quien ?? ''}`;
+      const descripcionFuera = `Apertura fuera de horario (cuenta ${normalizado.numeroCuenta})${quien ?? desconocido ?? ''}`;
       const [filaFuera] = await db
         .insert(evento)
         .values({

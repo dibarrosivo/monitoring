@@ -86,6 +86,14 @@ describe('el número de un evento: zona o persona del teclado', () => {
     expect(robo.usuarioPanelNombre).toBeNull();
   });
 
+  it('cuando el código no está dado de alta, el aviso dice que es desconocido', async () => {
+    await transmitir({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura (desarmado): Apertura/Cierre por usuario', zona: '007', prioridad: 4 });
+    const { fraseParaEvento } = await import('@monitoring/shared');
+    const { cuerpo } = await ctx.pedir('GET', `/eventos?panelId=${panelId}`, { token: tokenOperador });
+    const ev = cuerpo.find((e: { zona: string }) => e.zona === '007');
+    expect(fraseParaEvento({ ...ev, panelId }, { nombrarSitio: false })?.cuerpo).toBe('Desarmado por usuario 007 desconocido');
+  });
+
   it('la apertura fuera de horario nombra a quien entró, y en la cola se ve la persona', async () => {
     // Horario que no cubre ninguna hora: cualquier apertura cae fuera
     await ctx.pedir('POST', '/horarios', {
@@ -101,5 +109,50 @@ describe('el número de un evento: zona o persona del teclado', () => {
     expect(fuera.usuarioPanelNombre).toBe('Laura Ríos');
     // Lo que se veía antes: la descripción de una zona que no participó
     expect(fuera.zonaDescripcion).toBeNull();
+  });
+});
+
+describe('la lista de códigos sin nombre', () => {
+  /** El panel tiene que estar reportando: si no, no interesa completarlo. */
+  async function marcarComoVivo(dias = 0): Promise<void> {
+    const { db, panel } = await import('@monitoring/db');
+    const { eq } = await import('drizzle-orm');
+    await db
+      .update(panel)
+      .set({ ultimaSenalEn: new Date(Date.now() - dias * 24 * 3600_000) })
+      .where(eq(panel.id, panelId));
+  }
+
+  it('sale el código que se usa y nadie registró, con cuántas veces', async () => {
+    await marcarComoVivo();
+    await transmitir({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura', zona: '007', prioridad: 4 });
+    await transmitir({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre', zona: '007', prioridad: 4 });
+
+    const { cuerpo } = await ctx.pedir('GET', '/codigos-sin-nombre', { token: tokenOperador });
+    expect(cuerpo).toHaveLength(1);
+    expect(cuerpo[0]).toMatchObject({ codigo: '007', eventos: 2, clienteNombre: 'Comercial Andina', panelId });
+  });
+
+  it('el que ya tiene nombre no sale, y guardarlo lo saca de la lista', async () => {
+    await marcarComoVivo();
+    // El 001 está dado de alta como Laura Ríos desde el principio
+    await transmitir({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura', zona: '001', prioridad: 4 });
+    await transmitir({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura', zona: '007', prioridad: 4 });
+    expect((await ctx.pedir('GET', '/codigos-sin-nombre', { token: tokenOperador })).cuerpo.map((c: { codigo: string }) => c.codigo)).toEqual(['007']);
+
+    await ctx.pedir('POST', '/usuarios-panel', { token: tokenAdmin, cuerpo: { panelId, numero: '007', nombre: 'Pedro Salas' } });
+    expect((await ctx.pedir('GET', '/codigos-sin-nombre', { token: tokenOperador })).cuerpo).toEqual([]);
+  });
+
+  it('el 000 no sale: es armar sin código, no una persona sin registrar', async () => {
+    await marcarComoVivo();
+    await transmitir({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre', zona: '000', prioridad: 4 });
+    expect((await ctx.pedir('GET', '/codigos-sin-nombre', { token: tokenOperador })).cuerpo).toEqual([]);
+  });
+
+  it('las cuentas que no reportan hace un mes quedan afuera', async () => {
+    await transmitir({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura', zona: '007', prioridad: 4 });
+    await marcarComoVivo(45);
+    expect((await ctx.pedir('GET', '/codigos-sin-nombre', { token: tokenOperador })).cuerpo).toEqual([]);
   });
 });

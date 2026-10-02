@@ -122,6 +122,21 @@ function persona(descripcion: string): string | null {
   return m ? m[1]! : null;
 }
 
+/**
+ * «usuario 003 desconocido»: alguien armó o desarmó con un código de teclado
+ * que nadie registró. Para el dueño de una alarma eso no es un detalle: puede
+ * ser un empleado que no declaró, o alguien que no debería tener código.
+ *
+ * El 000 queda afuera a propósito. No es una persona sin registrar: es armar
+ * sin teclear código de usuario (armado rápido), y en producción son casi la
+ * mitad de los casos. Llamarlo «desconocido» sería decir algo falso, seguido.
+ */
+export function usuarioDesconocido(zona: string | null | undefined): string | null {
+  const numero = (zona ?? '').trim();
+  if (!numero || !/^\d+$/.test(numero) || Number(numero) === 0) return null;
+  return `usuario ${numero} desconocido`;
+}
+
 /** Grupo de preferencia de un aviso según su categoría; alarmas y emergencias no tienen. */
 export function grupoDeAviso(categoria: CategoriaEvento | undefined, tono: Tono): GrupoAviso | null {
   if (tono === 'emergencia' || tono === 'alarma') return null;
@@ -166,14 +181,14 @@ export function fraseParaEvento(carga: CargaAviso, opciones: { nombrarSitio: boo
 
   switch (categoria) {
     case 'cierre': {
-      const quien = persona(carga.descripcion);
+      const quien = persona(carga.descripcion) ?? usuarioDesconocido(carga.zona);
       // "armado modo casa" y no "armado en casa": si no, el sitio queda como "en casa en Panadería"
       const modo = codigo === 'R441' ? 'armado modo casa' : 'armado';
       const resto = `${lugar}${quien ? ` por ${quien}` : ''}`;
       return armar(carga, { titulo: 'Sistema armado', cuerpo: `${mayuscula(modo)}${resto}`, texto: `Sistema ${modo}${resto}`, tono: 'estado' });
     }
     case 'apertura': {
-      const quien = persona(carga.descripcion);
+      const quien = persona(carga.descripcion) ?? usuarioDesconocido(carga.zona);
       const resto = `${lugar}${quien ? ` por ${quien}` : ''}`;
       return armar(carga, { titulo: 'Sistema desarmado', cuerpo: `Desarmado${resto}`, texto: `Sistema desarmado${resto}`, tono: 'estado' });
     }

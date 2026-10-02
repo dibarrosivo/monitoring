@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fraseParaEvento, type CargaAviso } from '@monitoring/shared';
+import { fraseParaEvento, usuarioDesconocido, type CargaAviso } from '@monitoring/shared';
 
 function evento(parcial: Partial<CargaAviso>): CargaAviso {
   return { eventoId: 1, panelId: 5, prioridad: 4, descripcion: '', sitioNombre: 'Panadería K3', ...parcial };
@@ -92,5 +92,27 @@ describe('lo que dice la app y el push (misma redacción)', () => {
     expect(fraseParaEvento(mudo, unSitio)).toMatchObject({ texto: 'Aviso de la central: Panel mudo', tono: 'alarma', canal: 'alarmas', grupo: null });
     const leve = evento({ categoria: 'sistema', codigo: 'SYS-X', descripcion: 'Actualización', prioridad: 3 });
     expect(fraseParaEvento(leve, unSitio)).toMatchObject({ tono: 'aviso', canal: 'avisos', grupo: 'sistema', persistente: false });
+  });
+});
+
+describe('códigos de teclado que nadie registró', () => {
+  it('el aviso dice quién fue, aunque no sepamos su nombre', () => {
+    const e = evento({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura (desarmado): Apertura/Cierre por usuario', zona: '003' });
+    expect(fraseParaEvento(e, unSitio)?.cuerpo).toBe('Desarmado por usuario 003 desconocido');
+    const armado = evento({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario', zona: '003' });
+    expect(fraseParaEvento(armado, variosSitios)?.cuerpo).toBe('Armado en Panadería K3 por usuario 003 desconocido');
+  });
+
+  it('con el nombre cargado manda el nombre', () => {
+    const e = evento({ categoria: 'apertura', codigo: 'E401', descripcion: 'Apertura (desarmado): Apertura/Cierre por usuario — Laura Ríos (cód. 3)', zona: '003' });
+    expect(fraseParaEvento(e, unSitio)?.cuerpo).toBe('Desarmado por Laura Ríos');
+  });
+
+  it('el 000 no es una persona sin registrar: es armar sin código, y no se nombra', () => {
+    // Son casi la mitad de las aperturas en producción; decir "desconocido" sería mentir, seguido
+    const e = evento({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario', zona: '000' });
+    expect(fraseParaEvento(e, unSitio)?.cuerpo).toBe('Armado');
+    expect(usuarioDesconocido('000')).toBeNull();
+    expect(usuarioDesconocido(null)).toBeNull();
   });
 });

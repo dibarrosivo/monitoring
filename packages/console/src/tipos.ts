@@ -827,3 +827,20 @@ export interface ActividadOperador {
   sesiones: { id: number; ingresoEn: string; ultimaActividadEn: string; ip: string | null; agente: string | null }[];
   hombreMuerto: { id: number; ocurridoEn: string; descripcion: string }[];
 }
+
+/**
+ * Un código de teclado que un panel está transmitiendo y que nadie dio de alta.
+ * Es trabajo pendiente: hasta que alguien le ponga nombre, el operador ve
+ * «usr 3» y el cliente recibe «por usuario 003 desconocido».
+ */
+export interface CodigoSinNombre {
+  panelId: number;
+  numeroCuenta: string;
+  prefijo: string | null;
+  clienteNombre: string;
+  sitioNombre: string;
+  codigo: string;
+  /** Cuántas veces se usó en los últimos 30 días */
+  eventos: number;
+  ultimoEn: string;
+}
