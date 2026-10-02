@@ -176,7 +176,22 @@ Si en la revisión lo objetan, la salida es quitarlo: los mensajes de prioridad
 alta de Firebase atraviesan el modo de ahorro igual, y lo que se pierde es
 margen, no la función. No conviene adelantarse a quitarlo.
 
-## Cuenta de prueba — TEMPORAL, se borra al terminar
+## Cuenta de prueba — SEMBRADA EN PRODUCCIÓN el 2026-10-02
+
+| Qué | Dónde |
+|---|---|
+| Cliente | `Pruebas` (id 93), exonerado de cobro |
+| Panel | `AL-5199` (id 93), sin supervisión, 4 zonas |
+| Usuario de la app | `pruebas@falconseguridadtotal.com` · clave `pruebas2026` |
+| Simulador | servicio `simulador-pruebas`, con `COMPOSE_PROFILES=ebs,pruebas` en el `.env` |
+
+Verificado el día que se sembró: el usuario entra, ve su panel y sus eventos,
+y **no** puede listar los clientes de la central ni ver la cola (403 en las
+dos). Las diez señales entraron y no abrieron ni una alarma.
+
+El `.env` anterior quedó guardado en `/opt/monitoring/.env.antes-pruebas`.
+
+### Cómo se rehace o se borra
 
 Hace falta **antes** de subir: sin credenciales el revisor de Google no puede
 entrar y rechaza la app. Decidido el 01-10-2026, con señales simuladas.
