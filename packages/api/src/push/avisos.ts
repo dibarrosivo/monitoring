@@ -90,13 +90,13 @@ export async function enviarAvisosPush(
      * app esté muerta. Sin voz, pero llega: lo que no puede pasar es que un
      * aviso se pierda.
      */
-    const reenviarSiNoAcusa = (envioId: number, token: string, mensaje: MensajePush) => {
+    const reenviarSiNoAcusa = (envioId: number, token: string, mensaje: MensajePush, motivo = 'sin acuse en 30 s') => {
       setTimeout(async () => {
         try {
           const [f] = await db.select({ recibidoEn: envioPush.recibidoEn }).from(envioPush).where(eq(envioPush.id, envioId)).limit(1);
           if (!f || f.recibidoEn) return;
           const r = await enviarPushSimple(token, mensaje);
-          await db.update(envioPush).set({ detalle: `sin acuse en 30 s; reenviado como notificación simple (${r})` }).where(eq(envioPush.id, envioId));
+          await db.update(envioPush).set({ detalle: `${motivo}; reenviado como notificación simple (${r})` }).where(eq(envioPush.id, envioId));
           log.info({ envioId, r }, 'Push reenviado como notificación simple');
         } catch (err) {
           log.warn({ err: (err as Error).message, envioId }, 'No se pudo reenviar el push');
@@ -129,7 +129,15 @@ export async function enviarAvisosPush(
           if (r === 'enviado' && envioId) reenviarSiNoAcusa(envioId, t.token, paraEste);
         } catch (err) {
           log.warn({ err: (err as Error).message, usuarioId: g.usuarioId }, 'No se pudo mandar el push');
-          await rastro(g.usuarioId, 'error', t.id, (err as Error).message.slice(0, 200));
+          const envioId = await rastro(g.usuarioId, 'error', t.id, (err as Error).message.slice(0, 200));
+          /*
+           * El envío falló aun con los reintentos (la red hacia Google cayó un
+           * rato). La red de seguridad antes solo se armaba cuando el envío
+           * salía bien, así que justo en este caso el aviso se perdía. Ahora
+           * también se arma: 30 s después se intenta de nuevo, como
+           * notificación simple, que es la que llega aunque la app esté muerta.
+           */
+          if (envioId) reenviarSiNoAcusa(envioId, t.token, paraEste, 'falló el envío');
         }
       }
     }

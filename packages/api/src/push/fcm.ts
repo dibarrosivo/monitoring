@@ -90,30 +90,75 @@ export interface MensajePush {
 
 export type ResultadoPush = 'enviado' | 'token-invalido' | 'error';
 
+/** Esperas entre reintentos; su largo fija la cantidad de intentos (3). */
+export const ESPERAS_REINTENTO_MS = [400, 1500];
+const TIEMPO_LIMITE_MS = 10_000;
+
+/**
+ * POST a FCM con reintentos. Traído de TrueTracker (fleetview ad3727e), donde
+ * producción mostró ETIMEDOUT sueltos hacia Google: sin reintento ese aviso se
+ * perdía para siempre, porque el catch solo lo anotaba. En una app de alarmas
+ * eso pesa más todavía.
+ *
+ * Reintenta los fallos de red y lo que FCM marca como transitorio (429 y 5xx).
+ * Un 4xx real (token muerto, mensaje inválido) se devuelve tal cual, porque no
+ * mejora reintentando. Cada intento tiene su propio límite de tiempo: sin él,
+ * una conexión colgada dejaba el envío esperando para siempre.
+ *
+ * Si se agotan los intentos lanza un error, como antes: quien llama lo anota
+ * como 'error' y NO borra el token, porque que se caiga la red no es culpa del
+ * teléfono.
+ */
+export async function postConReintento(
+  url: string,
+  acceso: string,
+  cuerpo: unknown,
+  esperas: number[] = ESPERAS_REINTENTO_MS,
+): Promise<Response> {
+  let ultimo = '';
+  for (let intento = 0; intento <= esperas.length; intento++) {
+    if (intento > 0) await new Promise((listo) => setTimeout(listo, esperas[intento - 1]));
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${acceso}`, 'content-type': 'application/json' },
+        body: JSON.stringify(cuerpo),
+        signal: AbortSignal.timeout(TIEMPO_LIMITE_MS),
+      });
+      if (r.status !== 429 && r.status < 500) return r;
+      ultimo = `HTTP ${r.status}`;
+    } catch (error) {
+      ultimo = (error as Error).message ?? String(error);
+    }
+  }
+  throw new Error(`FCM inaccesible tras ${esperas.length + 1} intentos: ${ultimo}`);
+}
+
+/** Lo que FCM devolvió, traducido: enviado, token muerto, o un error que hay que anotar. */
+async function interpretar(respuesta: Response): Promise<ResultadoPush> {
+  if (respuesta.ok) return 'enviado';
+  const texto = await respuesta.text();
+  if (respuesta.status === 404 || texto.includes('UNREGISTERED') || texto.includes('INVALID_ARGUMENT')) return 'token-invalido';
+  throw new Error(`FCM ${respuesta.status}: ${texto.slice(0, 200)}`);
+}
+
 /** Manda un mensaje a un teléfono. 'token-invalido' significa que hay que borrar ese token. */
 export async function enviarPush(token: string, mensaje: MensajePush, usuarioId = 0): Promise<ResultadoPush> {
   const c = cargarCuenta();
   if (!c) return 'error';
   const acceso = await obtenerTokenAcceso();
-  const respuesta = await fetch(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${acceso}`, 'content-type': 'application/json' },
-    // Solo datos, sin bloque "notification": así Android entrega el mensaje al
-    // servicio nativo de la app aunque esté cerrada, y es la app la que arma la
-    // notificación y la dice en voz alta. Con "notification" el sistema la
-    // mostraría solo, muda y sin contexto.
-    body: JSON.stringify({
-      message: {
-        token,
-        data: { ...(mensaje.datos ?? {}), titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, habla: mensaje.habla === undefined ? mensaje.cuerpo : mensaje.habla, canal: mensaje.canal, eco: claveEco(usuarioId, mensaje.datos?.eventoId) },
-        android: { priority: 'high', ttl: '3600s' },
-      },
-    }),
+  // Solo datos, sin bloque "notification": así Android entrega el mensaje al
+  // servicio nativo de la app aunque esté cerrada, y es la app la que arma la
+  // notificación y la dice en voz alta. Con "notification" el sistema la
+  // mostraría solo, muda y sin contexto.
+  const respuesta = await postConReintento(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, acceso, {
+    message: {
+      token,
+      data: { ...(mensaje.datos ?? {}), titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, habla: mensaje.habla === undefined ? mensaje.cuerpo : mensaje.habla, canal: mensaje.canal, eco: claveEco(usuarioId, mensaje.datos?.eventoId) },
+      android: { priority: 'high', ttl: '3600s' },
+    },
   });
-  if (respuesta.ok) return 'enviado';
-  const texto = await respuesta.text();
-  if (respuesta.status === 404 || texto.includes('UNREGISTERED') || texto.includes('INVALID_ARGUMENT')) return 'token-invalido';
-  throw new Error(`FCM ${respuesta.status}: ${texto.slice(0, 200)}`);
+  return interpretar(respuesta);
 }
 
 /**
@@ -126,27 +171,20 @@ export async function enviarPushSimple(token: string, mensaje: MensajePush): Pro
   const c = cargarCuenta();
   if (!c) return 'error';
   const acceso = await obtenerTokenAcceso();
-  const respuesta = await fetch(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${acceso}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      message: {
-        token,
-        notification: { title: mensaje.titulo, body: mensaje.cuerpo },
-        data: { ...(mensaje.datos ?? {}), reenvio: '1' },
-        android: {
-          priority: 'high',
-          notification: {
-            channel_id: CANAL_PUSH[mensaje.canal],
-            sound: mensaje.canal === 'alarmas' ? SONIDO_ALARMA : 'default',
-            notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
-          },
+  const respuesta = await postConReintento(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, acceso, {
+    message: {
+      token,
+      notification: { title: mensaje.titulo, body: mensaje.cuerpo },
+      data: { ...(mensaje.datos ?? {}), reenvio: '1' },
+      android: {
+        priority: 'high',
+        notification: {
+          channel_id: CANAL_PUSH[mensaje.canal],
+          sound: mensaje.canal === 'alarmas' ? SONIDO_ALARMA : 'default',
+          notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
         },
       },
-    }),
+    },
   });
-  if (respuesta.ok) return 'enviado';
-  const texto = await respuesta.text();
-  if (respuesta.status === 404 || texto.includes('UNREGISTERED') || texto.includes('INVALID_ARGUMENT')) return 'token-invalido';
-  throw new Error(`FCM ${respuesta.status}: ${texto.slice(0, 200)}`);
+  return interpretar(respuesta);
 }
