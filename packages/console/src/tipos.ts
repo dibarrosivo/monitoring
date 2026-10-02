@@ -829,16 +829,11 @@ export interface ActividadOperador {
 }
 
 /**
- * Un código de teclado que un panel está transmitiendo y que nadie dio de alta.
- * Es trabajo pendiente: hasta que alguien le ponga nombre, el operador ve
- * «usr 3» y el cliente recibe «por usuario 003 desconocido».
+ * Un código de teclado que este panel está transmitiendo y que nadie dio de
+ * alta. Hasta que alguien le ponga nombre, el operador ve «usr 3» y el cliente
+ * recibe «por usuario 003 desconocido».
  */
 export interface CodigoSinNombre {
-  panelId: number;
-  numeroCuenta: string;
-  prefijo: string | null;
-  clienteNombre: string;
-  sitioNombre: string;
   codigo: string;
   /** Cuántas veces se usó en los últimos 30 días */
   eventos: number;

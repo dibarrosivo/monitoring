@@ -33,6 +33,16 @@ window.fetch = async (entrada: RequestInfo | URL) => {
   else if (url.includes('/paneles/estado')) cuerpo = [panel];
   else if (url.includes('/eventos')) cuerpo = eventos;
   else if (url.includes('/zonas')) cuerpo = [{ id: 1, panelId: 92, numero: '001', particion: '01', descripcion: 'Puerta entrada/salida' }, { id: 2, panelId: 92, numero: '003', particion: '01', descripcion: 'Puerta depósito' }];
+  else if (url.includes('/codigos-sin-nombre'))
+    cuerpo = [
+      { codigo: '003', eventos: 21, ultimoEn: t(130) },
+      { codigo: '007', eventos: 4, ultimoEn: t(2600) },
+    ];
+  else if (url.includes('/usuarios-panel'))
+    cuerpo = [
+      { id: 1, panelId: 92, numero: '001', nombre: 'Andrés Molina', telefono: null },
+      { id: 2, panelId: 92, numero: '040', nombre: 'Laura Ríos', telefono: null },
+    ];
   else if (url.includes('/clientes/')) cuerpo = { id: 2, nombre: 'Falcon Seguridad Total', contactos: [], sitios: [] };
   else if (url.includes('/comandos')) cuerpo = [];
   return new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } });

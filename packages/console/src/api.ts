@@ -310,8 +310,9 @@ export const listarUsuariosPanel = (panelId: number) => pedir<UsuarioPanel[]>(`/
 export const crearUsuarioPanel = (datos: { panelId: number; numero: string; nombre: string; telefono?: string }) =>
   pedir<UsuarioPanel>('/usuarios-panel', { method: 'POST', body: JSON.stringify(datos) });
 export const eliminarUsuarioPanel = (id: number) => eliminar(`/usuarios-panel/${id}`);
-/** Códigos de teclado que se usan y nadie registró, solo de cuentas que reportan */
-export const listarCodigosSinNombre = () => pedir<CodigoSinNombre[]>('/codigos-sin-nombre');
+/** Códigos de teclado que este equipo usa y nadie dio de alta */
+export const listarCodigosSinNombre = (panelId: number) =>
+  pedir<CodigoSinNombre[]>(`/paneles/${panelId}/codigos-sin-nombre`);
 export const crearUsuario = (datos: {
   email: string;
   nombre: string;

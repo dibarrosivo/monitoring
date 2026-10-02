@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   crearContacto,
@@ -17,6 +17,7 @@ import {
   listarEventosDePanel,
   listarHorarios,
   listarPaneles,
+  listarCodigosSinNombre,
   listarUsuariosPanel,
   listarZonas,
   verCliente, listarPlanes } from '../api.js';
@@ -685,17 +686,37 @@ function FilaZona({ zona, alCambiar }: { zona: { id: number; numero: string; des
 }
 
 /** Códigos del teclado del panel: con esto los eventos 4xx nombran a la persona. */
+/**
+ * Códigos de usuario del teclado de este equipo.
+ *
+ * El panel transmite un número en cada apertura y cierre: el código con el
+ * que la persona armó o desarmó. Acá se le pone nombre. Lo que no está
+ * cargado sale como «usr 3» en la cola, y al cliente le llega «por usuario
+ * 003 desconocido».
+ *
+ * Arriba van los que ya tienen nombre; abajo, los que el panel viene usando
+ * y nadie identificó, que es lo que hay que preguntarle al cliente. Tocar uno
+ * de esos carga el número en el formulario: solo queda escribir de quién es.
+ */
 function UsuariosPanel({ panelId }: { panelId: number }) {
   const clienteConsultas = useQueryClient();
   const { data: usuarios } = useQuery({
     queryKey: ['usuarios-panel', panelId],
     queryFn: () => listarUsuariosPanel(panelId),
   });
+  const { data: sinNombre } = useQuery({
+    queryKey: ['codigos-sin-nombre', panelId],
+    queryFn: () => listarCodigosSinNombre(panelId),
+  });
   const [numero, setNumero] = useState('');
   const [nombre, setNombre] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const campoNombre = useRef<HTMLInputElement>(null);
 
-  const refrescar = () => void clienteConsultas.invalidateQueries({ queryKey: ['usuarios-panel', panelId] });
+  const refrescar = () => {
+    void clienteConsultas.invalidateQueries({ queryKey: ['usuarios-panel', panelId] });
+    void clienteConsultas.invalidateQueries({ queryKey: ['codigos-sin-nombre', panelId] });
+  };
   const crear = useMutation({
     mutationFn: () => crearUsuarioPanel({ panelId, numero, nombre }),
     onSuccess: () => {
@@ -708,9 +729,18 @@ function UsuariosPanel({ panelId }: { panelId: number }) {
   });
   const borrar = useMutation({ mutationFn: eliminarUsuarioPanel, onSuccess: refrescar });
 
+  /** Tocar un código sin identificar: queda cargado y el foco pasa al nombre. */
+  function identificar(codigo: string) {
+    setNumero(codigo);
+    setError(null);
+    campoNombre.current?.focus();
+  }
+
+  const pendientes = sinNombre ?? [];
+
   return (
     <div className="flex flex-col gap-1.5">
-      <h4 className="text-tenue text-xs uppercase tracking-wider">Usuarios del panel (códigos)</h4>
+      <h4 className="text-tenue text-xs uppercase tracking-wider">Códigos de usuario</h4>
       <ul className="text-sm flex flex-col gap-1">
         {(usuarios ?? []).map((u) => (
           <li key={u.id} className="flex gap-2 items-center">
@@ -722,18 +752,40 @@ function UsuariosPanel({ panelId }: { panelId: number }) {
           </li>
         ))}
         {(usuarios ?? []).length === 0 && (
-          <li className="text-tenue">Sin códigos cargados: los eventos mostrarán solo el número.</li>
+          <li className="text-tenue">Sin códigos cargados: los eventos muestran solo el número.</li>
         )}
       </ul>
+
+      {pendientes.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-borde/60 flex flex-col gap-1.5">
+          <p className="text-tenue text-xs uppercase tracking-wider">
+            Sin identificar · los usó este panel en 30 días
+          </p>
+          <ul className="text-sm flex flex-col gap-1">
+            {pendientes.map((c) => (
+              <li key={c.codigo} className="flex gap-2 items-center">
+                <span className="font-datos text-prio2 font-semibold">{c.codigo}</span>
+                <span className="flex-1 text-tenue font-datos text-xs">
+                  {c.eventos} {c.eventos === 1 ? 'vez' : 'veces'} · última {transcurrido(c.ultimoEn, Date.now(), { grueso: true })}
+                </span>
+                <button onClick={() => identificar(c.codigo)} className={BOTON_MINI}>
+                  ¿Quién es?
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
           crear.mutate();
         }}
-        className="flex flex-wrap gap-1.5"
+        className="flex flex-wrap gap-1.5 mt-1"
       >
         <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="N°" required pattern="\d{1,4}" className={`${CAMPO} w-16 font-datos`} />
-        <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la persona" required className={`${CAMPO} flex-1`} />
+        <input ref={campoNombre} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la persona" required className={`${CAMPO} flex-1`} />
         <button type="submit" disabled={!numero.trim() || !nombre.trim() || crear.isPending} className={BOTON}>
           Agregar
         </button>

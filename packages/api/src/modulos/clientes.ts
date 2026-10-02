@@ -539,52 +539,31 @@ export function registrarClientes(app: App) {
   );
 
   /*
-   * Códigos de teclado que se están usando y que nadie registró. El panel
-   * transmite el número de usuario en cada apertura y cierre; si no está dado
-   * de alta, el operador ve «usr 3» y no sabe quién entró. Esta lista es el
-   * trabajo pendiente: una fila por código, para ir completándola a medida que
-   * se habla con cada cliente.
+   * Códigos de teclado que este equipo está usando y que nadie dio de alta. El
+   * panel transmite el número de usuario en cada apertura y cierre; si no está
+   * cargado, el operador ve «usr 3» y el cliente recibe «por usuario 003
+   * desconocido». Sirve para saber qué preguntarle al cliente y cargarlo ahí
+   * mismo, al lado de los que ya tienen nombre.
    *
-   * Dos cosas quedan afuera a propósito:
-   * - Las cuentas que no reportan hace un mes. Si el panel está en silencio,
-   *   completar sus códigos no le sirve hoy a nadie.
-   * - El código 000, que es armar sin teclear código de usuario, no una
-   *   persona sin registrar. Son casi la mitad de los casos y no se resuelven
-   *   preguntando.
+   * El código 000 queda afuera: es armar o desarmar sin teclear código de
+   * usuario (armado rápido), no una persona sin registrar.
    */
-  app.get('/codigos-sin-nombre', async () => {
-    const { rows } = await pool.query<{
-      panelId: number;
-      numeroCuenta: string;
-      prefijo: string | null;
-      clienteNombre: string;
-      sitioNombre: string;
-      codigo: string;
-      eventos: number;
-      ultimoEn: Date;
-    }>(
-      `SELECT p.id                AS "panelId",
-              p.numero_cuenta     AS "numeroCuenta",
-              p.prefijo           AS "prefijo",
-              c.nombre            AS "clienteNombre",
-              s.nombre            AS "sitioNombre",
-              e.zona              AS "codigo",
+  app.get('/paneles/:id/codigos-sin-nombre', async (request) => {
+    const { rows } = await pool.query<{ codigo: string; eventos: number; ultimoEn: Date }>(
+      `SELECT e.zona              AS "codigo",
               count(*)::int       AS "eventos",
               max(e.ocurrido_en)  AS "ultimoEn"
          FROM evento e
-         JOIN panel p   ON p.id = e.id_panel
-         JOIN sitio s   ON s.id = p.id_sitio
-         JOIN cliente c ON c.id = s.id_cliente
     LEFT JOIN usuario_panel u ON u.id_panel = e.id_panel AND u.numero = e.zona
-        WHERE e.categoria IN ('apertura', 'cierre', 'cancelacion')
+        WHERE e.id_panel = $1
+          AND e.categoria IN ('apertura', 'cierre', 'cancelacion')
           AND e.ocurrido_en > now() - interval '30 days'
           AND u.id IS NULL
           AND e.zona ~ '^[0-9]+$'
           AND e.zona::int <> 0
-          AND p.activo
-          AND p.ultima_senal_en > now() - interval '30 days'
-     GROUP BY p.id, p.numero_cuenta, p.prefijo, c.nombre, s.nombre, e.zona
-     ORDER BY count(*) DESC, p.numero_cuenta, e.zona`,
+     GROUP BY e.zona
+     ORDER BY count(*) DESC, e.zona`,
+      [idDe(request)],
     );
     return rows;
   });

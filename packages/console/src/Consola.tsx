@@ -12,7 +12,6 @@ import { Eventos } from './vistas/Eventos.js';
 import { Paneles } from './vistas/Paneles.js';
 import { Puentes } from './vistas/Puentes.js';
 import { Supervision } from './vistas/Supervision.js';
-import { Codigos } from './vistas/Codigos.js';
 import { Clientes } from './vistas/Clientes.js';
 import { Usuarios } from './vistas/Usuarios.js';
 import { Calendario } from './vistas/Calendario.js';
@@ -30,7 +29,7 @@ import { detenerPush, iniciarPush } from './cliente/push.js';
 import { guardarVista } from './api.js';
 import { nombreCuenta, enVerificacion } from './ui.js';
 
-type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'codigos' | 'cobros' | 'reportes' | 'supervision' | 'turnos' | 'calendario' | 'usuarios';
+type Vista = 'tablero' | 'cola' | 'eventos' | 'paneles' | 'puentes' | 'clientes' | 'cobros' | 'reportes' | 'supervision' | 'turnos' | 'calendario' | 'usuarios';
 
 /** Minutos sin ninguna señal para dar la central por muda: el mismo valor que usa el vigilante del servidor. */
 const LIMITE_SILENCIO_MIN = SILENCIO_GENERAL_MIN_POR_DEFECTO;
@@ -74,7 +73,6 @@ const VISTAS: { clave: Vista; nombre: string; roles?: Usuario['rol'][] }[] = [
   { clave: 'paneles', nombre: 'Dispositivos' },
   { clave: 'puentes', nombre: 'Puentes' },
   { clave: 'clientes', nombre: 'Clientes' },
-  { clave: 'codigos', nombre: 'Códigos' },
   { clave: 'cobros', nombre: 'Cobros', roles: ['admin', 'supervisor'] },
   { clave: 'reportes', nombre: 'Reportes' },
   { clave: 'supervision', nombre: 'Supervisión', roles: ['admin', 'supervisor'] },
@@ -347,7 +345,6 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'cobros' && <Cobros clienteInicial={cobroObjetivo} />}
           {vista === 'reportes' && <Reportes />}
-          {vista === 'codigos' && <Codigos />}
           {vista === 'supervision' && <Supervision />}
           {vista === 'turnos' && <Turnos />}
           {vista === 'calendario' && <Calendario />}
@@ -461,7 +458,6 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'puentes' && <Puentes />}
           {vista === 'clientes' && <Clientes clienteInicial={clienteObjetivo} alAbrirDispositivo={irADispositivo} />}
           {vista === 'reportes' && <Reportes />}
-          {vista === 'codigos' && <Codigos />}
           {vista === 'supervision' && <Supervision />}
           {vista === 'turnos' && <Turnos />}
           {vista === 'calendario' && <Calendario />}
