@@ -191,6 +191,33 @@ dos). Las diez señales entraron y no abrieron ni una alarma.
 
 El `.env` anterior quedó guardado en `/opt/monitoring/.env.antes-pruebas`.
 
+### APAGADA desde el 2026-10-02 — encenderla antes del testing
+
+Se sembró y se verificó, y después se apagó a pedido del dueño: no tiene
+sentido que una cuenta inventada esté viva ni que un simulador meta señales en
+producción durante semanas. **No se borró nada**, solo se desactivó.
+
+Para volver a encenderla, el día que arranque el testing con Google:
+
+```bash
+# 1. el cliente, el panel y el usuario
+docker exec $(docker ps -qf name=postgres) psql -U monitoring -d monitoring -c "
+  UPDATE usuario SET activo = true WHERE email = 'pruebas@falconseguridadtotal.com';
+  UPDATE panel   SET activo = true WHERE numero_cuenta = '5199';
+  UPDATE cliente SET activo = true WHERE nombre = 'Pruebas';"
+
+# 2. el simulador (ojo de no pisar el perfil ebs, que es el receptor de Matarile)
+sed -i 's/^COMPOSE_PROFILES=ebs$/COMPOSE_PROFILES=ebs,pruebas/' /opt/monitoring/.env
+cd /opt/monitoring && docker compose -f docker-compose.produccion.yml up -d simulador-pruebas
+```
+
+Conviene además cebarla de nuevo para que la app no se vea vacía el primer día:
+
+```bash
+docker exec -e PRUEBAS_RITMO=rapido -e PRUEBAS_HOST=receptor -e PRUEBAS_CUENTA=5199 \
+  monitoring-api-1 npx tsx tools/simulator/src/panelPruebas.ts
+```
+
 ### Cómo se rehace o se borra
 
 Hace falta **antes** de subir: sin credenciales el revisor de Google no puede
