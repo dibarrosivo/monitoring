@@ -102,11 +102,23 @@ export const IconoAltavoz = (p: Props & { apagado?: boolean }) => (
 export const MarcaFST = ({ className, tamano = 36 }: { className?: string; tamano?: number }) => (
   <svg width={tamano} height={tamano} viewBox="0 0 100 100" className={className} role="img" aria-label="FST">
     <circle cx="50" cy="50" r="48" fill="#ffffff" />
-    {/* Peso 900 sin contorno: el contorno engordaba tanto que la S se cerraba y parecía más chica */}
-    <text x="50" y="64" textAnchor="middle" fontFamily="Barlow, 'Arial Black', Arial, sans-serif" fontWeight="900" fontSize="44" fill="#0b0f14">
-      <tspan>F</tspan>
-      <tspan fontSize="46" dy="0.6">S</tspan>
-      <tspan dy="-0.6">T</tspan>
+    {/*
+      Las tres letras en una sola línea de texto, mismo tamaño y misma base. Un
+      intento anterior agrandaba la S y la bajaba un poco porque parecía más
+      chica; eso es el desborde óptico de las letras redondas, que la propia
+      tipografía ya compensa, y lo único que lograba era dejarla fuera de línea.
+    */}
+    <text
+      x="50"
+      y="66"
+      textAnchor="middle"
+      fontFamily="Barlow, 'Arial Black', Arial, sans-serif"
+      fontWeight="900"
+      fontSize="48"
+      letterSpacing="-2"
+      fill="#0b0f14"
+    >
+      FST
     </text>
   </svg>
 );
