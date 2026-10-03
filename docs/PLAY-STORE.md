@@ -212,15 +212,18 @@ dispositivo.
 | Clasificación de contenido (IARC) | No es juego ni red social; No a todo (violencia, sexo, lenguaje, drogas, apuestas, compras, interacción entre usuarios, compartir ubicación) → apto para todo público |
 | ID de publicidad | **No** — verificado: el manifiesto no trae `com.google.android.gms.permission.AD_ID` |
 
-### Riesgo conocido: el borrado de cuenta desde la app
+### Borrado de cuenta desde la app — decidido no agregarlo (03-10-2026)
 
-Google exige que las apps donde se crean cuentas **desde la app** permitan
-pedir su eliminación también desde la app, además del enlace web. FST no tiene
-registro propio, pero el propietario sí da de alta usuarios desde la app, y un
-revisor puede leer eso como creación de cuentas. El enlace web ya existe. Lo
-seguro es agregar en la pantalla Cuenta un «Pedir la eliminación de mi cuenta»
-antes de mandar la prueba cerrada a revisión. TrueTracker tiene el mismo
-hueco.
+Google exige que las apps donde el usuario **crea su propia cuenta** permitan
+pedir su eliminación desde la app. En FST el cliente no se registra: la cuenta
+la da la central como parte del servicio. El borrado se pide por correo, como
+dice `/privacidad/`. Si un revisor lo objeta, se agrega en ese momento un
+«Pedir la eliminación de mi cuenta» que solo registre el pedido. TrueTracker
+está en la misma situación.
+
+Ojo: que el cliente no se registre **no** significa que la app no maneje datos
+personales (nombre, correo, teléfonos de la lista de llamadas, quién armó y
+desarmó). Eso se declara en Data Safety igual.
 
 ### Riesgo conocido: el permiso de ahorro de batería
 
@@ -366,7 +369,7 @@ eso). FST arranca en 23.
 | Cuenta de pruebas | sembrada y **apagada**; se enciende el día de la prueba cerrada |
 | Firma | **decisión al subir el primer AAB: la llave existente** |
 | Canal directo | vivo; se congela en 1.5.7 desde la primera versión en Play |
-| Borrado de cuenta en la app | pendiente de decidir (riesgo de revisión) |
+| Borrado de cuenta en la app | decidido no agregarlo; se pide por correo |
 
 ## Cada versión nueva
 
