@@ -10,6 +10,7 @@ import {
 import type { UsuarioAdmin } from '../tipos.js';
 
 import { BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO } from '../estilos.js';
+import { CLAVE_MINIMA } from '@monitoring/shared';
 
 export function Usuarios({ usuarioActualId }: { usuarioActualId: number }) {
   const { data: usuarios, isLoading } = useQuery({ queryKey: ['usuarios'], queryFn: () => listarUsuarios() });
@@ -139,7 +140,7 @@ function FormularioUsuario() {
         type="text"
         placeholder="Clave inicial (mín. 6)"
         required
-        minLength={6}
+        minLength={CLAVE_MINIMA}
         className={`${CAMPO} font-datos`}
       />
       <select value={datos.rol} onChange={(e) => setDatos({ ...datos, rol: e.target.value as 'admin' | 'supervisor' | 'operador' })} className={CAMPO}>
@@ -189,7 +190,7 @@ function FilaUsuario({ usuario, esUsuarioActual }: { usuario: UsuarioAdmin; esUs
               placeholder="Clave nueva"
               className={`${CAMPO} font-datos w-36`}
             />
-            <button onClick={() => editar.mutate({ clave: claveNueva })} disabled={claveNueva.length < 6} className={BOTON_MINI}>
+            <button onClick={() => editar.mutate({ clave: claveNueva })} disabled={claveNueva.length < CLAVE_MINIMA} className={BOTON_MINI}>
               Aplicar
             </button>
           </>

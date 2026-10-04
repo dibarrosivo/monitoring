@@ -62,10 +62,10 @@ describe('usuarios de la app administrados por el propietario', () => {
   it('el propietario agrega una persona y esta entra a la app con acceso a ese cliente', async () => {
     const r = await ctx.pedir('POST', '/cliente/usuarios', {
       token: tokenPropietario,
-      cuerpo: { clienteId: clienteA, nombre: 'Esposa', email: 'esposa@test.local', clave: 'esposa123' },
+      cuerpo: { clienteId: clienteA, nombre: 'Esposa', email: 'esposa@test.local', clave: 'esposa-1234' },
     });
     expect(r.estado).toBe(201);
-    const tokenEsposa = await ctx.ingresar('esposa@test.local', 'esposa123');
+    const tokenEsposa = await ctx.ingresar('esposa@test.local', 'esposa-1234');
     const resumen = (await ctx.pedir('GET', '/cliente/resumen', { token: tokenEsposa })).cuerpo;
     expect(resumen.paneles.map((p: { numeroCuenta: string }) => p.numeroCuenta)).toEqual(['ABC1']);
     expect(resumen.propietarioDe).toEqual([]);
@@ -80,7 +80,7 @@ describe('usuarios de la app administrados por el propietario', () => {
   it('no se puede dar de alta con el correo de alguien de la central', async () => {
     const r = await ctx.pedir('POST', '/cliente/usuarios', {
       token: tokenPropietario,
-      cuerpo: { clienteId: clienteA, nombre: 'Xavier', email: 'admin@test.local', clave: 'loquesea1' },
+      cuerpo: { clienteId: clienteA, nombre: 'Xavier', email: 'admin@test.local', clave: 'loquesea-12' },
     });
     expect(r.estado).toBe(409);
   });

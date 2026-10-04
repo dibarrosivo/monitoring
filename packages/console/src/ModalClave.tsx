@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { cambiarClave } from './api.js';
+import { CLAVE_MINIMA } from '@monitoring/shared';
 
 export function ModalClave({ alCerrar }: { alCerrar: () => void }) {
   const [actual, setActual] = useState('');
@@ -42,7 +43,7 @@ export function ModalClave({ alCerrar }: { alCerrar: () => void }) {
           onChange={(e) => setNueva(e.target.value)}
           placeholder="Clave nueva (mín. 6)"
           required
-          minLength={6}
+          minLength={CLAVE_MINIMA}
           autoComplete="new-password"
           className="bg-fondo border border-borde rounded-sm px-3 py-2 text-sm font-datos"
         />
@@ -53,7 +54,7 @@ export function ModalClave({ alCerrar }: { alCerrar: () => void }) {
           </button>
           <button
             type="submit"
-            disabled={cambiar.isPending || nueva.length < 6}
+            disabled={cambiar.isPending || nueva.length < CLAVE_MINIMA}
             className="bg-superficie-2 hover:bg-borde border border-borde rounded-sm px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
           >
             Cambiar

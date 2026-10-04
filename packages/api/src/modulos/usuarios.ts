@@ -2,12 +2,13 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { acceso, cliente, db, hashearClave, panel, sitio, usuario } from '@monitoring/db';
 import type { App } from '../tipos.js';
+import { CLAVE_MINIMA } from '@monitoring/shared';
 
 const esquemaAlta = z
   .object({
     email: z.string().email(),
     nombre: z.string().min(1),
-    clave: z.string().min(6),
+    clave: z.string().min(CLAVE_MINIMA),
     rol: z.enum(['admin', 'supervisor', 'operador', 'cliente']).default('operador'),
     /** Para rol 'cliente': acceso inicial a todo este cliente */
     clienteId: z.number().int().optional(),
@@ -21,7 +22,7 @@ const esquemaEdicion = z.object({
   rol: z.enum(['admin', 'supervisor', 'operador']).optional(),
   activo: z.boolean().optional(),
   /** Si viene, restablece la clave del usuario */
-  clave: z.string().min(6).optional(),
+  clave: z.string().min(CLAVE_MINIMA).optional(),
 });
 
 const esquemaAcceso = z.object({

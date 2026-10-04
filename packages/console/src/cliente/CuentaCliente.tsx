@@ -16,6 +16,7 @@ import type { ContactoApp, PanelResumenCliente, Usuario, UsuarioApp } from '../t
 import { MiPlan } from './MiPlan.js';
 
 import { BOTON_APP as BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO_APP as CAMPO } from '../estilos.js';
+import { CLAVE_MINIMA } from '@monitoring/shared';
 const ROLES = ['Propietario', 'Encargado', 'Empleado', 'Familiar', 'Vecino', 'Vigilante', 'Otro'];
 
 /**
@@ -137,7 +138,7 @@ function Personas({ clientes, paneles, usuarioActual }: { clientes: [number, str
           )}
           <input value={d.nombre} onChange={(e) => setD({ ...d, nombre: e.target.value })} placeholder="Nombre y apellido" required className={CAMPO} />
           <input value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} type="email" placeholder="Correo (será su usuario)" required className={CAMPO} />
-          <input value={d.clave} onChange={(e) => setD({ ...d, clave: e.target.value })} type="password" placeholder="Clave inicial (mínimo 6)" required minLength={6} className={CAMPO} />
+          <input value={d.clave} onChange={(e) => setD({ ...d, clave: e.target.value })} type="password" placeholder={`Clave inicial (mínimo ${CLAVE_MINIMA})`} required minLength={CLAVE_MINIMA} className={CAMPO} />
           {sitios.length > 1 && (
             <select value={d.sitioId} onChange={(e) => setD({ ...d, sitioId: e.target.value })} className={CAMPO}>
               <option value="">Puede ver todos los sitios</option>

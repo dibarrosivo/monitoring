@@ -25,6 +25,7 @@ import { registrarTurnos } from './modulos/turnos.js';
 import { registrarSupervision } from './modulos/supervision.js';
 import { registrarBridge, registrarBridgesConsulta } from './modulos/bridge.js';
 import './tipos.js';
+import { secretoSesiones } from './secretos.js';
 
 export interface OpcionesApp {
   /** Nivel de log; 'silent' en las pruebas */
@@ -52,10 +53,22 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
   app: FastifyInstance;
   conexiones: Map<WebSocket, Suscriptor>;
 }> {
-  const app = Fastify({ logger: { level: opciones.nivelLog ?? process.env.NIVEL_LOG ?? 'info' } });
+  const app = Fastify({
+    logger: { level: opciones.nivelLog ?? process.env.NIVEL_LOG ?? 'info' },
+    /*
+     * La API solo se alcanza a través de Caddy, que pone la IP real del cliente
+     * en X-Forwarded-For. Sin esto, request.ip era la IP interna de Caddy para
+     * todo el mundo: el límite del formulario de la landing era uno solo para
+     * todos los visitantes, y el registro de sesiones del personal anotaba
+     * 172.18.0.x en vez de desde dónde entró cada uno. Solo se cree a un
+     * proxy con dirección privada (Caddy, en la red de Docker), nunca a una
+     * cabecera que mande el cliente desde internet.
+     */
+    trustProxy: 'loopback,uniquelocal',
+  });
 
   await app.register(cors, { origin: true });
-  await app.register(jwt, { secret: opciones.jwtSecreto ?? process.env.JWT_SECRETO ?? 'solo-desarrollo' });
+  await app.register(jwt, { secret: secretoSesiones(opciones.jwtSecreto) });
   await app.register(websocket);
 
   /*
@@ -111,6 +124,26 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
    * conexión lleva su suscriptor, que dice qué puede ver (ver tiempoReal.ts).
    */
   const conexiones = new Map<WebSocket, Suscriptor>();
+
+  /*
+   * Una conexión en vivo puede quedar abierta días. Cada minuto se vuelve a
+   * mirar en la base a sus dueños: si alguien quedó dado de baja o le
+   * cambiaron el rol, se le cierra el canal (la app vuelve a conectarse y, si
+   * sigue habilitado, entra con el alcance nuevo).
+   */
+  const repasoEnVivo = setInterval(() => {
+    void (async () => {
+      for (const [socket, suscriptor] of conexiones) {
+        const vigente = await usuarioVigente(suscriptor.usuarioId);
+        if (!vigente || !vigente.activo || vigente.rol !== suscriptor.rol) {
+          conexiones.delete(socket);
+          socket.close(4401, 'Sesión revocada');
+        }
+      }
+    })().catch((err) => app.log.warn({ err }, 'No se pudo repasar las conexiones en vivo'));
+  }, 60_000);
+  repasoEnVivo.unref();
+  app.addHook('onClose', async () => clearInterval(repasoEnVivo));
 
   // Todas las rutas viven bajo /api: simplifica el proxy de Vite en desarrollo
   // y el enrutamiento de Caddy en producción.
@@ -177,11 +210,28 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
             socket.close(4401, 'No autorizado');
             return;
           }
-          // El alcance se calcula antes de aceptar mensajes: un cliente no
-          // debe ver ni un evento ajeno mientras se resuelve.
-          void crearSuscriptor(usuario).then((suscriptor) => {
+          /*
+           * Mismo criterio que el resto de la API: el token dura 30 días, así
+           * que no alcanza con que la firma sea válida. Antes este canal se
+           * salteaba la verificación contra la base: alguien dado de baja que
+           * guardó su sesión seguía recibiendo en vivo las alarmas de todos los
+           * clientes hasta que el token venciera. Y el rol se tomaba del token,
+           * no de la base, así que bajarle el rol a alguien no cambiaba lo que
+           * veía. El alcance se calcula antes de aceptar mensajes: un cliente
+           * no debe ver ni un evento ajeno mientras se resuelve.
+           */
+          void (async () => {
+            const vigente = await usuarioVigente(usuario.id);
+            if (!vigente || !vigente.activo) {
+              socket.close(4401, 'No autorizado');
+              return;
+            }
+            const suscriptor = await crearSuscriptor({ ...usuario, rol: vigente.rol });
             if (socket.readyState !== socket.OPEN) return;
             conexiones.set(socket, suscriptor);
+          })().catch((err) => {
+            app.log.warn({ err }, 'No se pudo abrir el canal en vivo');
+            socket.close(1011, 'Error');
           });
           socket.on('close', () => conexiones.delete(socket));
         });

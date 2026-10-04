@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { contactoWeb, db } from '@monitoring/db';
 import type { App } from '../tipos.js';
+import { crearLimitador } from '../limite.js';
 
 /**
  * Contacto desde la landing pública. Sin sesión: por eso lleva honeypot (un
@@ -18,17 +19,8 @@ const esquema = z.object({
   sitioWeb: z.string().max(200).optional(),
 });
 
-const TOPE_POR_IP = 5;
-const VENTANA_MS = 60_000;
-const golpes = new Map<string, number[]>();
-
-function pasaTope(ip: string, ahora = Date.now()): boolean {
-  const lista = (golpes.get(ip) ?? []).filter((t) => ahora - t < VENTANA_MS);
-  if (lista.length >= TOPE_POR_IP) return false;
-  lista.push(ahora);
-  golpes.set(ip, lista);
-  return true;
-}
+/** 5 envíos por minuto por IP (necesita trustProxy en app.ts para ver la IP real). */
+const envios = crearLimitador({ max: 5, ventanaMs: 60_000 });
 
 /** Ruta pública: se registra fuera del hook de autenticación. */
 export function registrarContactoPublico(app: App) {
@@ -37,7 +29,7 @@ export function registrarContactoPublico(app: App) {
     if (!datos.success) return reply.code(400).send({ error: 'Nombre y teléfono son obligatorios' });
     if (datos.data.sitioWeb) return { ok: true }; // bot: se le dice que sí y no se guarda nada
     const ip = request.ip ?? '';
-    if (!pasaTope(ip)) return reply.code(429).send({ error: 'Demasiados envíos; intente en un minuto' });
+    if (!envios.permitir(ip)) return reply.code(429).send({ error: 'Demasiados envíos; intente en un minuto' });
     const { sitioWeb: _ignorado, ...resto } = datos.data;
     const [fila] = await db
       .insert(contactoWeb)

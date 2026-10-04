@@ -28,7 +28,7 @@ import {
 import type { Cliente, Contacto, EstadoCliente, EstadoPanel, Sitio, TipoSitio } from '../tipos.js';
 import { Modal } from '../Modal.js';
 import { fechaHora } from '../tiempo.js';
-import { ZONA_HORARIA_POR_DEFECTO } from '@monitoring/shared';
+import { CLAVE_MINIMA, ZONA_HORARIA_POR_DEFECTO } from '@monitoring/shared';
 import { enPrueba, nombreCuenta, NOMBRE_TIPO_PANEL } from '../ui.js';
 
 import { BOTON, BOTON_MINI, BOTON_MINI_ROJO, CAMPO } from '../estilos.js';
@@ -1287,7 +1287,7 @@ function UsuariosApp({ clienteId, sitios, paneles }: { clienteId: number; sitios
           onChange={(e) => setDatos({ ...datos, clave: e.target.value })}
           placeholder="Clave inicial (mín. 6)"
           required
-          minLength={6}
+          minLength={CLAVE_MINIMA}
           className={`${CAMPO} font-datos`}
         />
         <button type="submit" disabled={crear.isPending} className={BOTON}>

@@ -5,6 +5,7 @@ import { abrirAlarma } from '@monitoring/engine';
 import { unirUsuarioPanel, unirZona } from './_evento.js';
 import type { App } from '../tipos.js';
 import { PREFERENCIAS_POR_DEFECTO, tipoSenal } from '@monitoring/shared';
+import { CLAVE_MINIMA } from '@monitoring/shared';
 
 /**
  * API de la app de clientes. El alcance sale de la tabla `acceso` en CADA
@@ -160,7 +161,7 @@ export function registrarClienteApp(app: App) {
     clienteId: z.number().int(),
     nombre: z.string().trim().min(2).max(80),
     email: z.string().trim().toLowerCase().email(),
-    clave: z.string().min(6).max(100),
+    clave: z.string().min(CLAVE_MINIMA).max(100),
     sitioId: z.number().int().optional(),
   });
   app.post('/cliente/usuarios', async (request, reply) => {

@@ -10,3 +10,4 @@ export * from './avisos.js';
 export * from './moneda.js';
 export * from './cobros.js';
 export * from './turnos.js';
+export * from './claves.js';

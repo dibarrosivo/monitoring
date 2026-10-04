@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { and, count, desc, eq, gte, max, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { bridge, db, evento, senal } from '@monitoring/db';
@@ -106,8 +107,12 @@ export function registrarBridge(app: App) {
 
   app.addHook('onRequest', async (request, reply) => {
     if (!token) return reply.code(503).send({ error: 'BRIDGE_TOKEN no configurado en el servidor' });
-    const cabecera = request.headers.authorization ?? '';
-    if (cabecera !== `Bearer ${token}`) return reply.code(401).send({ error: 'Token de puente inválido' });
+    const cabecera = Buffer.from(request.headers.authorization ?? '');
+    const esperada = Buffer.from(`Bearer ${token}`);
+    // Comparación en tiempo constante: con !== la demora delataba cuántos caracteres coincidían
+    if (cabecera.length !== esperada.length || !timingSafeEqual(cabecera, esperada)) {
+      return reply.code(401).send({ error: 'Token de puente inválido' });
+    }
   });
 
   /** Lote de tramas crudas: se persisten todas y se procesan las que se entienden. */

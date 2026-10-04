@@ -1,6 +1,7 @@
 import { createHmac, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { CANAL_PUSH, SONIDO_ALARMA, type CanalPush } from '@monitoring/shared';
+import { secretoSesiones } from '../secretos.js';
 
 /**
  * Envío por Firebase Cloud Messaging (API HTTP v1) sin SDK: la cuenta de
@@ -64,7 +65,7 @@ async function obtenerTokenAcceso(): Promise<string> {
 /** Clave de acuse firmada: el teléfono la devuelve con el estado de entrega y de la voz, sin sesión. */
 export function claveEco(usuarioId: number, eventoId: string | undefined): string {
   const cuerpo = `${usuarioId}.${eventoId ?? '0'}.${Math.floor(Date.now() / 1000)}`;
-  const firma = createHmac('sha256', process.env.JWT_SECRETO ?? 'solo-desarrollo').update(cuerpo).digest('hex').slice(0, 24);
+  const firma = createHmac('sha256', secretoSesiones()).update(cuerpo).digest('hex').slice(0, 24);
   return `${cuerpo}.${firma}`;
 }
 
@@ -72,7 +73,7 @@ export function verificarEco(clave: string): { usuarioId: number; eventoId: stri
   const partes = clave.split('.');
   if (partes.length !== 4) return null;
   const cuerpo = partes.slice(0, 3).join('.');
-  const firma = createHmac('sha256', process.env.JWT_SECRETO ?? 'solo-desarrollo').update(cuerpo).digest('hex').slice(0, 24);
+  const firma = createHmac('sha256', secretoSesiones()).update(cuerpo).digest('hex').slice(0, 24);
   if (firma !== partes[3]) return null;
   if (Math.floor(Date.now() / 1000) - Number(partes[2]) > 3600) return null;
   return { usuarioId: Number(partes[0]), eventoId: partes[1]! };

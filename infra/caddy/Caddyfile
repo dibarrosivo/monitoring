@@ -46,12 +46,25 @@
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
+		# El sitio es solo HTTPS: que el navegador no vuelva a intentar por HTTP
+		# ni siquiera la primera vez de cada visita (un año).
+		Strict-Transport-Security "max-age=31536000"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 	}
 
 	log {
 		output file /var/log/caddy/acceso.log {
 			roll_size 20mb
 			roll_keep 5
+		}
+		# El canal en vivo (/api/ws) lleva el token de sesión en la URL, y el
+		# registro lo guardaba tal cual: credenciales válidas por 30 días
+		# escritas en un archivo. Se borra del registro antes de escribirlo.
+		format filter {
+			request>uri query {
+				replace token REDACTADO
+			}
+			request>headers>Authorization replace REDACTADO
 		}
 	}
 }
