@@ -1,0 +1,1 @@
+ALTER TABLE "panel" ADD COLUMN "cifrado_obligatorio" boolean DEFAULT false NOT NULL;

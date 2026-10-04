@@ -232,6 +232,13 @@
       "when": 1790702632576,
       "tag": "0032_illegal_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791154729056,
+      "tag": "0033_woozy_songbird",
+      "breakpoints": true
     }
   ]
 }

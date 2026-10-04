@@ -530,6 +530,7 @@ export function registrarAlarmas(app: App) {
         marca: panel.marca,
         modelo: panel.modelo,
         supervisado: panel.supervisado,
+        cifradoObligatorio: panel.cifradoObligatorio,
         intervaloPruebaMin: panel.intervaloPruebaMin,
         ultimaSenalEn: panel.ultimaSenalEn,
         activo: panel.activo,

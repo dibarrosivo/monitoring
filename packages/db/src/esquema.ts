@@ -156,6 +156,14 @@ export const panel = pgTable(
     propiedad: propiedadEquipoEnum('propiedad').notNull().default('propio'),
     /** Si está supervisado, la falta de señales genera una alarma de sistema */
     supervisado: boolean('supervisado').notNull().default(true),
+    /**
+     * Exige DC-09 cifrado (AES) para esta cuenta: una trama en claro con este
+     * número se rechaza con NAK y no genera evento. Por cuenta y no para todos,
+     * porque se pasa de a un panel y hay equipos que todavía no cifran (la placa
+     * ESP32, el simulador). Sin esto, cualquiera que conozca el formato y el
+     * número de cuenta puede meter un evento falso por el 9999.
+     */
+    cifradoObligatorio: boolean('cifrado_obligatorio').notNull().default(false),
     /** Minutos esperados entre pruebas periódicas / señales de vida */
     intervaloPruebaMin: integer('intervalo_prueba_min').notNull().default(1440),
     ultimaSenalEn: timestamp('ultima_senal_en', { withTimezone: true }),

@@ -375,6 +375,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
     fechaInstalacion: panel.fechaInstalacion ?? '',
     propiedad: panel.propiedad ?? 'propio',
     supervisado: panel.supervisado,
+    cifradoObligatorio: panel.cifradoObligatorio ?? false,
     intervaloPruebaMin: String(panel.intervaloPruebaMin),
     ventanaCancelacionSeg: String(panel.ventanaCancelacionSeg ?? 25),
     planId: panel.planId ? String(panel.planId) : '',
@@ -402,6 +403,7 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
         fechaInstalacion: datos.fechaInstalacion || undefined,
         propiedad: datos.propiedad,
         supervisado: datos.supervisado,
+        cifradoObligatorio: datos.cifradoObligatorio,
         intervaloPruebaMin: Number(datos.intervaloPruebaMin),
         ventanaCancelacionSeg: Math.max(0, Number(datos.ventanaCancelacionSeg) || 0),
         planId: datos.planId ? Number(datos.planId) : null,
@@ -579,6 +581,21 @@ function ModalEditarDispositivo({ panel, alCerrar }: { panel: EstadoPanel; alCer
             onChange={(e) => setDatos({ ...datos, supervisado: e.target.checked })}
           />
           Supervisado (el silencio genera alarma de sistema)
+        </label>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={datos.cifradoObligatorio}
+            onChange={(e) => setDatos({ ...datos, cifradoObligatorio: e.target.checked })}
+          />
+          <span>
+            Exigir DC-09 cifrado
+            <span className="block text-xs text-tenue">
+              Una señal en claro con esta cuenta se rechaza. Marcarlo solo después de verificar que el equipo ya transmite
+              cifrado: si no, sus señales dejan de entrar.
+            </span>
+          </span>
         </label>
         <label className="flex items-center gap-2">
           <span className="text-tenue">Un robo espera</span>

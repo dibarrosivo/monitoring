@@ -15,7 +15,7 @@
  *   PRUEBAS_CUENTA=5199 PRUEBAS_HOST=receptor PRUEBAS_RITMO=rapido tsx ...
  */
 import net from 'node:net';
-import { construirTramaAdmCid } from '@monitoring/protocols';
+import { construirTramaAdmCid, construirTramaAdmCidCifrada, normalizarClaveAes } from '@monitoring/protocols';
 
 const CUENTA = process.env.PRUEBAS_CUENTA ?? '5199';
 const HOST = process.env.PRUEBAS_HOST ?? '127.0.0.1';
@@ -23,6 +23,13 @@ const PUERTO = Number(process.env.PRUEBAS_PUERTO ?? process.env.PUERTO_DC09_TCP 
 const ZONA_HORARIA = process.env.PRUEBAS_ZONA_HORARIA ?? 'America/Caracas';
 /** 'rapido' comprime el día en minutos, para probar el simulador sin esperarlo. */
 const RAPIDO = process.env.PRUEBAS_RITMO === 'rapido';
+/*
+ * Con clave, las tramas salen cifradas con AES, como las de un Hikvision
+ * configurado así. Sirve para probar el receptor en producción el día que se
+ * activa el cifrado, antes de tocar un panel real.
+ */
+const CLAVE = process.env.PRUEBAS_CLAVE_AES ? normalizarClaveAes(process.env.PRUEBAS_CLAVE_AES) : undefined;
+if (process.env.PRUEBAS_CLAVE_AES && !CLAVE) throw new Error('PRUEBAS_CLAVE_AES inválida: hexadecimal de 32, 48 o 64 caracteres');
 
 /** Un evento del guion, con la hora del día a la que toca mandarlo. */
 interface Paso {
@@ -55,14 +62,17 @@ const GUION: Paso[] = [
 
 function enviar(paso: Paso): Promise<void> {
   return new Promise((listo) => {
-    // 'E602' se parte en el calificador (E = evento nuevo, R = restauración) y el código Contact ID
-    const trama = construirTramaAdmCid({
+    // 'E602' se parte en el calificador (E = evento nuevo, R = restauración) y el código Contact ID.
+    // La hora va siempre, en GMT como pide el estándar: sin ella una trama cifrada se rechaza.
+    const base = {
       cuenta: CUENTA,
-      calificador: paso.codigo[0] === 'R' ? 3 : 1,
+      calificador: (paso.codigo[0] === 'R' ? 3 : 1) as 1 | 3,
       codigoCid: paso.codigo.slice(1),
       particion: '01',
       zona: paso.zona ?? paso.usuario ?? '000',
-    });
+      marcaTiempo: new Date(),
+    };
+    const trama = CLAVE ? construirTramaAdmCidCifrada({ ...base, claveAes: CLAVE }) : construirTramaAdmCid(base);
     const socket = net.createConnection({ host: HOST, port: PUERTO }, () => socket.write(trama));
     const cerrar = (nota: string) => {
       socket.destroy();
@@ -107,7 +117,7 @@ async function porReloj(): Promise<void> {
 }
 
 async function rapido(): Promise<void> {
-  console.log(`Panel de pruebas ${CUENTA} → ${HOST}:${PUERTO} (ritmo rápido: un evento cada 5 s)`);
+  console.log(`Panel de pruebas ${CUENTA} → ${HOST}:${PUERTO} (ritmo rápido: un evento cada 5 s${CLAVE ? ', cifrado' : ''})`);
   for (const paso of GUION) {
     await enviar(paso);
     await new Promise((r) => setTimeout(r, 5_000));

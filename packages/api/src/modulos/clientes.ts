@@ -129,6 +129,8 @@ const camposPanel = {
   fechaInstalacion: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   propiedad: z.enum(['propio', 'comodato', 'prestamo']).optional(),
   supervisado: z.boolean().default(true),
+  /** Exige DC-09 cifrado: una trama en claro de esta cuenta se rechaza */
+  cifradoObligatorio: z.boolean().optional(),
   intervaloPruebaMin: z.number().int().positive().default(1440),
   ventanaCancelacionSeg: z.number().int().min(0).max(300).default(25),
   planId: z.number().int().nullable().optional(),

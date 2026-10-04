@@ -147,6 +147,8 @@ export interface EstadoPanel {
   numeroCuenta: string;
   tipo: 'hikvision' | 'pima' | 'ebs' | 'otro';
   supervisado: boolean;
+  /** Exige DC-09 cifrado: una trama en claro de esta cuenta se rechaza */
+  cifradoObligatorio?: boolean;
   intervaloPruebaMin: number;
   ultimaSenalEn: string | null;
   activo: boolean;
