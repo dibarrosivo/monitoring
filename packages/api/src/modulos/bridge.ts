@@ -3,7 +3,7 @@ import { and, count, desc, eq, gte, max, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { bridge, db, evento, senal } from '@monitoring/db';
 import { parsearLineaPima, parsearLineaSurgard } from '@monitoring/protocols';
-import { interpretarCid, interpretarPima } from '@monitoring/shared';
+import { LATIDOS_PERDIDOS_PUENTE, interpretarCid, interpretarPima } from '@monitoring/shared';
 import { buscarPanelPorCuenta, procesarEvento, registrarSenal, registrarVida } from '@monitoring/engine';
 import type { App } from '../tipos.js';
 
@@ -245,7 +245,7 @@ export function registrarBridgesConsulta(app: App) {
         intervaloLatidoSeg: bridge.intervaloLatidoSeg,
         activo: bridge.activo,
         /** true si pasó más de 3 latidos sin dar señales de vida */
-        silencioso: sql<boolean>`${bridge.supervisado} and ${bridge.activo} and coalesce(${bridge.ultimoLatidoEn}, ${bridge.creadoEn}) < now() - (${bridge.intervaloLatidoSeg} * 3 * interval '1 second')`,
+        silencioso: sql<boolean>`${bridge.supervisado} and ${bridge.activo} and coalesce(${bridge.ultimoLatidoEn}, ${bridge.creadoEn}) < now() - (${bridge.intervaloLatidoSeg} * ${LATIDOS_PERDIDOS_PUENTE} * interval '1 second')`,
       })
       .from(bridge)
       .orderBy(bridge.nombre),

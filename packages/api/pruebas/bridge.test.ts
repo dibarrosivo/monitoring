@@ -140,7 +140,7 @@ describe('registro y supervisión del puente', () => {
 
   it('un puente sin latidos recientes se marca silencioso y abre alarma', async () => {
     await enviarTramas([lineaCid('7002', 1, '130', '015')]);
-    // Se envejece el último latido más allá de tres intervalos
+    // Se envejece el último latido más allá de cinco intervalos (LATIDOS_PERDIDOS_PUENTE)
     const { db, bridge } = await import('@monitoring/db');
     const { sql } = await import('drizzle-orm');
     await db.update(bridge).set({ ultimoLatidoEn: sql`now() - interval '10 minutes'` });
@@ -232,5 +232,22 @@ describe('diario del puente', () => {
   it('un puente inexistente da 404', async () => {
     const { estado } = await ctx.pedir('GET', '/bridges/9999/diario', { token: tokenAdmin });
     expect(estado).toBe(404);
+  });
+
+  it('un corte corto de internet no da aviso: hacen falta 5 latidos perdidos', async () => {
+    await enviarTramas([lineaCid('7002', 1, '130', '015')]);
+    const { db, bridge } = await import('@monitoring/db');
+    const { sql } = await import('drizzle-orm');
+    const { revisarPuentes } = await import('@monitoring/engine');
+
+    // 4 minutos sin latido (con latido cada 60 s): todavía no
+    await db.update(bridge).set({ ultimoLatidoEn: sql`now() - interval '4 minutes'` });
+    expect(await revisarPuentes()).toBe(0);
+    expect((await ctx.pedir('GET', '/bridges', { token: tokenAdmin })).cuerpo[0].silencioso).toBe(false);
+
+    // pasados los 5 minutos: cae, y la consola lo muestra igual
+    await db.update(bridge).set({ ultimoLatidoEn: sql`now() - interval '5 minutes 10 seconds'` });
+    expect(await revisarPuentes()).toBe(1);
+    expect((await ctx.pedir('GET', '/bridges', { token: tokenAdmin })).cuerpo[0].silencioso).toBe(true);
   });
 });

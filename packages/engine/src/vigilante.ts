@@ -2,7 +2,7 @@ import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { accionAlarma, alarma, bridge, CANAL_EVENTOS, db, evento, feriado, horario, notificar, panel, senal, sitio } from '@monitoring/db';
 import { abrirAlarma, tieneAlarmaSistemaAbierta } from './procesador.js';
 import { enZona, evaluarPendientesDia, fechaIsoLocal, ZONA_HORARIA_CENTRAL } from './horarios.js';
-import { SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
+import { LATIDOS_PERDIDOS_PUENTE, SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
 
 /**
  * Vigilante de paneles silenciosos: en este rubro el silencio es en sí una emergencia
@@ -217,12 +217,12 @@ export async function revisarPuentes(): Promise<number> {
   const ahora = Date.now();
   let avisos = 0;
   for (const p of puentes) {
-    const tope = p.intervaloLatidoSeg * 3 * 1000;
+    const tope = p.intervaloLatidoSeg * LATIDOS_PERDIDOS_PUENTE * 1000;
     const ultimo = p.ultimoLatidoEn ?? p.creadoEn;
     const caido = ahora - ultimo.getTime() > tope;
 
     if (caido && !p.caidoDesde) {
-      const espera = p.intervaloLatidoSeg * 3;
+      const espera = p.intervaloLatidoSeg * LATIDOS_PERDIDOS_PUENTE;
       const descripcion = `PUENTE CAÍDO: sin latido de ${p.nombre} hace más de ${
         espera < 60 ? `${espera} s` : duracionLegible(Math.round(espera / 60))
       }`;

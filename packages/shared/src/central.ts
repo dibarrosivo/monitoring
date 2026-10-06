@@ -25,3 +25,13 @@ export type CanalPush = keyof typeof CANAL_PUSH;
 
 /** Sonido de las alarmas en el teléfono (res/raw en Android). */
 export const SONIDO_ALARMA = 'sirena.wav';
+
+/**
+ * Latidos perdidos para dar por caído un puente. Con latido cada 60 s, 5
+ * significan 5 minutos sin latido, y el aviso sale entre 5 y 6 minutos
+ * después del último (el vigilante revisa cada minuto). Se subió de 3 a 5 el
+ * 2026-10-06: el internet de la central (Mangonet) se corta seguido un par de
+ * minutos y vuelve solo, y con 3 eso daba avisos que no hacían falta. La
+ * misma regla la usan el aviso y la luz roja de la consola.
+ */
+export const LATIDOS_PERDIDOS_PUENTE = 5;
