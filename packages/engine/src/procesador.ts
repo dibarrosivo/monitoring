@@ -36,18 +36,31 @@ export interface EntradaSenal {
   puertoLocal?: number;
 }
 
+/**
+ * Postgres no acepta el byte nulo en un campo de texto: la inserción entera
+ * falla con «invalid byte sequence for encoding UTF8: 0x00». Una trama con
+ * bytes nulos (el saludo TLS de un escáner de internet los trae siempre) se
+ * guarda entonces en base64, que conserva los bytes exactos para investigar.
+ * Esto tumbó el receptor 4 veces entre el 4 y el 6 de octubre de 2026.
+ */
+function paraGuardar(cruda: string, codificacion: 'texto' | 'base64'): { cruda: string; codificacion: 'texto' | 'base64' } {
+  if (codificacion === 'base64' || !cruda.includes('\u0000')) return { cruda, codificacion };
+  return { cruda: Buffer.from(cruda, 'latin1').toString('base64'), codificacion: 'base64' };
+}
+
 /** Persiste la trama cruda. Se llama SIEMPRE antes de responder ACK al emisor. */
 export async function registrarSenal(entrada: EntradaSenal): Promise<number> {
+  const guardable = paraGuardar(entrada.cruda, entrada.codificacion ?? 'texto');
   const [fila] = await db
     .insert(senal)
     .values({
       fuente: entrada.fuente,
       remoto: entrada.remoto,
-      cruda: entrada.cruda,
+      cruda: guardable.cruda,
       estadoParse: entrada.estadoParse,
       detalleError: entrada.detalleError,
       panelId: entrada.panelId,
-      codificacion: entrada.codificacion ?? 'texto',
+      codificacion: guardable.codificacion,
       puertoLocal: entrada.puertoLocal,
     })
     .returning({ id: senal.id });

@@ -44,13 +44,27 @@ export async function registrarEscaneo(entrada: { fuente: FuenteSenal; remoto: s
   if (ahora - (ultimoRegistro.get(clave) ?? 0) < VENTANA_MS) return;
   ultimoRegistro.set(clave, ahora);
   if (ultimoRegistro.size > 5000) ultimoRegistro.clear();
-  const muestra = (typeof entrada.datos === 'string' ? entrada.datos : entrada.datos.toString('latin1')).slice(0, 80).replace(/[\r\n]+/g, ' ');
+  // Los bytes de control se escriben como \xNN: la muestra se lee, y nunca lleva el byte nulo
+  const muestra = (typeof entrada.datos === 'string' ? entrada.datos : entrada.datos.toString('latin1'))
+    .slice(0, 80)
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/[\x00-\x1f\x7f]/g, (c) => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
   entrada.log.info({ remoto: entrada.remoto, motivo: entrada.motivo }, 'Tráfico ajeno al receptor, descartado');
-  await registrarSenal({
-    fuente: entrada.fuente,
-    remoto: entrada.remoto,
-    cruda: muestra,
-    estadoParse: 'ignorada',
-    detalleError: `escaneo de internet: ${entrada.motivo}`,
-  });
+  /*
+   * Quien llama lo hace sin esperar (`void registrarEscaneo(...)`), así que un
+   * error acá era una promesa rechazada sin dueño, y Node la convierte en la
+   * caída del proceso: un escáner cualquiera tiraba abajo el receptor de
+   * alarmas. Que no se pueda anotar un escaneo no es motivo para nada más.
+   */
+  try {
+    await registrarSenal({
+      fuente: entrada.fuente,
+      remoto: entrada.remoto,
+      cruda: muestra,
+      estadoParse: 'ignorada',
+      detalleError: `escaneo de internet: ${entrada.motivo}`,
+    });
+  } catch (err) {
+    entrada.log.warn({ err: (err as Error).message, remoto: entrada.remoto }, 'No se pudo anotar el escaneo; se sigue');
+  }
 }

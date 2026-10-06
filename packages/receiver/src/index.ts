@@ -15,6 +15,17 @@ try {
 
 const log = pino({ level: process.env.NIVEL_LOG ?? 'info' });
 
+/*
+ * Última red: una promesa rechazada que nadie atendió no tumba el receptor.
+ * Cada trama se maneja por separado y sin estado compartido, así que un error
+ * suelto no deja nada a medias; caerse, en cambio, deja a todos los paneles sin
+ * respuesta hasta que Docker lo levante. Entre el 4 y el 6 de octubre de 2026
+ * un escáner de internet lo tumbó 4 veces por un error así.
+ */
+process.on('unhandledRejection', (err) => {
+  log.error({ err }, 'Promesa rechazada sin manejar en el receptor; se sigue atendiendo');
+});
+
 const puertoTcp = process.env.PUERTO_DC09_TCP ?? '9999';
 const puertoUdp = process.env.PUERTO_DC09_UDP ?? '9999';
 

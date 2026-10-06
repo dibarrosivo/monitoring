@@ -5,6 +5,15 @@ import * as esquema from './esquema.js';
 const url = process.env.DATABASE_URL ?? 'postgres://monitoring:monitoring@localhost:5433/monitoring';
 
 export const pool = new pg.Pool({ connectionString: url });
+/*
+ * Si Postgres corta una conexión ociosa (al reiniciarse, por ejemplo), el pool
+ * emite 'error'. Sin quien lo escuche, Node trata eso como un error no
+ * manejado y tira abajo el proceso: le pasó al receptor en el reinicio del
+ * 4 de octubre. El pool descarta esa conexión y abre otra cuando haga falta.
+ */
+pool.on('error', (err) => {
+  console.error('Conexión de la base cortada; el pool abre otra cuando haga falta:', err.message);
+});
 export const db = drizzle(pool, { schema: esquema });
 export * from './esquema.js';
 export * from './claves.js';
