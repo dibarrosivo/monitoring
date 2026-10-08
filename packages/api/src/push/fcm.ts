@@ -180,6 +180,9 @@ export async function enviarPushSimple(token: string, mensaje: MensajePush): Pro
       android: {
         priority: 'high',
         notification: {
+          // La misma etiqueta con que la app muestra el aviso original
+          // (AvisosService.java): si los dos llegan, Android deja uno solo
+          ...(mensaje.datos?.eventoId ? { tag: `evento-${mensaje.datos.eventoId}` } : {}),
           channel_id: CANAL_PUSH[mensaje.canal],
           sound: mensaje.canal === 'alarmas' ? SONIDO_ALARMA : 'default',
           notification_priority: mensaje.canal === 'alarmas' ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',

@@ -116,6 +116,14 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
         abrir.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         abrir.putExtra("abrir", "avisos");
         int id = eventoId != null ? Math.abs(eventoId.hashCode()) : (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
+        /*
+         * La notificación se publica con la etiqueta "evento-<id>" y número 0,
+         * que es exactamente como Android publica el reenvío de respaldo del
+         * servidor (notificación simple con android.notification.tag). Así, si
+         * el mensaje llega tarde y también llega el reenvío, el segundo
+         * reemplaza al primero en vez de mostrar el mismo aviso dos veces.
+         */
+        String etiqueta = eventoId != null ? "evento-" + eventoId : null;
         PendingIntent pi = PendingIntent.getActivity(this, id, abrir, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, canal)
             .setSmallIcon(R.drawable.ic_notificacion)
@@ -131,7 +139,8 @@ public class AvisosService extends com.capacitorjs.plugins.pushnotifications.Mes
             b.setSound(alarma ? sirena(this) : android.provider.Settings.System.DEFAULT_NOTIFICATION_URI);
             b.setVibrate(new long[] { 0, 300, 150, 300 });
         }
-        nm.notify(id, b.build());
+        if (etiqueta != null) nm.notify(etiqueta, 0, b.build());
+        else nm.notify(id, b.build());
     }
 
     private static Uri sirena(Context ctx) {
