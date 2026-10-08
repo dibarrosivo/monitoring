@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { cerrarAlarma, cerrarLote, registrarLlamada } from '../api.js';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { cerrarAlarma, cerrarLote, listarEventosDePanel, registrarLlamada } from '../api.js';
 import type { AccionAlarma, Alarma, ContextoAlarma, DesenlaceAlarma } from '../tipos.js';
-import { ETIQUETA_DESENLACE, MOTIVOS_CIERRE, RESULTADOS_LLAMADA, type ResultadoLlamada } from '@monitoring/shared';
+import { ETIQUETA_DESENLACE, fraseParaEvento, MOTIVOS_CIERRE, RESULTADOS_LLAMADA, type ResultadoLlamada } from '@monitoring/shared';
 import { fechaHora } from '../tiempo.js';
+import { CLASES_TIPO, tipoDe } from '../ui.js';
 
 /**
  * Piezas de la atención de una alarma que comparten la cola de escritorio y
@@ -236,5 +237,59 @@ export function FormularioCierre({
         {lote ? `Cerrar ${lote.length} alarmas` : 'Cerrar alarma'}
       </button>
     </div>
+  );
+}
+
+/**
+ * Últimas alarmas cerradas del mismo sitio, con cómo terminó cada una. Es lo
+ * primero que conviene mirar antes de llamar: si las tres últimas fueron falsas
+ * alarmas del mismo sensor, la llamada es otra.
+ */
+export function UltimasAlarmas({ previas }: { previas: ContextoAlarma['previas'] }) {
+  if (previas.length === 0) return <p className="text-tenue text-xs">Sin alarmas anteriores en este sitio.</p>;
+  return (
+    <ul className="flex flex-col gap-1 text-xs">
+      {previas.map((p) => (
+        <li key={p.id} className="text-tenue">
+          <span className="font-datos">{fechaHora(p.creadoEn)}</span> <span className="text-texto">{p.codigo} {p.descripcion}</span>
+          {p.desenlace && <span className={p.desenlace === 'falsa_alarma' ? 'text-prio2' : 'text-ok'}> · {ETIQUETA_DESENLACE[p.desenlace]}</span>}
+          {p.resolucion && <span> · {p.resolucion}</span>}
+          {p.operadorNombre && <span> · {p.operadorNombre}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Lo último que transmitió el equipo, sin las pruebas periódicas: quién abrió y
+ * cerró, a qué hora, qué averías hubo. Para una alarma de horario («no cerró»,
+ * «apertura fuera de horario») responde la pregunta antes de llamar.
+ */
+export function UltimasSenales({ panelId, cantidad = 10 }: { panelId: number; cantidad?: number }) {
+  const { data: eventos, isLoading } = useQuery({
+    queryKey: ['eventos', 'panel', panelId, 'recientes'],
+    queryFn: () => listarEventosDePanel(panelId, 60),
+    refetchInterval: 30_000,
+  });
+  if (isLoading) return <p className="text-tenue text-xs">Cargando…</p>;
+  const visibles = (eventos ?? []).filter((e) => tipoDe(e) !== 'prueba').slice(0, cantidad);
+  if (visibles.length === 0) return <p className="text-tenue text-xs">Sin señales recientes.</p>;
+  return (
+    <ul className="flex flex-col gap-1 text-xs">
+      {visibles.map((e) => {
+        // La misma frase corta que recibe el cliente en el aviso ("Desarmado por
+        // Pedro Salas", "Armado rápido"): en un teléfono la descripción técnica
+        // completa ocupa tres líneas y repite el nombre
+        const frase = fraseParaEvento({ ...e, eventoId: e.id, zonaDescripcion: e.zonaDescripcion ?? null }, { nombrarSitio: false });
+        return (
+          <li key={e.id} className="text-tenue">
+            <span className="font-datos">{fechaHora(e.ocurridoEn)}</span>{' '}
+            <span className={`font-datos font-semibold ${CLASES_TIPO[tipoDe(e)].texto}`}>{e.codigo}</span>{' '}
+            <span className="text-texto">{frase?.cuerpo ?? e.descripcion}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

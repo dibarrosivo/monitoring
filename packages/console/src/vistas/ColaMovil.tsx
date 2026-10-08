@@ -4,7 +4,7 @@ import { anotarAlarma, devolverAlarma, listarAcciones, listarAlarmas, tomarAlarm
 import type { Alarma } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { CLASES_TIPO, clasesPrioridad, nombreCuenta, tipoDe } from '../ui.js';
-import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
+import { Bitacora, FormularioCierre, ListaLlamadas, UltimasAlarmas, UltimasSenales } from './GestionAlarma.js';
 import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -166,8 +166,30 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
         </button>
       </div>
 
+      {/*
+        Historial del cliente, abierto: lo que el operador necesita para decidir
+        antes de llamar. Pedido para procesar más rápido desde el teléfono.
+      */}
+      {alarma.panelId && (
+        <section className="flex flex-col gap-1.5">
+          <p className="text-tenue text-xs uppercase tracking-wider">Últimas señales de la cuenta</p>
+          {(contexto?.horarios.length ?? 0) > 0 && (
+            <p className="font-datos text-xs text-tenue">
+              Horario: {contexto!.horarios.map((h) => `${h.dias.replace(/-/g, '')} ${h.apertura}–${h.cierre}`).join(' · ')}
+            </p>
+          )}
+          <UltimasSenales panelId={alarma.panelId} />
+        </section>
+      )}
+      {contexto && (
+        <section className="flex flex-col gap-1.5">
+          <p className="text-tenue text-xs uppercase tracking-wider">Últimas alarmas de este sitio</p>
+          <UltimasAlarmas previas={contexto.previas} />
+        </section>
+      )}
+
       <details className="text-sm">
-        <summary className="text-tenue text-xs uppercase tracking-wider cursor-pointer">Historial</summary>
+        <summary className="text-tenue text-xs uppercase tracking-wider cursor-pointer">Bitácora de esta alarma</summary>
         <div className="mt-2">
           <Bitacora acciones={acciones} />
         </div>

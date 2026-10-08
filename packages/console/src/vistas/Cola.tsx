@@ -7,7 +7,7 @@ import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, N
 import { ModalSenal } from '../ModalSenal.js';
 import { Modal } from '../Modal.js';
 import { ETIQUETA_DESENLACE, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
-import { Bitacora, FormularioCierre, ListaLlamadas } from './GestionAlarma.js';
+import { Bitacora, FormularioCierre, ListaLlamadas, UltimasAlarmas } from './GestionAlarma.js';
 import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -769,18 +769,7 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
           {(contexto?.previas.length ?? 0) > 0 && (
             <>
               <h3 className="text-tenue text-xs uppercase tracking-wider mt-3 mb-1">Últimas alarmas de este sitio</h3>
-              <ul className="flex flex-col gap-1 text-xs">
-                {contexto!.previas.map((p) => (
-                  <li key={p.id} className="text-tenue">
-                    <span className="font-datos">{fechaHora(p.creadoEn)}</span> <span className="text-texto">{p.codigo} {p.descripcion}</span>
-                    {p.desenlace && (
-                      <span className={p.desenlace === 'falsa_alarma' ? 'text-prio2' : 'text-ok'}> · {ETIQUETA_DESENLACE[p.desenlace]}</span>
-                    )}
-                    {p.resolucion && <span> · {p.resolucion}</span>}
-                    {p.operadorNombre && <span> · {p.operadorNombre}</span>}
-                  </li>
-                ))}
-              </ul>
+              <UltimasAlarmas previas={contexto!.previas} />
             </>
           )}
         </div>
