@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { accionAlarma, alarma, bridge, CANAL_EVENTOS, db, evento, feriado, horario, notificar, panel, senal, sitio } from '@monitoring/db';
+import { accionAlarma, alarma, bridge, CANAL_EVENTOS, cliente, db, evento, feriado, horario, notificar, panel, senal, sitio } from '@monitoring/db';
 import { abrirAlarma, tieneAlarmaSistemaAbierta } from './procesador.js';
 import { enZona, evaluarPendientesDia, fechaIsoLocal, ZONA_HORARIA_CENTRAL } from './horarios.js';
 import { LATIDOS_PERDIDOS_PUENTE, SILENCIO_GENERAL_MIN_POR_DEFECTO } from '@monitoring/shared';
@@ -22,9 +22,12 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
       creadoEn: panel.creadoEn,
     })
     .from(panel)
+    .innerJoin(sitio, eq(panel.sitioId, sitio.id))
+    .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
     .where(
       and(
         eq(panel.activo, true),
+        eq(cliente.activo, true),
         eq(panel.supervisado, true),
         // Una cuenta en prueba (técnico trabajando) no cuenta como silenciosa
         sql`(${panel.enPruebaHasta} IS NULL OR ${panel.enPruebaHasta} < now())`,
@@ -120,7 +123,8 @@ export async function revisarHorarios(): Promise<number> {
     .from(horario)
     .innerJoin(panel, eq(horario.panelId, panel.id))
     .innerJoin(sitio, eq(panel.sitioId, sitio.id))
-    .where(and(eq(horario.activo, true), eq(panel.activo, true), sql`(${panel.enPruebaHasta} IS NULL OR ${panel.enPruebaHasta} < now())`));
+    .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
+    .where(and(eq(horario.activo, true), eq(panel.activo, true), eq(cliente.activo, true), sql`(${panel.enPruebaHasta} IS NULL OR ${panel.enPruebaHasta} < now())`));
   if (filas.length === 0) return 0;
 
   const porPanel = new Map<number, { numeroCuenta: string; zonaHoraria: string | null; horarios: typeof filas }>();

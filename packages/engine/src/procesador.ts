@@ -4,6 +4,7 @@ import {
   alarma,
   CANAL_ALARMAS,
   CANAL_EVENTOS,
+  cliente,
   db,
   evento,
   horario,
@@ -109,6 +110,18 @@ export async function buscarPanelPorCuenta(numeroCuenta: string, fuente?: Fuente
   return null;
 }
 
+/** Dar de baja al cliente no apaga sus equipos: hay que mirar las dos cosas. */
+async function clienteActivo(sitioId: number | null): Promise<boolean> {
+  if (!sitioId) return true;
+  const [fila] = await db
+    .select({ activo: cliente.activo })
+    .from(sitio)
+    .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
+    .where(eq(sitio.id, sitioId))
+    .limit(1);
+  return fila?.activo ?? true;
+}
+
 /** Actualiza la última señal de vida del panel (latidos NULL, pruebas, cualquier evento). */
 export async function registrarVida(panelId: number, fecha: Date): Promise<void> {
   await db.update(panel).set({ ultimaSenalEn: fecha }).where(eq(panel.id, panelId));
@@ -160,6 +173,11 @@ export async function procesarEvento(entrada: {
   // Cuenta en prueba (técnico en el sitio): todo se registra, nada abre alarma
   const enPrueba = panelEncontrado ? estaEnPrueba(panelEncontrado, recibidaEn) : false;
   if (enPrueba) descripcion += ' — EN PRUEBA';
+  // Equipo dado de baja (o cliente inactivado): lo que transmita queda en el
+  // historial, pero no abre alarmas ni avisa a nadie. Antes seguía sonando igual.
+  const inactivo = panelEncontrado ? !panelEncontrado.activo || !(await clienteActivo(panelEncontrado.sitioId)) : false;
+  if (inactivo) descripcion += ' — CUENTA INACTIVA';
+  const sinAlarmas = enPrueba || inactivo;
 
   // En los eventos 4xx el campo zona es el número de usuario del teclado:
   // si está dado de alta, el evento nombra a la persona.
@@ -214,7 +232,7 @@ export async function procesarEvento(entrada: {
   const correspondeAlarma =
     CATEGORIAS_CON_ALARMA.has(normalizado.categoria) &&
     abreAlarma({ codigo: normalizado.codigo, codigoCid: normalizado.codigoCid });
-  if ((correspondeAlarma && !enPrueba) || !panelEncontrado) {
+  if ((correspondeAlarma && !sinAlarmas) || !panelEncontrado) {
     alarmaId = await abrirAlarma({
       eventoId: filaEvento!.id,
       panelId: panelEncontrado?.id,
@@ -228,7 +246,7 @@ export async function procesarEvento(entrada: {
 
   // Apertura fuera del horario permitido: alguien entró con código válido en un
   // momento en que el sitio debería estar cerrado. Alarma aparte, prioridad alta.
-  if (panelEncontrado && !enPrueba && normalizado.categoria === 'apertura') {
+  if (panelEncontrado && !sinAlarmas && normalizado.categoria === 'apertura') {
     const horarios = await db
       .select()
       .from(horario)
@@ -288,6 +306,7 @@ export async function procesarEvento(entrada: {
    * cocina, en Panadería K3"). Nombrar la zona y el sitio evita que la app
    * tenga que volver a preguntar antes de hablar.
    */
+  if (inactivo) return { eventoId: filaEvento!.id, alarmaId, panelId: panelEncontrado?.id };
   const contexto = panelEncontrado ? await contextoParaAviso(panelEncontrado.id, panelEncontrado.sitioId, normalizado) : {};
   await notificar(CANAL_EVENTOS, {
     eventoId: filaEvento!.id,
