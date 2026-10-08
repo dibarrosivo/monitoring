@@ -42,7 +42,7 @@ function minutos(hhmm: string): number {
  * medianoche (22:00 a 07:00). `ahoraLocal` ya tiene que estar en la hora de
  * la central (en la app es la hora del teléfono; en el servidor, enZona()).
  */
-export function enSilencio(prefs: PreferenciasAviso, ahoraLocal: Date = new Date()): boolean {
+export function enSilencio(prefs: Pick<PreferenciasAviso, 'silencioDesde' | 'silencioHasta'>, ahoraLocal: Date = new Date()): boolean {
   if (!prefs.silencioDesde || !prefs.silencioHasta) return false;
   const m = ahoraLocal.getHours() * 60 + ahoraLocal.getMinutes();
   const desde = minutos(prefs.silencioDesde);
@@ -58,7 +58,51 @@ export function quiereRecibir(prefs: PreferenciasAviso, grupo: GrupoAviso | null
 }
 
 /** ¿Este aviso se dice en voz alta en el teléfono? La notificación llega igual. */
-export function conVoz(prefs: PreferenciasAviso, canal: CanalPush): boolean {
+export function conVoz(prefs: Pick<PreferenciasAviso, 'vozPush'>, canal: CanalPush): boolean {
   const v = prefs.vozPush ?? 'siempre';
   return v === 'siempre' || (v === 'solo_alarmas' && canal === 'alarmas');
+}
+
+/**
+ * Qué quiere recibir en el teléfono el PERSONAL de la central. Es su teléfono
+ * personal, así que cada uno decide todo: qué le llega y cuándo suena, aun
+ * estando de guardia. Decisión del dueño (2026-10-08): control total y sin
+ * respaldo; si el de guardia silenció las emergencias, la alarma queda en la
+ * cola de la consola hasta que alguien la vea.
+ */
+export interface PreferenciasPersonal {
+  /** Pánico, incendio, coacción, médica de un cliente */
+  emergencias: boolean;
+  /** Central muda, puente caído: nos quedamos ciegos */
+  fallasCentral: boolean;
+  /** Puente restablecido, panel silencioso */
+  informativos: boolean;
+  /** 'HH:MM' ambas, o null ambas. Calla TODO lo de la central en esa franja. */
+  silencioDesde: string | null;
+  silencioHasta: string | null;
+  vozPush: VozPush;
+}
+
+export const PREFERENCIAS_PERSONAL_POR_DEFECTO: PreferenciasPersonal = {
+  emergencias: true,
+  fallasCentral: true,
+  informativos: true,
+  silencioDesde: null,
+  silencioHasta: null,
+  vozPush: 'siempre',
+};
+
+export type GrupoPersonal = 'emergencias' | 'fallasCentral' | 'informativos';
+
+/** A qué grupo pertenece un aviso al personal, por su código. */
+export function grupoDeAvisoPersonal(codigo: string | undefined): GrupoPersonal {
+  if (codigo === 'SIS-GEN' || codigo === 'BRIDGE') return 'fallasCentral';
+  if (codigo === 'BRIDGE-R' || codigo === 'SIS') return 'informativos';
+  return 'emergencias';
+}
+
+/** ¿Este aviso le llega a esta persona del personal? Sin excepciones: lo decide ella. */
+export function personalQuiereRecibir(prefs: PreferenciasPersonal, grupo: GrupoPersonal, ahoraLocal: Date = new Date()): boolean {
+  if (!prefs[grupo]) return false;
+  return !enSilencio(prefs, ahoraLocal);
 }

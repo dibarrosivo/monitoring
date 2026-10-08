@@ -563,6 +563,16 @@ export const preferenciaAviso = pgTable('preferencia_aviso', {
   silencioHasta: time('silencio_hasta'),
   /** Voz en los avisos con la app cerrada: 'siempre', 'solo_alarmas' o 'nunca' (la notificación llega igual) */
   vozPush: varchar('voz_push', { length: 16 }).notNull().default('siempre'),
+  /*
+   * Avisos al PERSONAL de la central (ver PreferenciasPersonal en shared). Van
+   * aparte de los del cliente porque su silencio calla todo, emergencias
+   * incluidas: es el teléfono personal de cada operador.
+   */
+  personalEmergencias: boolean('personal_emergencias').notNull().default(true),
+  personalFallasCentral: boolean('personal_fallas_central').notNull().default(true),
+  personalInformativos: boolean('personal_informativos').notNull().default(true),
+  personalSilencioDesde: time('personal_silencio_desde'),
+  personalSilencioHasta: time('personal_silencio_hasta'),
   actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
 });
 

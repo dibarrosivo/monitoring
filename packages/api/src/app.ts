@@ -26,6 +26,7 @@ import { registrarSupervision } from './modulos/supervision.js';
 import { registrarBridge, registrarBridgesConsulta } from './modulos/bridge.js';
 import './tipos.js';
 import { secretoSesiones } from './secretos.js';
+import { registrarAvisosPersonal } from './modulos/avisosPersonal.js';
 
 export interface OpcionesApp {
   /** Nivel de log; 'silent' en las pruebas */
@@ -196,6 +197,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
       await api.register(async (sub) => registrarContactos(sub));
       await api.register(async (sub) => registrarDispositivosPush(sub));
       await api.register(async (sub) => registrarTurnos(sub));
+      await api.register(async (sub) => registrarAvisosPersonal(sub));
       await api.register(async (sub) => registrarSupervision(sub));
       await api.register(async (sub) => registrarBridge(sub));
       await api.register(async (sub) => registrarBridgesConsulta(sub));

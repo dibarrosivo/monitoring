@@ -1,4 +1,4 @@
-import type { FormaPago, ResultadoLlamada } from '@monitoring/shared';
+import type { FormaPago, PreferenciasPersonal, ResultadoLlamada } from '@monitoring/shared';
 import type {
   Acceso,
   AccionAlarma,
@@ -392,6 +392,9 @@ export const asignarPropietario = (usuarioId: number, datos: { clienteId: number
   editar<{ propietario: boolean }>(`/usuarios/${usuarioId}/propietario`, datos);
 export const verPreferenciasCliente = () => pedir<PreferenciasAviso>('/cliente/preferencias');
 export const guardarPreferenciasCliente = (datos: PreferenciasAviso) => editar<PreferenciasAviso>('/cliente/preferencias', datos);
+/** «Mis avisos» del personal: qué le llega a su teléfono y cuándo suena */
+export const verAvisosPersonal = () => pedir<PreferenciasPersonal>('/personal/avisos');
+export const guardarAvisosPersonal = (datos: PreferenciasPersonal) => editar<PreferenciasPersonal>('/personal/avisos', datos);
 export const verZonasCliente = (panelId: number) => pedir<{ numero: string; descripcion: string | null }[]>(`/cliente/paneles/${panelId}/zonas`);
 export const verEventosCliente = (panelId?: number) =>
   pedir<EventoCliente[]>(panelId ? `/cliente/eventos?limite=50&panelId=${panelId}` : '/cliente/eventos?limite=100');

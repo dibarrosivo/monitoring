@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { cerrarSesion, listarAlarmas, listarEventos } from './api.js';
+import { cerrarSesion, esNativo, listarAlarmas, listarEventos } from './api.js';
 import { useTiempoReal } from './tiempoReal.js';
 import { sonarAlarma, sonarSirena } from './sonido.js';
 import { listarSenales } from './api.js';
@@ -20,6 +20,7 @@ import { Cobros } from './vistas/Cobros.js';
 import { Turnos } from './vistas/Turnos.js';
 import { ColaMovil } from './vistas/ColaMovil.js';
 import { ModalClave } from './ModalClave.js';
+import { ModalAvisosPersonal } from './ModalAvisosPersonal.js';
 import { HombreMuerto } from './HombreMuerto.js';
 import { usePantallaChica } from './pantalla.js';
 import { Buscador } from './Buscador.js';
@@ -98,8 +99,16 @@ export function Consola({ usuario }: { usuario: Usuario }) {
 
   /** Al salir, este teléfono deja de recibir avisos de la central. */
   const salir = () => void detenerPush().finally(cerrarSesion);
-  const [sonido, setSonido] = useState(() => localStorage.getItem('monitoring.sonido') !== 'no');
+  /*
+   * Silenciar es solo para la app del teléfono, que es el teléfono personal de
+   * cada operador. En la PC la consola es el puesto de trabajo y no se puede
+   * callar (decisión del dueño, 2026-10-08): ahí el sonido va siempre, aunque
+   * en ese navegador alguien lo haya apagado antes.
+   */
+  const puedeSilenciar = esNativo();
+  const [sonido, setSonido] = useState(() => !puedeSilenciar || localStorage.getItem('monitoring.sonido') !== 'no');
   const [claveVisible, setClaveVisible] = useState(false);
+  const [avisosVisible, setAvisosVisible] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const pantallaChica = usePantallaChica();
   // La búsqueda global aterriza en Clientes con el cliente elegido
@@ -282,7 +291,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
             <span className="text-tenue"> nuevas</span>
           </span>
           <span className="ml-auto flex items-center gap-3">
-            {vista === 'cola' && (
+            {vista === 'cola' && puedeSilenciar && (
               <button onClick={alternarSonido} aria-label="Sonido de alarmas" className={sonido ? '' : 'opacity-40'}>
                 {sonido ? '🔊' : '🔇'}
               </button>
@@ -319,6 +328,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
                 <span className="block text-tenue text-xs">{NOMBRE_ROL[usuario.rol]}</span>
               </span>
               <span className="ml-auto flex gap-4 text-tenue">
+                {puedeSilenciar && <button onClick={() => setAvisosVisible(true)}>Mis avisos</button>}
                 <button onClick={() => setClaveVisible(true)}>Cambiar clave</button>
                 <button onClick={salir} className="text-prio1">
                   Salir
@@ -351,6 +361,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           {vista === 'usuarios' && <Usuarios usuarioActualId={usuario.id} />}
         </main>
         {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
+        {avisosVisible && <ModalAvisosPersonal alCerrar={() => setAvisosVisible(false)} />}
         <HombreMuerto />
       </div>
     );
@@ -382,7 +393,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
             </button>
           ))}
         </div>
-        <PanelUsuario usuario={usuario} alCambiarClave={() => setClaveVisible(true)} alSalir={salir} />
+        <PanelUsuario usuario={usuario} alCambiarClave={() => setClaveVisible(true)} alMisAvisos={puedeSilenciar ? () => setAvisosVisible(true) : undefined} alSalir={salir} />
       </nav>
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -408,14 +419,16 @@ export function Consola({ usuario }: { usuario: Usuario }) {
           <PestanaSenal activa={false} alElegir={irASenales}>
             TODAS LAS SEÑALES
           </PestanaSenal>
-              <button
-                onClick={alternarSonido}
-                title={sonido ? 'Silenciar avisos de alarma' : 'Activar avisos de alarma'}
-                aria-label="Sonido de alarmas"
-                className={`px-1.5 text-base leading-none ${sonido ? '' : 'opacity-40'}`}
-              >
-                {sonido ? '🔊' : '🔇'}
-              </button>
+              {puedeSilenciar && (
+                <button
+                  onClick={alternarSonido}
+                  title={sonido ? 'Silenciar avisos de alarma' : 'Activar avisos de alarma'}
+                  aria-label="Sonido de alarmas"
+                  className={`px-1.5 text-base leading-none ${sonido ? '' : 'opacity-40'}`}
+                >
+                  {sonido ? '🔊' : '🔇'}
+                </button>
+              )}
               {botonNotificaciones}
             </>
           )}
@@ -465,6 +478,7 @@ export function Consola({ usuario }: { usuario: Usuario }) {
         </main>
       </div>
       {claveVisible && <ModalClave alCerrar={() => setClaveVisible(false)} />}
+        {avisosVisible && <ModalAvisosPersonal alCerrar={() => setAvisosVisible(false)} />}
       <HombreMuerto />
     </div>
   );
@@ -510,7 +524,7 @@ function Avatar({ nombre }: { nombre: string }) {
 }
 
 /** Pie del riel: el usuario con su panel desplegable (cambiar clave, salir). */
-function PanelUsuario({ usuario, alCambiarClave, alSalir }: { usuario: Usuario; alCambiarClave: () => void; alSalir: () => void }) {
+function PanelUsuario({ usuario, alCambiarClave, alMisAvisos, alSalir }: { usuario: Usuario; alCambiarClave: () => void; alMisAvisos?: () => void; alSalir: () => void }) {
   const [abierto, setAbierto] = useState(false);
   // El dueño, que además es cliente de sí mismo, vuelve a ver su alarma
   const suyo = usuario.tieneAcceso === true;
@@ -518,6 +532,17 @@ function PanelUsuario({ usuario, alCambiarClave, alSalir }: { usuario: Usuario; 
     <div className="relative border-t border-borde">
       {abierto && (
         <div className="absolute bottom-full left-3 right-3 mb-2 bg-superficie-2 border border-borde rounded-sm shadow-xl flex flex-col text-sm z-40">
+          {alMisAvisos && (
+            <button
+              onClick={() => {
+                setAbierto(false);
+                alMisAvisos();
+              }}
+              className="text-left px-3 py-2.5 hover:bg-borde/40 border-b border-borde/50"
+            >
+              Mis avisos
+            </button>
+          )}
           <button
             onClick={() => {
               setAbierto(false);

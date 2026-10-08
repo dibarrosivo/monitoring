@@ -1,6 +1,8 @@
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { db, dispositivoPush, envioPush, usuario } from '@monitoring/db';
-import { fraseParaPersonal, type CargaAviso } from '@monitoring/shared';
+import { conVoz, fraseParaPersonal, grupoDeAvisoPersonal, personalQuiereRecibir, type CargaAviso } from '@monitoring/shared';
+import { enZona } from '@monitoring/engine';
+import { preferenciasPersonalDe } from '../modulos/avisosPersonal.js';
 import { enviarPush, pushDisponible, type MensajePush } from './fcm.js';
 import { usuariosDeGuardia } from '../modulos/turnos.js';
 
@@ -62,9 +64,28 @@ export async function enviarAvisosPersonal(carga: CargaAviso & { numeroCuenta?: 
       canal: frase.canal,
       datos: { eventoId: String(carga.eventoId), panelId: String(carga.panelId ?? ''), categoria: carga.categoria ?? '', destino: 'personal' },
     };
+    /*
+     * Cada uno decide qué le llega a su teléfono personal y cuándo suena, aun
+     * de guardia (decisión del dueño, 2026-10-08: control total, sin respaldo).
+     * El que lo apagó queda anotado como 'omitido', para que se vea en el
+     * rastro de avisos por qué no le llegó.
+     */
+    const grupo = grupoDeAvisoPersonal(carga.codigo);
+    const ahoraLocal = enZona(null, new Date());
+    const prefsDe = new Map<number, Awaited<ReturnType<typeof preferenciasPersonalDe>>>();
     for (const g of gente) {
+      if (!prefsDe.has(g.usuarioId)) prefsDe.set(g.usuarioId, await preferenciasPersonalDe(g.usuarioId));
+      const prefs = prefsDe.get(g.usuarioId)!;
+      if (!personalQuiereRecibir(prefs, grupo, ahoraLocal)) {
+        await db
+          .insert(envioPush)
+          .values({ eventoId: carga.eventoId, usuarioId: g.usuarioId, dispositivoId: g.dispositivoId, resultado: 'omitido', detalle: 'personal: apagado o en silencio en «Mis avisos»' })
+          .catch(() => undefined);
+        continue;
+      }
+      const paraEste = conVoz(prefs, mensaje.canal) ? mensaje : { ...mensaje, habla: '' };
       try {
-        const r = await enviarPush(g.token, mensaje, g.usuarioId);
+        const r = await enviarPush(g.token, paraEste, g.usuarioId);
         if (r === 'enviado') {
           enviados++;
           avisados.add(g.usuarioId);

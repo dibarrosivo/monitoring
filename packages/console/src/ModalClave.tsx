@@ -41,7 +41,7 @@ export function ModalClave({ alCerrar }: { alCerrar: () => void }) {
           type="password"
           value={nueva}
           onChange={(e) => setNueva(e.target.value)}
-          placeholder="Clave nueva (mín. 6)"
+          placeholder={`Clave nueva (mín. ${CLAVE_MINIMA})`}
           required
           minLength={CLAVE_MINIMA}
           autoComplete="new-password"
