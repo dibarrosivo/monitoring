@@ -32,6 +32,8 @@ public class MainActivity extends BridgeActivity {
             // No se consumen: el teclado (Type.ime()) lo sigue manejando Capacitor
             return insets;
         });
+        // Hasta que la consola avise su tema (PermisosPlugin.barras), el de por defecto: oscuro
+        contenido.setBackgroundColor(0xFF0A1626);
     }
 
     /** Con la app a la vista, los avisos los dice la propia app (tiempo real); si no, AvisosService. */

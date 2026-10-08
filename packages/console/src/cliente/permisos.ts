@@ -19,6 +19,7 @@ interface PluginPermisos {
   pedirBateria(): Promise<void>;
   abrirInicioAutomatico(): Promise<{ abierto: string }>;
   abrirAjustesApp(): Promise<{ abierto: string }>;
+  barras(o: { oscuro: boolean; fondo: string }): Promise<void>;
 }
 
 const Permisos = registerPlugin<PluginPermisos>('Permisos');
@@ -34,6 +35,12 @@ export async function estadoPermisos(): Promise<EstadoPermisos | null> {
 export const pedirBateria = () => Permisos.pedirBateria().catch(() => undefined);
 export const abrirInicioAutomatico = () => Permisos.abrirInicioAutomatico().catch(() => undefined);
 export const abrirAjustesApp = () => Permisos.abrirAjustesApp().catch(() => undefined);
+
+/** Franjas de la barra de estado y de navegación al tono del tema (solo en la app). */
+export function pintarBarrasDelSistema(oscuro: boolean, fondo: string): void {
+  if (!esNativo()) return;
+  Permisos.barras({ oscuro, fondo }).catch(() => undefined);
+}
 
 const CLAVE_INICIO_AUTO = 'monitoring.inicioAutomaticoListo';
 export function inicioAutomaticoMarcado(): boolean {

@@ -2,11 +2,15 @@ package com.falconseguridadtotal.alarma;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.View;
+import android.view.Window;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -45,6 +49,40 @@ public class PermisosPlugin extends Plugin {
     }
 
     /** Diálogo del sistema: "¿Permitir que la app se ejecute en segundo plano?" */
+    /**
+     * Pinta las franjas de las barras del sistema con el color de la cabecera
+     * y elige íconos oscuros o claros según el tema de la consola. Con el
+     * relleno de MainActivity esas franjas quedan fuera del WebView, así que
+     * el CSS no las alcanza: sin esto, en tema claro el reloj y la batería
+     * salían blancos sobre fondo claro.
+     */
+    @PluginMethod
+    public void barras(PluginCall call) {
+        final boolean oscuro = Boolean.TRUE.equals(call.getBoolean("oscuro", true));
+        final String fondo = call.getString("fondo", oscuro ? "#0a1626" : "#ffffff");
+        getActivity().runOnUiThread(() -> {
+            try {
+                Window ventana = getActivity().getWindow();
+                View contenido = ventana.getDecorView().findViewById(android.R.id.content);
+                contenido.setBackgroundColor(Color.parseColor(colorLargo(fondo)));
+                WindowInsetsControllerCompat control = new WindowInsetsControllerCompat(ventana, ventana.getDecorView());
+                control.setAppearanceLightStatusBars(!oscuro);
+                control.setAppearanceLightNavigationBars(!oscuro);
+                call.resolve();
+            } catch (IllegalArgumentException e) {
+                call.reject("color inválido: " + fondo);
+            }
+        });
+    }
+
+    /** El CSS minificado abrevia #ffffff a #fff, y Color.parseColor solo acepta la forma larga. */
+    private static String colorLargo(String c) {
+        if (c.length() == 4 && c.charAt(0) == '#') {
+            return "#" + c.charAt(1) + c.charAt(1) + c.charAt(2) + c.charAt(2) + c.charAt(3) + c.charAt(3);
+        }
+        return c;
+    }
+
     @PluginMethod
     public void pedirBateria(PluginCall call) {
         try {
