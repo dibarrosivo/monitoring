@@ -37,9 +37,15 @@ const eventos = [
   ev(60 * 24 - 600, 'cierre', 'R401', 'Cierre (armado): Apertura/Cierre por usuario', '000'),
   ev(60 * 24 - 60, 'apertura', 'E401', 'Apertura (desarmado): Apertura/Cierre por usuario', '007'),
 ];
+// Más historia hacia atrás, para probar el desplazamiento y "Cargar señales anteriores"
+for (let d = 2; d < 40; d++) {
+  eventos.push(ev(60 * 24 * d - 600, 'cierre', 'R401', 'Cierre (armado): Apertura/Cierre por usuario', '000'));
+  eventos.push(ev(60 * 24 * d - 60, 'apertura', 'E401', 'Apertura (desarmado): Apertura/Cierre por usuario — Pedro Salas (cód. 3)', '003'));
+  eventos.push(ev(60 * 24 * d - 300, 'prueba', 'E602', 'Prueba periódica', null));
+}
 window.fetch = async (entrada: RequestInfo | URL) => {
   const url = String(entrada);
-  const cuerpo = url.includes('/contexto') ? contexto : url.includes('/acciones') ? [] : url.includes('/eventos') ? eventos : url.includes('/alarmas') ? [alarma] : [];
+  const cuerpo = url.includes('/contexto') ? contexto : url.includes('/acciones') ? [] : url.includes('/eventos') ? eventos.slice(0, Number(new URL(url, location.href).searchParams.get('limite') ?? 100)) : url.includes('/alarmas') ? [alarma] : [];
   return new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 localStorage.setItem('monitoring.token', 'x');

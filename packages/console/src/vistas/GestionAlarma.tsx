@@ -262,34 +262,57 @@ export function UltimasAlarmas({ previas }: { previas: ContextoAlarma['previas']
 }
 
 /**
- * Lo último que transmitió el equipo, sin las pruebas periódicas: quién abrió y
+ * Lo que transmitió el equipo, sin las pruebas periódicas: quién abrió y
  * cerró, a qué hora, qué averías hubo. Para una alarma de horario («no cerró»,
  * «apertura fuera de horario») responde la pregunta antes de llamar.
+ *
+ * Va en una caja con su propio desplazamiento, para que se pueda ir hacia
+ * atrás sin perder de vista el resto de la alarma; al llegar al final se
+ * piden más al servidor.
  */
-export function UltimasSenales({ panelId, cantidad = 10 }: { panelId: number; cantidad?: number }) {
-  const { data: eventos, isLoading } = useQuery({
-    queryKey: ['eventos', 'panel', panelId, 'recientes'],
-    queryFn: () => listarEventosDePanel(panelId, 60),
+const PASO_SENALES = 100;
+
+export function UltimasSenales({ panelId }: { panelId: number }) {
+  const [limite, setLimite] = useState(PASO_SENALES);
+  const { data: eventos, isLoading, isFetching } = useQuery({
+    queryKey: ['eventos', 'panel', panelId, 'recientes', limite],
+    queryFn: () => listarEventosDePanel(panelId, limite),
     refetchInterval: 30_000,
+    // Al pedir más, lo que ya se ve no desaparece mientras llega lo nuevo
+    placeholderData: (anterior) => anterior,
   });
   if (isLoading) return <p className="text-tenue text-xs">Cargando…</p>;
-  const visibles = (eventos ?? []).filter((e) => tipoDe(e) !== 'prueba').slice(0, cantidad);
-  if (visibles.length === 0) return <p className="text-tenue text-xs">Sin señales recientes.</p>;
+  const todos = eventos ?? [];
+  const visibles = todos.filter((e) => tipoDe(e) !== 'prueba');
+  // Si el servidor devolvió el tope, puede haber más atrás
+  const hayMas = todos.length >= limite;
+  if (visibles.length === 0 && !hayMas) return <p className="text-tenue text-xs">Sin señales recientes.</p>;
   return (
-    <ul className="flex flex-col gap-1 text-xs">
-      {visibles.map((e) => {
-        // La misma frase corta que recibe el cliente en el aviso ("Desarmado por
-        // Pedro Salas", "Armado rápido"): en un teléfono la descripción técnica
-        // completa ocupa tres líneas y repite el nombre
-        const frase = fraseParaEvento({ ...e, eventoId: e.id, zonaDescripcion: e.zonaDescripcion ?? null }, { nombrarSitio: false });
-        return (
-          <li key={e.id} className="text-tenue">
-            <span className="font-datos">{fechaHora(e.ocurridoEn)}</span>{' '}
-            <span className={`font-datos font-semibold ${CLASES_TIPO[tipoDe(e)].texto}`}>{e.codigo}</span>{' '}
-            <span className="text-texto">{frase?.cuerpo ?? e.descripcion}</span>
-          </li>
-        );
-      })}
-    </ul>
+    <div className="max-h-72 overflow-y-auto overscroll-contain border border-borde/60 rounded p-2">
+      <ul className="flex flex-col gap-1 text-xs">
+        {visibles.map((e) => {
+          // La misma frase corta que recibe el cliente en el aviso ("Desarmado por
+          // Pedro Salas", "Armado rápido"): en un teléfono la descripción técnica
+          // completa ocupa tres líneas y repite el nombre
+          const frase = fraseParaEvento({ ...e, eventoId: e.id, zonaDescripcion: e.zonaDescripcion ?? null }, { nombrarSitio: false });
+          return (
+            <li key={e.id} className="text-tenue">
+              <span className="font-datos">{fechaHora(e.ocurridoEn)}</span>{' '}
+              <span className={`font-datos font-semibold ${CLASES_TIPO[tipoDe(e)].texto}`}>{e.codigo}</span>{' '}
+              <span className="text-texto">{frase?.cuerpo ?? e.descripcion}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {hayMas && (
+        <button
+          onClick={() => setLimite((l) => l + PASO_SENALES)}
+          disabled={isFetching}
+          className="mt-2 w-full text-xs text-acento border border-borde rounded py-1.5 disabled:opacity-50"
+        >
+          {isFetching ? 'Cargando…' : 'Cargar señales anteriores'}
+        </button>
+      )}
+    </div>
   );
 }
