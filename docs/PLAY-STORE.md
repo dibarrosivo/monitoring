@@ -20,7 +20,7 @@ es el que se está recorriendo ahora mismo con esa app.
 | Permisos acotados | ✔ internet, notificaciones, servicio breve en primer plano y excepción de ahorro de batería. Sin ubicación, cámara, micrófono ni contactos |
 | Botón atrás de Android | ✔ `src/cliente/atras.ts` |
 
-Recordatorio: cada subida exige un `versionCode` mayor. Hoy va en **23 / "1.6.0"**
+Recordatorio: cada subida exige un `versionCode` mayor. Hoy va en **24 / "1.6.0"** (el 23 lo usó el APK directo 1.6.0, publicado el 08-10-2026)
 (`packages/console/android/app/build.gradle` y `packages/console/package.json`,
 que tienen que coincidir).
 
@@ -355,7 +355,7 @@ Ese día hay que encender la cuenta de pruebas.
 
 Cada subida exige un versionCode mayor que **cualquiera ya subido**, aunque esa
 versión no se haya publicado (TrueTracker tuvo que pasar a versionCode 2 por
-eso). FST arranca en 23.
+eso). FST arranca en 24: el 23 lo usó el APK directo 1.6.0.
 
 ## Estado al 03-10-2026
 
@@ -364,7 +364,7 @@ eso). FST arranca en 23.
 | Cuenta de desarrollador | la misma de TrueTracker |
 | Páginas legales | en producción, 200 |
 | Correo | `privacidad@` y `soporte@` reciben por reenvío de ImprovMX (MX en GoDaddy, sin mudar el DNS). Falta confirmar con un correo de prueba de punta a punta |
-| AAB | `fst-alarma-1.6.0.aab`, versionCode 23, recompilado el 03-10 con el código al día; sin actualizador; firmado con la llave correcta |
+| AAB | **recompilar antes de subir** (`empaquetar-android.sh tienda`): versionCode 24. El 23 lo usó el APK directo 1.6.0 del 08-10 |
 | Gráficos | regenerados el 03-10 con el logo alineado |
 | Cuenta de pruebas | sembrada y **apagada**; se enciende el día de la prueba cerrada |
 | Firma | **decisión al subir el primer AAB: la llave existente** |
