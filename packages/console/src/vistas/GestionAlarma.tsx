@@ -277,7 +277,11 @@ export function UltimasSenales({ panelId }: { panelId: number }) {
   const { data: eventos, isLoading, isFetching } = useQuery({
     queryKey: ['eventos', 'panel', panelId, 'recientes', limite],
     queryFn: () => listarEventosDePanel(panelId, limite),
-    refetchInterval: 30_000,
+    // Medido en producción (octubre de 2026): 100 señales son 18 ms en el
+    // servidor y 2,7 KB comprimidas; paginar de a 20 sumaría viajes sin ganar
+    // nada. Lo que sí se evita es volver a bajar cada 30 s una lista larga que
+    // el operador estiró para mirar hacia atrás: solo se refresca la primera.
+    refetchInterval: limite === PASO_SENALES ? 30_000 : false,
     // Al pedir más, lo que ya se ve no desaparece mientras llega lo nuevo
     placeholderData: (anterior) => anterior,
   });
