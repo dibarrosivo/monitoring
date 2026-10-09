@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { limpiarBase, prepararBaseDePruebas } from './ayuda.js';
+import { crearContexto, crearUsuarioDirecto, limpiarBase, prepararBaseDePruebas, type Contexto } from './ayuda.js';
 
 /**
  * Caída del puente PIMA de punta a punta: el vigilante la detecta recién al
@@ -8,6 +8,7 @@ import { limpiarBase, prepararBaseDePruebas } from './ayuda.js';
  */
 
 const MIN = 60_000;
+let ctx: Contexto;
 
 async function crearPuente(ultimoLatidoHaceMin: number): Promise<number> {
   const { db, bridge } = await import('@monitoring/db');
@@ -32,9 +33,11 @@ async function eventosDelPuente(): Promise<{ codigo: string | null; descripcion:
 
 beforeAll(async () => {
   await prepararBaseDePruebas();
+  ctx = await crearContexto();
 });
 
 afterAll(async () => {
+  await ctx.app.close();
   const { pool } = await import('@monitoring/db');
   await pool.end();
 });
@@ -69,5 +72,21 @@ describe('caída del puente', () => {
     eventos = await eventosDelPuente();
     expect(eventos[1]).toMatchObject({ codigo: 'BRIDGE-R', alarmas: 0 });
     expect(eventos[1]!.descripcion).toContain('tras 40 min');
+  });
+
+  it('el detalle de la alarma trae las listas vacías (la app se caía al abrirla)', async () => {
+    const { revisarPuentes } = await import('@monitoring/engine');
+    await crearPuente(40);
+    await revisarPuentes();
+    await crearUsuarioDirecto({ email: 'oper@test.local', nombre: 'Operador', clave: 'oper123456', rol: 'operador' });
+    const token = await ctx.ingresar('oper@test.local', 'oper123456');
+    const { cuerpo: alarmas } = await ctx.pedir('GET', '/alarmas', { token });
+    const delPuente = alarmas.find((a: { panelId: number | null }) => a.panelId === null);
+    expect(delPuente).toBeDefined();
+
+    const { estado, cuerpo } = await ctx.pedir('GET', `/alarmas/${delPuente.id}/contexto`, { token });
+    expect(estado).toBe(200);
+    expect(cuerpo).toMatchObject({ cliente: null, previas: [], horarios: [], usuariosPanel: [], contactos: [], pasosCumplidos: [] });
+    expect(Array.isArray(cuerpo.pasos)).toBe(true);
   });
 });

@@ -77,6 +77,9 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
   );
 }
 
+/** Alarmas de la propia central (puente caído, central muda): no son de un cliente. */
+const FALLAS_DE_LA_CENTRAL = ['BRIDGE', 'SIS-GEN'];
+
 function DetalleMovil({ alarma }: { alarma: Alarma }) {
   const clienteConsultas = useQueryClient();
   const { data: contexto } = useQuery({ queryKey: ['contexto', alarma.id], queryFn: () => verContexto(alarma.id) });
@@ -126,6 +129,8 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
           )}
           <ListaLlamadas alarma={alarma} contactos={contexto.contactos} compacta />
         </div>
+      ) : alarma.panelId === null && FALLAS_DE_LA_CENTRAL.includes(alarma.evento.codigo ?? '') ? (
+        <p className="text-tenue">Falla de la central: no corresponde a ningún cliente.</p>
       ) : (
         <p className="text-prio2">Cuenta sin cliente asociado.</p>
       )}
@@ -173,7 +178,7 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
       {alarma.panelId && (
         <section className="flex flex-col gap-1.5">
           <p className="text-tenue text-xs uppercase tracking-wider">Últimas señales de la cuenta</p>
-          {(contexto?.horarios.length ?? 0) > 0 && (
+          {(contexto?.horarios?.length ?? 0) > 0 && (
             <p className="font-datos text-xs text-tenue">
               Horario: {contexto!.horarios.map((h) => `${h.dias.replace(/-/g, '')} ${h.apertura}–${h.cierre}`).join(' · ')}
             </p>
@@ -181,7 +186,7 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
           <UltimasSenales panelId={alarma.panelId} />
         </section>
       )}
-      {contexto && (
+      {contexto?.cliente && (
         <section className="flex flex-col gap-1.5">
           <p className="text-tenue text-xs uppercase tracking-wider">Últimas alarmas de este sitio</p>
           <UltimasAlarmas previas={contexto.previas} />

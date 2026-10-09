@@ -245,7 +245,7 @@ export function FormularioCierre({
  * primero que conviene mirar antes de llamar: si las tres últimas fueron falsas
  * alarmas del mismo sensor, la llamada es otra.
  */
-export function UltimasAlarmas({ previas }: { previas: ContextoAlarma['previas'] }) {
+export function UltimasAlarmas({ previas = [] }: { previas?: ContextoAlarma['previas'] }) {
   if (previas.length === 0) return <p className="text-tenue text-xs">Sin alarmas anteriores en este sitio.</p>;
   return (
     <ul className="flex flex-col gap-1 text-xs">

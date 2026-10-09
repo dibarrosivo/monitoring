@@ -43,6 +43,18 @@ for (let d = 2; d < 40; d++) {
   eventos.push(ev(60 * 24 * d - 60, 'apertura', 'E401', 'Apertura (desarmado): Apertura/Cierre por usuario — Pedro Salas (cód. 3)', '003'));
   eventos.push(ev(60 * 24 * d - 300, 'prueba', 'E602', 'Prueba periódica', null));
 }
+// ?puente: una alarma sin panel (PUENTE CAÍDO). Con ?viejo, el contexto llega
+// como lo mandaba la API antes del 09-10-2026, sin listas: así se caía la app.
+const parametros = new URLSearchParams(location.search);
+if (parametros.has('puente')) {
+  Object.assign(alarma, {
+    panelId: null, clienteNombre: null, prefijo: null,
+    evento: { id: 5001, senalId: null, codigo: 'BRIDGE', categoria: 'sistema', descripcion: 'PUENTE CAÍDO: sin latido de puente-pima-central hace más de 5 min', numeroCuenta: null, particion: null, zona: null, ocurridoEn: hace(12) },
+  });
+  const sinFicha = { cliente: null, sitio: null, panel: null, contactos: [], zonaDescripcion: null, pasos: [], pasosCumplidos: [] };
+  Object.keys(contexto).forEach((k) => delete (contexto as Record<string, unknown>)[k]);
+  Object.assign(contexto, parametros.has('viejo') ? sinFicha : { ...sinFicha, usuarioPanelNombre: null, horarios: [], usuariosPanel: [], previas: [] });
+}
 window.fetch = async (entrada: RequestInfo | URL) => {
   const url = String(entrada);
   const cuerpo = url.includes('/contexto') ? contexto : url.includes('/acciones') ? [] : url.includes('/eventos') ? eventos.slice(0, Number(new URL(url, location.href).searchParams.get('limite') ?? 100)) : url.includes('/alarmas') ? [alarma] : [];

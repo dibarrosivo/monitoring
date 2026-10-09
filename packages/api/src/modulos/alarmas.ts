@@ -122,11 +122,26 @@ export function registrarAlarmas(app: App) {
       .where(eq(alarma.id, id))
       .limit(1);
     if (!fila) return reply.code(404).send({ error: 'Alarma no encontrada' });
-    if (!fila.panelId) {
-      // Cuenta desconocida: no hay ficha que mostrar, pero el protocolo igual aplica
-      const pasos = protocoloPara({ codigo: fila.codigo, codigoCid: fila.codigo.replace(/^[ER]/, ''), categoria: fila.categoria });
-      return { cliente: null, sitio: null, panel: null, contactos: [], zonaDescripcion: null, pasos, pasosCumplidos: [] };
-    }
+    /*
+     * Sin ficha (cuenta desconocida, PUENTE CAÍDO, central muda): mismas listas
+     * que con panel, vacías, porque la consola las recorre sin preguntar. Sin
+     * esto, abrir un PUENTE CAÍDO tiraba la app (09-10-2026). El protocolo
+     * igual aplica.
+     */
+    const sinFicha = () => ({
+      cliente: null,
+      sitio: null,
+      panel: null,
+      contactos: [],
+      zonaDescripcion: null,
+      usuarioPanelNombre: null,
+      pasos: protocoloPara({ codigo: fila.codigo, codigoCid: fila.codigo.replace(/^[ER]/, ''), categoria: fila.categoria }),
+      pasosCumplidos: [],
+      horarios: [],
+      usuariosPanel: [],
+      previas: [],
+    });
+    if (!fila.panelId) return sinFicha();
 
     const [contexto] = await db
       .select({
@@ -173,7 +188,7 @@ export function registrarAlarmas(app: App) {
       .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
       .where(eq(panel.id, fila.panelId))
       .limit(1);
-    if (!contexto) return { cliente: null, sitio: null, panel: null, contactos: [], zonaDescripcion: null };
+    if (!contexto) return sinFicha();
 
     const contactos = await db
       .select()

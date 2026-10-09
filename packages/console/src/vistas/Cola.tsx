@@ -714,9 +714,9 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
                     {contexto.panel?.enPruebaMotivo && <span className="normal-case tracking-normal font-normal text-tenue"> · {contexto.panel.enPruebaMotivo}</span>}
                   </p>
                 )}
-                {contexto.horarios.length > 0 && (
+                {(contexto.horarios?.length ?? 0) > 0 && (
                   <p className="font-datos text-xs text-tenue">
-                    Horario: {contexto.horarios.map((h) => `${h.dias.replace(/-/g, '')} ${h.apertura}–${h.cierre}`).join(' · ')}
+                    Horario: {contexto.horarios!.map((h) => `${h.dias.replace(/-/g, '')} ${h.apertura}–${h.cierre}`).join(' · ')}
                   </p>
                 )}
                 {contexto.usuariosPanel.length > 0 && (
@@ -766,7 +766,7 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
           <h3 className="text-tenue text-xs uppercase tracking-wider mb-2">Historial</h3>
           <Bitacora acciones={acciones} />
           <AvisosAlCliente eventoId={alarma.evento.id} />
-          {(contexto?.previas.length ?? 0) > 0 && (
+          {(contexto?.previas?.length ?? 0) > 0 && (
             <>
               <h3 className="text-tenue text-xs uppercase tracking-wider mt-3 mb-1">Últimas alarmas de este sitio</h3>
               <UltimasAlarmas previas={contexto!.previas} />
