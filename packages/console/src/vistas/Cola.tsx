@@ -7,7 +7,7 @@ import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, N
 import { ModalSenal } from '../ModalSenal.js';
 import { Modal } from '../Modal.js';
 import { ETIQUETA_DESENLACE, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
-import { Bitacora, FormularioCierre, ListaLlamadas, esFallaDeLaCentral, UltimasAlarmas, useContextoAlarma } from './GestionAlarma.js';
+import { Bitacora, FormularioCierre, ListaLlamadas, esAlarmaDelPuente, esFallaDeLaCentral, HistorialPuente, UltimasAlarmas, useContextoAlarma } from './GestionAlarma.js';
 import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -765,6 +765,12 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
           <h3 className="text-tenue text-xs uppercase tracking-wider mb-2">Historial</h3>
           <Bitacora acciones={acciones} />
           <AvisosAlCliente eventoId={alarma.evento.id} />
+          {esAlarmaDelPuente(alarma) && (
+            <>
+              <h3 className="text-tenue text-xs uppercase tracking-wider mt-3 mb-1">Últimas caídas del puente</h3>
+              <HistorialPuente />
+            </>
+          )}
           {(contexto?.previas?.length ?? 0) > 0 && (
             <>
               <h3 className="text-tenue text-xs uppercase tracking-wider mt-3 mb-1">Últimas alarmas de este sitio</h3>

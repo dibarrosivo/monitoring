@@ -89,4 +89,21 @@ describe('caída del puente', () => {
     expect(cuerpo).toMatchObject({ cliente: null, previas: [], horarios: [], usuariosPanel: [], contactos: [], pasosCumplidos: [] });
     expect(Array.isArray(cuerpo.pasos)).toBe(true);
   });
+
+  it('el historial del puente: solo caídas y vueltas, las más nuevas primero', async () => {
+    const { revisarPuentes } = await import('@monitoring/engine');
+    const { db, bridge, evento } = await import('@monitoring/db');
+    const { eq } = await import('drizzle-orm');
+    const id = await crearPuente(40);
+    await revisarPuentes();
+    await db.update(bridge).set({ ultimoLatidoEn: new Date() }).where(eq(bridge.id, id));
+    await revisarPuentes();
+    // Un evento cualquiera en el medio que no debe colarse
+    await db.insert(evento).values({ categoria: 'sistema', codigo: 'SIS-GEN', descripcion: 'Central muda', prioridad: 2, ocurridoEn: new Date() });
+
+    await crearUsuarioDirecto({ email: 'oper2@test.local', nombre: 'Operador', clave: 'oper123456', rol: 'operador' });
+    const token = await ctx.ingresar('oper2@test.local', 'oper123456');
+    const { cuerpo } = await ctx.pedir('GET', '/eventos?codigos=BRIDGE,BRIDGE-R&limite=10', { token });
+    expect(cuerpo.map((e: { codigo: string }) => e.codigo)).toEqual(['BRIDGE-R', 'BRIDGE']);
+  });
 });

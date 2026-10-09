@@ -4,7 +4,7 @@ import { anotarAlarma, devolverAlarma, listarAcciones, listarAlarmas, tomarAlarm
 import type { Alarma } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { CLASES_TIPO, clasesPrioridad, nombreCuenta, tipoDe } from '../ui.js';
-import { Bitacora, esFallaDeLaCentral, FormularioCierre, ListaLlamadas, UltimasAlarmas, UltimasSenales, useContextoAlarma } from './GestionAlarma.js';
+import { Bitacora, esAlarmaDelPuente, esFallaDeLaCentral, FormularioCierre, HistorialPuente, ListaLlamadas, UltimasAlarmas, UltimasSenales, useContextoAlarma } from './GestionAlarma.js';
 import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -181,6 +181,12 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
             </p>
           )}
           <UltimasSenales panelId={alarma.panelId} />
+        </section>
+      )}
+      {esAlarmaDelPuente(alarma) && (
+        <section className="flex flex-col gap-1.5">
+          <p className="text-tenue text-xs uppercase tracking-wider">Últimas caídas del puente</p>
+          <HistorialPuente />
         </section>
       )}
       {contexto?.cliente && (

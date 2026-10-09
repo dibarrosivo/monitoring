@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cerrarAlarma, cerrarLote, listarEventosDePanel, registrarLlamada, verContexto } from '../api.js';
+import { cerrarAlarma, cerrarLote, listarEventosDePanel, listarEventosPorCodigo, registrarLlamada, verContexto } from '../api.js';
 import type { AccionAlarma, Alarma, ContextoAlarma, DesenlaceAlarma } from '../tipos.js';
 import { ETIQUETA_DESENLACE, fraseParaEvento, MOTIVOS_CIERRE, protocoloPara, RESULTADOS_LLAMADA, type ResultadoLlamada } from '@monitoring/shared';
 import { fechaHora } from '../tiempo.js';
@@ -358,4 +358,39 @@ export function useContextoAlarma(alarma: Alarma, acciones: AccionAlarma[] | und
     usuariosPanel: [],
     previas: [],
   };
+}
+
+/** ¿Es una alarma del puente? Tiene su propio historial: caídas y vueltas. */
+export function esAlarmaDelPuente(alarma: Alarma): boolean {
+  return esSinDispositivo(alarma) && alarma.evento.codigo === 'BRIDGE';
+}
+
+/**
+ * Las últimas 10 veces que el puente cayó o volvió. Sirve para ver si es un
+ * corte suelto o el patrón de cada día (luz, proveedor) antes de salir a
+ * revisar la PC.
+ */
+export function HistorialPuente() {
+  const { data: eventos, isLoading } = useQuery({
+    queryKey: ['eventos', 'puente', 'historial'],
+    queryFn: () => listarEventosPorCodigo(['BRIDGE', 'BRIDGE-R'], 10),
+    refetchInterval: 60_000,
+  });
+  if (isLoading) return <p className="text-tenue text-xs">Cargando…</p>;
+  if (!eventos || eventos.length === 0) return <p className="text-tenue text-xs">Sin caídas registradas.</p>;
+  return (
+    <ul className="flex flex-col gap-1 text-xs">
+      {eventos.map((e) => {
+        const cayo = e.codigo === 'BRIDGE';
+        const duracion = !cayo ? /tras (.+?) sin/.exec(e.descripcion)?.[1] : null;
+        return (
+          <li key={e.id} className="flex gap-2 items-baseline">
+            <span className="font-datos text-tenue shrink-0">{fechaHora(e.ocurridoEn)}</span>
+            <span className={`font-semibold ${cayo ? 'text-prio1' : 'text-ok'}`}>{cayo ? 'Cayó' : 'Volvió'}</span>
+            {duracion && <span className="text-tenue">tras {duracion} sin reportar</span>}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }

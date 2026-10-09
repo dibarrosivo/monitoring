@@ -55,6 +55,17 @@ if (parametros.has('puente')) {
   Object.keys(contexto).forEach((k) => delete (contexto as Record<string, unknown>)[k]);
   Object.assign(contexto, sinFicha);
 }
+const historialPuente = [
+  ['BRIDGE-R', 60 * 3, 'tras 1 h 19 min sin reportar'], ['BRIDGE', 60 * 4 + 19, ''],
+  ['BRIDGE-R', 60 * 24 + 120, 'tras 4 h 59 min sin reportar'], ['BRIDGE', 60 * 29 + 119, ''],
+  ['BRIDGE-R', 60 * 34, 'tras 10 min sin reportar'], ['BRIDGE', 60 * 34 + 10, ''],
+  ['BRIDGE-R', 60 * 35, 'tras 4 min sin reportar'], ['BRIDGE', 60 * 35 + 4, ''],
+  ['BRIDGE-R', 60 * 48, 'tras 39 min sin reportar'], ['BRIDGE', 60 * 48 + 39, ''],
+].map(([codigo, min, tras], i) => ({
+  id: 9000 + i, senalId: null, panelId: null, numeroCuenta: null, categoria: codigo === 'BRIDGE' ? 'sistema' : 'restauracion', codigo, particion: null, zona: null, prioridad: 2,
+  descripcion: codigo === 'BRIDGE' ? 'PUENTE CAÍDO: sin latido de puente-pima-central hace más de 5 min' : `PUENTE RESTABLECIDO: volvió el latido de puente-pima-central ${tras}`,
+  ocurridoEn: new Date(Date.now() - (min as number) * 60_000).toISOString(), zonaDescripcion: null, usuarioPanelNombre: null,
+}));
 // Lo que la consola le pide al servidor, para ver que una señal sin dispositivo no pide datos
 const pedidos: string[] = [];
 (window as unknown as { pedidos: string[] }).pedidos = pedidos;
@@ -63,6 +74,7 @@ window.fetch = async (entrada: RequestInfo | URL) => {
   pedidos.push(new URL(url, location.href).pathname);
   document.title = pedidos.join(' ');
   if (parametros.has('puente') && url.includes('/contexto')) return new Response('{}', { status: 500 });
+  if (url.includes('codigos=')) return new Response(JSON.stringify(historialPuente), { status: 200, headers: { 'content-type': 'application/json' } });
   const cuerpo = url.includes('/contexto') ? contexto : url.includes('/acciones') ? [] : url.includes('/eventos') ? eventos.slice(0, Number(new URL(url, location.href).searchParams.get('limite') ?? 100)) : url.includes('/alarmas') ? [alarma] : [];
   return new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } });
 };

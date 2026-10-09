@@ -196,6 +196,8 @@ export const marcarPaso = (id: number, paso: string) =>
 
 export const listarEventos = (limite = 200) => pedir<Evento[]>(`/eventos?limite=${limite}`);
 export const listarAvisosPush = (eventoIds: number[]) => (eventoIds.length ? pedir<AvisoPush[]>(`/avisos-push?eventoIds=${eventoIds.join(',')}`) : Promise.resolve([] as AvisoPush[]));
+export const listarEventosPorCodigo = (codigos: string[], limite = 10) =>
+  pedir<Evento[]>(`/eventos?codigos=${encodeURIComponent(codigos.join(','))}&limite=${limite}`);
 export const listarEventosDePanel = (panelId: number, limite = 300) => pedir<Evento[]>(`/eventos?panelId=${panelId}&limite=${limite}`);
 export const listarPaneles = () => pedir<EstadoPanel[]>('/paneles/estado');
 
