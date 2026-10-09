@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cerrarAlarma, cerrarLote, listarEventosDePanel, registrarLlamada } from '../api.js';
+import { cerrarAlarma, cerrarLote, listarEventosDePanel, registrarLlamada, verContexto } from '../api.js';
 import type { AccionAlarma, Alarma, ContextoAlarma, DesenlaceAlarma } from '../tipos.js';
-import { ETIQUETA_DESENLACE, fraseParaEvento, MOTIVOS_CIERRE, RESULTADOS_LLAMADA, type ResultadoLlamada } from '@monitoring/shared';
+import { ETIQUETA_DESENLACE, fraseParaEvento, MOTIVOS_CIERRE, protocoloPara, RESULTADOS_LLAMADA, type ResultadoLlamada } from '@monitoring/shared';
 import { fechaHora } from '../tiempo.js';
 import { CLASES_TIPO, tipoDe } from '../ui.js';
 
@@ -319,4 +319,43 @@ export function UltimasSenales({ panelId }: { panelId: number }) {
       )}
     </div>
   );
+}
+
+/**
+ * Señal sin dispositivo (puente caído, central muda, cuenta desconocida): no
+ * hay cliente ni equipo, así que no se pide ningún dato al servidor; se
+ * atiende y se cierra igual. El protocolo no depende de ningún cliente: sale
+ * del catálogo, y lo ya hecho, de la bitácora de la propia alarma.
+ */
+export function esSinDispositivo(alarma: Alarma): boolean {
+  return alarma.panelId == null;
+}
+
+/** Falla de la propia central (puente caído, central muda): no es de ningún cliente. */
+export function esFallaDeLaCentral(alarma: Alarma): boolean {
+  return esSinDispositivo(alarma) && ['BRIDGE', 'SIS-GEN'].includes(alarma.evento.codigo ?? '');
+}
+
+export function useContextoAlarma(alarma: Alarma, acciones: AccionAlarma[] | undefined): ContextoAlarma | undefined {
+  const sinDispositivo = esSinDispositivo(alarma);
+  const { data } = useQuery({
+    queryKey: ['contexto', alarma.id],
+    queryFn: () => verContexto(alarma.id),
+    enabled: !sinDispositivo,
+  });
+  if (!sinDispositivo) return data;
+  const codigo = alarma.evento.codigo ?? '';
+  const pasos = protocoloPara({ codigo, codigoCid: codigo.replace(/^[ER]/, ''), categoria: alarma.evento.categoria });
+  return {
+    cliente: null,
+    sitio: null,
+    panel: null,
+    contactos: [],
+    zonaDescripcion: null,
+    pasos,
+    pasosCumplidos: (acciones ?? []).filter((a) => a.tipo === 'paso' && a.detalle).map((a) => a.detalle!),
+    horarios: [],
+    usuariosPanel: [],
+    previas: [],
+  };
 }

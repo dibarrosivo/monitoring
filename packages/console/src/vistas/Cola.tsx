@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { anotarAlarma, devolverAlarma, listarAvisosPush, marcarPaso, listarAcciones, listarAlarmas, reabrirAlarma, tomarAlarma, tomarLote, verContexto } from '../api.js';
+import { anotarAlarma, devolverAlarma, listarAvisosPush, marcarPaso, listarAcciones, listarAlarmas, reabrirAlarma, tomarAlarma, tomarLote } from '../api.js';
 import type { Alarma, TipoSenal } from '../tipos.js';
 import { duracionCorta, fechaHora, transcurrido } from '../tiempo.js';
 import { CLASES_TIPO, clasesPrioridad, enPrueba, enVerificacion, nombreCuenta, NOMBRE_TIPO_PANEL, resumenAviso, tipoDe } from '../ui.js';
 import { ModalSenal } from '../ModalSenal.js';
 import { Modal } from '../Modal.js';
 import { ETIQUETA_DESENLACE, NOMBRE_TIPO_SENAL, ORDEN_TIPOS_SENAL } from '@monitoring/shared';
-import { Bitacora, FormularioCierre, ListaLlamadas, UltimasAlarmas } from './GestionAlarma.js';
+import { Bitacora, FormularioCierre, ListaLlamadas, esFallaDeLaCentral, UltimasAlarmas, useContextoAlarma } from './GestionAlarma.js';
 import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -548,10 +548,7 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
     queryKey: ['acciones', alarma.id],
     queryFn: () => listarAcciones(alarma.id),
   });
-  const { data: contexto } = useQuery({
-    queryKey: ['contexto', alarma.id],
-    queryFn: () => verContexto(alarma.id),
-  });
+  const contexto = useContextoAlarma(alarma, acciones);
   const [nota, setNota] = useState('');
   const [senalVisible, setSenalVisible] = useState(false);
   const numeroDetalle = contexto && numeroDelEvento({ ...alarma.evento, ...contexto });
@@ -754,6 +751,8 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
               <h3 className="text-tenue text-xs uppercase tracking-wider mt-1">Lista de llamadas</h3>
               <ListaLlamadas alarma={alarma} contactos={contexto.contactos} />
             </>
+          ) : esFallaDeLaCentral(alarma) ? (
+            <p className="text-tenue">Falla de la central: no corresponde a ningún cliente.</p>
           ) : (
             <p className="text-prio2">
               Cuenta {alarma.evento.numeroCuenta ?? 'desconocida'} sin cliente asociado. Darla de alta en Clientes.

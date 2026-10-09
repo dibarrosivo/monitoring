@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { anotarAlarma, devolverAlarma, listarAcciones, listarAlarmas, tomarAlarma, verContexto } from '../api.js';
+import { anotarAlarma, devolverAlarma, listarAcciones, listarAlarmas, tomarAlarma } from '../api.js';
 import type { Alarma } from '../tipos.js';
 import { transcurrido } from '../tiempo.js';
 import { CLASES_TIPO, clasesPrioridad, nombreCuenta, tipoDe } from '../ui.js';
-import { Bitacora, FormularioCierre, ListaLlamadas, UltimasAlarmas, UltimasSenales } from './GestionAlarma.js';
+import { Bitacora, esFallaDeLaCentral, FormularioCierre, ListaLlamadas, UltimasAlarmas, UltimasSenales, useContextoAlarma } from './GestionAlarma.js';
 import { numeroDelEvento } from '../numeroDelEvento.js';
 
 const ORDEN_ESTADO = { nueva: 0, en_atencion: 1, cerrada: 2 } as const;
@@ -77,13 +77,10 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
   );
 }
 
-/** Alarmas de la propia central (puente caído, central muda): no son de un cliente. */
-const FALLAS_DE_LA_CENTRAL = ['BRIDGE', 'SIS-GEN'];
-
 function DetalleMovil({ alarma }: { alarma: Alarma }) {
   const clienteConsultas = useQueryClient();
-  const { data: contexto } = useQuery({ queryKey: ['contexto', alarma.id], queryFn: () => verContexto(alarma.id) });
   const { data: acciones } = useQuery({ queryKey: ['acciones', alarma.id], queryFn: () => listarAcciones(alarma.id) });
+  const contexto = useContextoAlarma(alarma, acciones);
   const [nota, setNota] = useState('');
   const detalle = contexto && numeroDelEvento({ ...alarma.evento, ...contexto });
 
@@ -129,7 +126,7 @@ function DetalleMovil({ alarma }: { alarma: Alarma }) {
           )}
           <ListaLlamadas alarma={alarma} contactos={contexto.contactos} compacta />
         </div>
-      ) : alarma.panelId === null && FALLAS_DE_LA_CENTRAL.includes(alarma.evento.codigo ?? '') ? (
+      ) : esFallaDeLaCentral(alarma) ? (
         <p className="text-tenue">Falla de la central: no corresponde a ningún cliente.</p>
       ) : (
         <p className="text-prio2">Cuenta sin cliente asociado.</p>

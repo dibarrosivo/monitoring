@@ -43,8 +43,8 @@ for (let d = 2; d < 40; d++) {
   eventos.push(ev(60 * 24 * d - 60, 'apertura', 'E401', 'Apertura (desarmado): Apertura/Cierre por usuario — Pedro Salas (cód. 3)', '003'));
   eventos.push(ev(60 * 24 * d - 300, 'prueba', 'E602', 'Prueba periódica', null));
 }
-// ?puente: una alarma sin panel (PUENTE CAÍDO). Con ?viejo, el contexto llega
-// como lo mandaba la API antes del 09-10-2026, sin listas: así se caía la app.
+// ?puente: una alarma sin dispositivo (PUENTE CAÍDO). Si la consola pidiera el
+// contexto, el servidor falla a propósito: no debe pedirlo.
 const parametros = new URLSearchParams(location.search);
 if (parametros.has('puente')) {
   Object.assign(alarma, {
@@ -53,10 +53,16 @@ if (parametros.has('puente')) {
   });
   const sinFicha = { cliente: null, sitio: null, panel: null, contactos: [], zonaDescripcion: null, pasos: [], pasosCumplidos: [] };
   Object.keys(contexto).forEach((k) => delete (contexto as Record<string, unknown>)[k]);
-  Object.assign(contexto, parametros.has('viejo') ? sinFicha : { ...sinFicha, usuarioPanelNombre: null, horarios: [], usuariosPanel: [], previas: [] });
+  Object.assign(contexto, sinFicha);
 }
+// Lo que la consola le pide al servidor, para ver que una señal sin dispositivo no pide datos
+const pedidos: string[] = [];
+(window as unknown as { pedidos: string[] }).pedidos = pedidos;
 window.fetch = async (entrada: RequestInfo | URL) => {
   const url = String(entrada);
+  pedidos.push(new URL(url, location.href).pathname);
+  document.title = pedidos.join(' ');
+  if (parametros.has('puente') && url.includes('/contexto')) return new Response('{}', { status: 500 });
   const cuerpo = url.includes('/contexto') ? contexto : url.includes('/acciones') ? [] : url.includes('/eventos') ? eventos.slice(0, Number(new URL(url, location.href).searchParams.get('limite') ?? 100)) : url.includes('/alarmas') ? [alarma] : [];
   return new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } });
 };
