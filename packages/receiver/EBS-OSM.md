@@ -310,3 +310,19 @@ servidor **hay que marcarla**: si no, el equipo se queda pegado a la conexión
 que ya tiene con el receptor viejo, y como la mantiene abierta mientras tenga
 corriente, el cambio podría no aplicarse por horas o días. Es, exactamente, el
 momento sin retorno del corte.
+
+### El analizador MONITOREO apunta a la puerta de enlace, no a `receptor` (2026-10-15)
+
+En el `config.xml` del OSM del VPS (`/opt/monitoring/osm/config.xml`, fuera de
+git) el analizador `MONITOREO` tenía `addr="receptor"`. Cada despliegue recrea
+el contenedor del receptor y le cambia la dirección interna, y el OSM bajo Wine
+**no vuelve a resolver el nombre**: quedaba intentando la dirección vieja. El
+14-10 estuvo 11 horas sin entregar nada, y el evento de Matarile de la prueba
+del 15-10 quedó retenido en su cola hasta reiniciarlo.
+
+Ahora apunta a `addr="172.18.0.1"` (la puerta de enlace de la red
+`monitoring_default`), y Docker reenvía el 10060 publicado al receptor, esté en
+la dirección que esté. Las reglas de `DOCKER-USER` que cierran el 10060 solo
+miran la interfaz `eth0`, así que el tráfico interno pasa. Probado reiniciando
+solo el receptor: el OSM se reconectó en 4 s. Copia del anterior:
+`config.xml.antes-gateway-20261015-145103`.
