@@ -18,18 +18,9 @@
 		file_server
 	}
 
-	# Vista previa de la página comercial, todavía sin publicar. Va con clave
-	# y con noindex a propósito: se puede ver desde internet para revisarla,
-	# pero no es pública ni la toma ningún buscador. Cuando se decida
-	# publicarla irá en su propio dominio y este bloque se retira.
-	handle_path /previa/* {
-		root * /srv/previa
-		basic_auth {
-			fst $2a$14$n74LsMs4KMpXnOSqYdPqOu03uCybjMxmtgQfGObVLrOSZgDdcYOJy
-		}
-		header X-Robots-Tag "noindex, nofollow"
-		file_server
-	}
+	# La vista previa con clave (/previa) se retiró: la página comercial ya
+	# vive en falconseguridadtotal.com (bloque de abajo).
+	redir /previa/* https://falconseguridadtotal.com/ permanent
 
 	# La consola es una aplicación de una sola página: cualquier ruta que no
 	# sea un archivo real devuelve index.html para que el enrutador la resuelva.
@@ -67,4 +58,44 @@
 			request>headers>Authorization replace REDACTADO
 		}
 	}
+}
+
+# Página comercial pública de Falcón Seguridad Total (desde el 15-10-2026; antes
+# el dominio apuntaba al Windows con el portal de 365, que ya nadie usa). La
+# consola y la app siguen en monitoreo.falconseguridadtotal.com.
+falconseguridadtotal.com {
+	encode gzip
+
+	# El formulario de contacto de la página postea acá (mismo origen)
+	handle /api/contacto {
+		reverse_proxy api:3000
+	}
+
+	# Privacidad y términos: los mismos documentos que en la consola (Google
+	# Play enlaza el de privacidad; las dos direcciones siguen respondiendo)
+	@legales path /privacidad /privacidad/* /terminos /terminos/*
+	handle @legales {
+		root * /srv
+		try_files {path} {path}/index.html
+		file_server
+	}
+
+	handle {
+		root * /srv/landing
+		try_files {path} {path}/index.html /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+	}
+}
+
+# www es un CNAME al dominio en GoDaddy: una sola dirección canónica
+www.falconseguridadtotal.com {
+	redir https://falconseguridadtotal.com{uri} permanent
 }
