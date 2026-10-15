@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { acceso, cliente, db, dispositivoPush, envioPush, panel, preferenciaAviso, sitio, usuario } from '@monitoring/db';
 import { enZona } from '@monitoring/engine';
-import { conVoz, fraseParaEvento, PREFERENCIAS_POR_DEFECTO, quiereRecibir, type CargaAviso, type GrupoAviso, type PreferenciasAviso, type VozPush } from '@monitoring/shared';
+import { conVoz, frasePushCliente, PREFERENCIAS_POR_DEFECTO, quiereRecibir, type CargaAviso, type GrupoAviso, type PreferenciasAviso, type VozPush } from '@monitoring/shared';
 import { enviarPush, enviarPushSimple, pushDisponible, type MensajePush } from './fcm.js';
 
 /**
@@ -104,10 +104,11 @@ export async function enviarAvisosPush(
       }, 30_000).unref();
     };
     for (const g of gente) {
-      const frase = fraseParaEvento(carga, { nombrarSitio: g.sitios > 1 });
+      // El sitio de título, siempre: el aviso dice de cuál es sin abrirlo (ver frasePushCliente)
+      const frase = frasePushCliente(carga);
       if (!frase) continue;
       const datos = { eventoId: String(carga.eventoId), panelId: String(carga.panelId ?? ''), categoria: carga.categoria ?? '' };
-      const mensaje: MensajePush = { titulo: frase.titulo, cuerpo: frase.cuerpo, habla: frase.texto, canal: frase.canal, datos };
+      const mensaje: MensajePush = { titulo: frase.titulo, cuerpo: frase.cuerpo, habla: frase.habla, canal: frase.canal, datos };
       const guardadas = prefs.find((x) => x.usuarioId === g.usuarioId);
       const p: PreferenciasAviso = guardadas ? { ...guardadas, vozPush: guardadas.vozPush as VozPush } : PREFERENCIAS_POR_DEFECTO;
       if (!quiereRecibirAhora(p, frase.grupo)) {

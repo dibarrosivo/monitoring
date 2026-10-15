@@ -127,16 +127,22 @@ export async function registrarVida(panelId: number, fecha: Date): Promise<void>
   await db.update(panel).set({ ultimaSenalEn: fecha }).where(eq(panel.id, panelId));
 }
 
-/** Nombre del sitio y descripción de la zona (si el evento es por zona), para el aviso hablado. */
+/** Nombre del sitio y del cliente, y descripción de la zona (si el evento es por zona), para el aviso hablado. */
 async function contextoParaAviso(
   panelId: number,
   sitioId: number | null,
   normalizado: EventoNormalizado,
-): Promise<{ sitioNombre?: string | null; zonaDescripcion?: string | null }> {
-  const contexto: { sitioNombre?: string | null; zonaDescripcion?: string | null } = {};
+): Promise<{ sitioNombre?: string | null; clienteNombre?: string | null; zonaDescripcion?: string | null }> {
+  const contexto: { sitioNombre?: string | null; clienteNombre?: string | null; zonaDescripcion?: string | null } = {};
   if (sitioId) {
-    const [s] = await db.select({ nombre: sitio.nombre }).from(sitio).where(eq(sitio.id, sitioId)).limit(1);
+    const [s] = await db
+      .select({ nombre: sitio.nombre, cliente: cliente.nombre })
+      .from(sitio)
+      .innerJoin(cliente, eq(sitio.clienteId, cliente.id))
+      .where(eq(sitio.id, sitioId))
+      .limit(1);
     contexto.sitioNombre = s?.nombre ?? null;
+    contexto.clienteNombre = s?.cliente ?? null;
   }
   // En aperturas y cierres el campo zona es el usuario, no una zona física
   if (normalizado.zona && !campoZonaEsUsuario(normalizado)) {

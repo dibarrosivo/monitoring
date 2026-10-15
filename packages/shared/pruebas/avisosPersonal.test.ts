@@ -5,11 +5,11 @@ type Carga = CargaAviso & { numeroCuenta?: string | null; prefijo?: string | nul
 const base: Carga = { eventoId: 1, panelId: 5, prioridad: 2, descripcion: '', numeroCuenta: '7075', prefijo: 'AL', sitioNombre: 'Panadería K3' };
 
 describe('avisos al personal de la central', () => {
-  it('las emergencias llevan cuenta, sitio y qué pasó, por el canal fuerte', () => {
+  it('las emergencias llevan de quién es en el título y qué pasó en el cuerpo, por el canal fuerte', () => {
     const panico = { ...base, categoria: 'alarma' as const, codigo: 'E120', descripcion: 'Pánico', prioridad: 1 };
     expect(fraseParaPersonal(panico)).toMatchObject({
-      titulo: 'EMERGENCIA',
-      cuerpo: 'AL-7075 Panadería K3: pánico',
+      titulo: 'AL-7075 · Panadería K3',
+      cuerpo: 'EMERGENCIA: pánico',
       canal: 'alarmas',
       persistente: true,
       grupo: null,
@@ -53,9 +53,14 @@ describe('avisos al personal de la central', () => {
   });
 
   it('el panel silencioso de un cliente llega como aviso, no como alarma', () => {
-    // La cuenta va una sola vez, al principio del cuerpo, y la espera en horas
+    // De quién es en el título (cuenta y cliente), qué pasó en el cuerpo
     const mudo = { ...base, categoria: 'sistema' as const, codigo: 'SIS', descripcion: 'Panel silencioso: sin señales hace más de 1 d 12 h' };
-    expect(fraseParaPersonal(mudo)).toMatchObject({ titulo: 'Panel silencioso', canal: 'avisos' });
-    expect(fraseParaPersonal(mudo)?.cuerpo).toMatch(/: sin señales hace más de 1 d 12 h$/);
+    expect(fraseParaPersonal(mudo)).toMatchObject({ titulo: 'AL-7075 · Panadería K3', canal: 'avisos' });
+    expect(fraseParaPersonal(mudo)?.cuerpo).toBe('Panel silencioso: sin señales hace más de 1 d 12 h');
+  });
+
+  it('con el nombre del cliente, el título lo usa antes que el del sitio', () => {
+    const mudo = { ...base, clienteNombre: 'MATARILE', prefijo: 'EBS', numeroCuenta: '7037', categoria: 'sistema' as const, codigo: 'SIS', descripcion: 'Panel silencioso: sin señales hace más de 3 h' };
+    expect(fraseParaPersonal(mudo)).toMatchObject({ titulo: 'EBS-7037 · MATARILE', texto: 'Panel silencioso en MATARILE' });
   });
 });

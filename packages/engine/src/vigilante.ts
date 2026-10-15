@@ -17,6 +17,9 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
     .select({
       id: panel.id,
       numeroCuenta: panel.numeroCuenta,
+      prefijo: panel.prefijo,
+      sitioNombre: sitio.nombre,
+      clienteNombre: cliente.nombre,
       intervaloPruebaMin: panel.intervaloPruebaMin,
       ultimaSenalEn: panel.ultimaSenalEn,
       creadoEn: panel.creadoEn,
@@ -73,7 +76,14 @@ export async function revisarPanelesSilenciosos(): Promise<number> {
       numeroCuenta: p.numeroCuenta,
     });
 
-    await avisarAlPersonal(filaEvento!.id, 'SIS', descripcion, 2, { panelId: p.id, numeroCuenta: p.numeroCuenta });
+    // Con cuenta, cliente y sitio: «panel silencioso de 7037» solo no dice de quién es
+    await avisarAlPersonal(filaEvento!.id, 'SIS', descripcion, 2, {
+      panelId: p.id,
+      numeroCuenta: p.numeroCuenta,
+      prefijo: p.prefijo,
+      sitioNombre: p.sitioNombre,
+      clienteNombre: p.clienteNombre,
+    });
     abiertas++;
   }
   return abiertas;

@@ -24,6 +24,8 @@ export interface CargaAviso {
   zona?: string | null;
   zonaDescripcion?: string | null;
   sitioNombre?: string | null;
+  /** Solo lo usa el aviso al personal: el cliente ya sabe quién es */
+  clienteNombre?: string | null;
 }
 
 export type Tono = 'emergencia' | 'alarma' | 'aviso' | 'estado' | 'bien';
@@ -180,6 +182,21 @@ function armar(carga: CargaAviso, parte: { titulo: string; cuerpo: string; texto
 }
 
 /**
+ * El aviso push al cliente: el nombre del sitio de título, siempre, aunque
+ * tenga uno solo, para que diga de cuál es sin abrirlo (pedido del dueño,
+ * 15-10). Debajo, la frase completa; en voz, con el sitio al final. Sin sitio
+ * conocido, la frase de siempre. Solo lo usa el servidor al mandar el push:
+ * lo que la app muestra adentro no cambia.
+ */
+export function frasePushCliente(carga: CargaAviso): (Frase & { habla: string }) | null {
+  const frase = fraseParaEvento(carga, { nombrarSitio: false });
+  if (!frase) return null;
+  if (!carga.sitioNombre) return { ...frase, habla: frase.texto };
+  const hablada = fraseParaEvento(carga, { nombrarSitio: true })?.texto ?? frase.texto;
+  return { ...frase, titulo: carga.sitioNombre, cuerpo: frase.texto, habla: hablada };
+}
+
+/**
  * Frase para un evento, o null si no hay nada que decir (pruebas periódicas,
  * latidos del receptor). `nombrarSitio`: true si el usuario ve más de un sitio.
  */
@@ -261,7 +278,13 @@ export function fraseParaEvento(carga: CargaAviso, opciones: { nombrarSitio: boo
  */
 export function fraseParaPersonal(carga: CargaAviso & { numeroCuenta?: string | null; prefijo?: string | null }): Frase | null {
   const cuenta = carga.numeroCuenta ? (carga.prefijo ? `${carga.prefijo}-${carga.numeroCuenta}` : carga.numeroCuenta) : '';
-  const donde = [cuenta, carga.sitioNombre].filter(Boolean).join(' ');
+  /*
+   * Primero DE QUIÉN es (pedido del dueño, 15-10): «Panel silencioso de 7037»
+   * no dice nada a quien no se sabe las cuentas de memoria. El título lleva
+   * cuenta y cliente; el cuerpo, qué pasó.
+   */
+  const quien = carga.clienteNombre ?? carga.sitioNombre ?? '';
+  const donde = [cuenta, quien].filter(Boolean).join(' · ');
   const zona = zonaHablada(carga);
   const codigo = carga.codigo ?? '';
 
@@ -283,7 +306,15 @@ export function fraseParaPersonal(carga: CargaAviso & { numeroCuenta?: string | 
     return { titulo: 'Puente restablecido', cuerpo: deSistema, texto: deSistema, tono: 'bien', persistente: false, canal: 'avisos', grupo: null };
   }
   if (codigo === 'SIS') {
-    return { titulo: 'Panel silencioso', cuerpo: `${donde}: ${sinPrefijo(carga.descripcion)}`, texto: `Panel silencioso en ${donde}`, tono: 'aviso', persistente: false, canal: 'avisos', grupo: null };
+    return {
+      titulo: donde || 'Panel silencioso',
+      cuerpo: `Panel silencioso: ${sinPrefijo(carga.descripcion)}`,
+      texto: `Panel silencioso en ${quien || donde}`,
+      tono: 'aviso',
+      persistente: false,
+      canal: 'avisos',
+      grupo: null,
+    };
   }
 
   // Emergencias de un cliente: pánico, incendio, coacción, médica
@@ -292,9 +323,9 @@ export function fraseParaPersonal(carga: CargaAviso & { numeroCuenta?: string | 
     if (!emergencia && carga.prioridad > 1) return null;
     const que = emergencia ?? sinPrefijo(carga.descripcion).toLowerCase();
     return {
-      titulo: 'EMERGENCIA',
-      cuerpo: `${donde}: ${que}${zona}`,
-      texto: `Emergencia en ${donde}: ${que}${zona}`,
+      titulo: donde || 'EMERGENCIA',
+      cuerpo: `EMERGENCIA: ${que}${zona}`,
+      texto: `Emergencia en ${quien || donde}: ${que}${zona}`,
       tono: 'emergencia',
       persistente: true,
       canal: 'alarmas',

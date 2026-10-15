@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fraseParaEvento, usuarioDesconocido, type CargaAviso } from '@monitoring/shared';
+import { fraseParaEvento, frasePushCliente, usuarioDesconocido, type CargaAviso } from '@monitoring/shared';
 
 function evento(parcial: Partial<CargaAviso>): CargaAviso {
   return { eventoId: 1, panelId: 5, prioridad: 4, descripcion: '', sitioNombre: 'Panadería K3', ...parcial };
@@ -123,5 +123,26 @@ describe('códigos de teclado que nadie registró', () => {
     // Pasa de verdad: hay cuentas donde el 000 es una persona
     const e = evento({ categoria: 'cierre', codigo: 'R401', descripcion: 'Cierre (armado): Apertura/Cierre por usuario — Oswaldo Ferreira (cód. 0)', zona: '000' });
     expect(fraseParaEvento(e, unSitio)?.cuerpo).toBe('Armado por Oswaldo Ferreira');
+  });
+});
+
+describe('push al cliente: el sitio de título', () => {
+  const alarma = { eventoId: 1, panelId: 3, categoria: 'alarma' as const, codigo: 'E130', descripcion: 'Robo', prioridad: 2, zona: '003', zonaDescripcion: 'Depósito', sitioNombre: 'Tienda Centro' };
+
+  it('el título es el sitio aunque el cliente tenga uno solo, y la voz lo nombra', () => {
+    const f = frasePushCliente(alarma)!;
+    expect(f.titulo).toBe('Tienda Centro');
+    expect(f.cuerpo).not.toContain('Tienda Centro');
+    expect(f.cuerpo.toLowerCase()).toContain('alarma');
+    expect(f.habla).toContain('Tienda Centro');
+  });
+
+  it('sin sitio conocido queda como antes', () => {
+    const { sitioNombre: _, ...sinSitio } = alarma;
+    expect(frasePushCliente(sinSitio)?.titulo).toBe(fraseParaEvento(sinSitio, { nombrarSitio: false })?.titulo);
+  });
+
+  it('las pruebas periódicas siguen sin aviso', () => {
+    expect(frasePushCliente({ ...alarma, categoria: 'prueba', codigo: 'E602', descripcion: 'Prueba periódica' })).toBeNull();
   });
 });
