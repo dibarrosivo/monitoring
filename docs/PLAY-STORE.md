@@ -173,7 +173,7 @@ son casas y comercios, no empresas con flota; Casa y hogar también calza.)
 **Sitio web**: vacío por ahora. `monitoreo.` es la consola de operadores, no un
 sitio para clientes; se completa cuando se publique la landing.
 **Teléfono**: opcional y público.
-**Política de privacidad**: https://monitoreo.falconseguridadtotal.com/privacidad/
+**Política de privacidad**: https://falconseguridadtotal.com/privacidad/
 
 ## Formulario Data Safety (respuestas)
 
@@ -192,7 +192,7 @@ cámara, micrófono, contactos del teléfono, SMS ni ID de publicidad.
 | Fotos, archivos, contactos, micrófono | **No** |
 | Información financiera | **No** — la app muestra el estado de la cuota, pero no cobra ni pide datos de pago |
 | ¿Datos cifrados en tránsito? | Sí (HTTPS/TLS) |
-| ¿El usuario puede pedir la eliminación? | Sí — por `privacidad@falconseguridadtotal.com`. Enlace: https://monitoreo.falconseguridadtotal.com/privacidad/#eliminacion |
+| ¿El usuario puede pedir la eliminación? | Sí — por `privacidad@falconseguridadtotal.com`. Enlace: https://falconseguridadtotal.com/privacidad/#eliminacion |
 | ¿Se venden o comparten con terceros? | No |
 
 Nota: las señales de los paneles de alarma las manda el equipo instalado en el

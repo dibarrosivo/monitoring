@@ -599,6 +599,13 @@
     .marca .sello { display: none; }
     .marca .logo { font-size: 13px; }
     .contenedor { padding: 0 18px; }
+    /* El nombre completo + tema + Ingresar no entraba: "Ingresar" se salía
+       ~45 px de la pantalla a 360 y 390 px. El nombre baja a dos líneas y
+       cede espacio en vez de empujar los botones. */
+    .barra { gap: 8px; }
+    .marca { min-width: 0; flex: 1 1 auto; }
+    .marca .logo { white-space: normal; line-height: 1.15; }
+    .barra nav { flex-shrink: 0; gap: 6px; }
   }
 </style>
 </head>
@@ -961,6 +968,8 @@
       © 2026 FALCÓN SEGURIDAD TOTAL
     </span>
     <span>CORO · FALCÓN · VENEZUELA</span>
+    <a href="/privacidad/" style="color: inherit;">PRIVACIDAD</a>
+    <a href="/terminos/" style="color: inherit;">TÉRMINOS</a>
     <span>11.4045° N · 69.6738° W · HECHO PARA DORMIR TRANQUILO</span>
   </footer>
 </div>

@@ -22,6 +22,12 @@
 	# vive en falconseguridadtotal.com (bloque de abajo).
 	redir /previa/* https://falconseguridadtotal.com/ permanent
 
+	# Privacidad y términos viven en el dominio principal desde el 15-10. Las
+	# direcciones de acá siguen respondiendo, con un salto, para no romper
+	# enlaces viejos (incluido el que se cargó primero en Google Play).
+	@legales_viejos path /privacidad /privacidad/* /terminos /terminos/*
+	redir @legales_viejos https://falconseguridadtotal.com{uri} permanent
+
 	# La consola es una aplicación de una sola página: cualquier ruta que no
 	# sea un archivo real devuelve index.html para que el enrutador la resuelva.
 	# El {path}/index.html del medio es para /privacidad/ y /terminos/, que son
@@ -71,8 +77,8 @@ falconseguridadtotal.com {
 		reverse_proxy api:3000
 	}
 
-	# Privacidad y términos: los mismos documentos que en la consola (Google
-	# Play enlaza el de privacidad; las dos direcciones siguen respondiendo)
+	# Privacidad y términos: dirección oficial (la que va en Google Play). Son
+	# los documentos de la consola; monitoreo.* redirige acá
 	@legales path /privacidad /privacidad/* /terminos /terminos/*
 	handle @legales {
 		root * /srv
