@@ -49,16 +49,22 @@ function TarjetaAlarma({ alarma, abierta, alAbrir }: { alarma: Alarma; abierta: 
 
   return (
     <li className={`bg-superficie border rounded-lg overflow-hidden ${tipo.borde} ${fondo}`}>
+      {/*
+        Primero DE QUIÉN es (cuenta y cliente): es lo que el operador busca al
+        mirar la cola. El color del marco ya dice qué tipo de señal es; la
+        descripción completa va abajo, para confirmar. Pedido del dueño, 14-10.
+      */}
       <button onClick={alAbrir} className="w-full text-left p-3 flex flex-col gap-1">
-        <span className="flex items-center gap-2">
-          <span className={`font-datos font-semibold ${tipo.texto}`}>{alarma.evento.codigo}</span>
-          <span className="font-semibold text-sm flex-1 truncate">{alarma.evento.descripcion}</span>
-        </span>
-        <span className="font-datos text-xs text-tenue flex flex-wrap gap-x-3">
-          <span>
-            cuenta {nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta)}
-            {alarma.clienteNombre && <span className="font-ui text-texto"> · {alarma.clienteNombre}</span>}
+        <span className="flex items-baseline gap-2 min-w-0">
+          <span className={`font-datos font-semibold shrink-0 ${tipo.texto}`}>
+            {alarma.evento.numeroCuenta ? nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta) : alarma.evento.codigo}
           </span>
+          <span className="font-semibold flex-1 truncate">
+            {alarma.clienteNombre ?? (esFallaDeLaCentral(alarma) ? 'Falla de la central' : 'Cuenta sin cliente')}
+          </span>
+        </span>
+        <span className="text-sm text-texto/85 leading-snug">{alarma.evento.descripcion}</span>
+        <span className="font-datos text-xs text-tenue flex flex-wrap gap-x-3">
           {numero && (
             <span>
               {numero.rotulo} {numero.numero}

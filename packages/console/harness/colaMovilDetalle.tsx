@@ -69,13 +69,26 @@ const historialPuente = [
 // Lo que la consola le pide al servidor, para ver que una señal sin dispositivo no pide datos
 const pedidos: string[] = [];
 (window as unknown as { pedidos: string[] }).pedidos = pedidos;
+// ?varias: la cola con varias tarjetas cerradas, para ver la lista de un vistazo (datos ficticios)
+const varias = parametros.has('varias')
+  ? [
+      ['HOR-AT', 'sistema', 'Sin abrir: cuenta 5142 no abrió a su hora', '5142', 'PANADERIA LA ESPIGA', 2, 201],
+      ['E130', 'alarma', 'Robo — zona 3 INFRARROJO DEPOSITO', '5131', 'COMERCIAL ANDINA', 1, 12],
+      ['HOR-SC', 'sistema', 'Sin cierre: cuenta 5190 sigue abierta pasado el horario', '5190', 'FARMACIA VIDA', 2, 95],
+      ['E301', 'averia', 'Falla de electricidad (sin corriente)', '5175', 'RESIDENCIA MOLINA', 3, 40],
+      ['BRIDGE', 'sistema', 'PUENTE CAÍDO: sin latido de puente-pima-central hace más de 5 min', '', null, 2, 7],
+    ].map(([codigo, categoria, descripcion, cuenta, cliente, prioridad, min], i) => ({
+      ...alarma, id: 300 + i, prioridad, creadoEn: hace(min as number), panelId: cuenta ? 20 + i : null, clienteNombre: cliente, prefijo: cuenta ? 'AL' : null,
+      evento: { ...alarma.evento, id: 6000 + i, codigo, categoria, descripcion, numeroCuenta: cuenta || null, zona: null },
+    }))
+  : null;
 window.fetch = async (entrada: RequestInfo | URL) => {
   const url = String(entrada);
   pedidos.push(new URL(url, location.href).pathname);
   document.title = pedidos.join(' ');
   if (parametros.has('puente') && url.includes('/contexto')) return new Response('{}', { status: 500 });
   if (url.includes('codigos=')) return new Response(JSON.stringify(historialPuente), { status: 200, headers: { 'content-type': 'application/json' } });
-  const cuerpo = url.includes('/contexto') ? contexto : url.includes('/acciones') ? [] : url.includes('/eventos') ? eventos.slice(0, Number(new URL(url, location.href).searchParams.get('limite') ?? 100)) : url.includes('/alarmas') ? [alarma] : [];
+  const cuerpo = url.includes('/contexto') ? contexto : url.includes('/acciones') ? [] : url.includes('/eventos') ? eventos.slice(0, Number(new URL(url, location.href).searchParams.get('limite') ?? 100)) : url.includes('/alarmas') ? (varias ?? [alarma]) : [];
   return new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 localStorage.setItem('monitoring.token', 'x');
@@ -84,4 +97,4 @@ createRoot(document.getElementById('raiz')!).render(
     <div className="bg-fondo text-texto min-h-screen p-3"><ColaMovil /></div>
   </QueryClientProvider>,
 );
-setTimeout(() => (document.querySelector('li button') as HTMLButtonElement | null)?.click(), 600);
+if (!varias) setTimeout(() => (document.querySelector('li button') as HTMLButtonElement | null)?.click(), 600);
