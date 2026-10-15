@@ -108,7 +108,7 @@ async function abrirAlarmaHorario(panelId: number, numeroCuenta: string, codigo:
   await abrirAlarma({ eventoId: fila!.id, panelId, prioridad: 3, descripcion, numeroCuenta });
 }
 
-/** Supervisión de horarios: apertura tarde y falta de cierre. */
+/** Supervisión de horarios: sin abrir (apertura tarde) y sin cierre. */
 export async function revisarHorarios(): Promise<number> {
   const filas = await db
     .select({
@@ -185,7 +185,7 @@ export async function revisarHorarios(): Promise<number> {
     const pendientes = evaluarPendientesDia(horarios, aperturas, cierres, ahoraLocal);
 
     if (pendientes.aperturaTarde && !(await yaAvisadoHoy(panelId, 'HOR-AT', desdeAviso))) {
-      await abrirAlarmaHorario(panelId, numeroCuenta, 'HOR-AT', `Apertura tarde: cuenta ${numeroCuenta} no abrió a horario`);
+      await abrirAlarmaHorario(panelId, numeroCuenta, 'HOR-AT', `Sin abrir: cuenta ${numeroCuenta} no abrió a su hora`);
       abiertas++;
     }
     if (pendientes.sinCierre && !(await yaAvisadoHoy(panelId, 'HOR-SC', desdeAviso))) {
