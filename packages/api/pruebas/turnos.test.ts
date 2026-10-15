@@ -57,7 +57,8 @@ describe('turnos', () => {
   it('una guardia por fecha reemplaza a la pauta ese día', async () => {
     const pauta = (await ctx.pedir('POST', '/turnos/pautas', { token: tokenAdmin, cuerpo: { nombre: 'Única' } })).cuerpo;
     await ctx.pedir('POST', '/turnos/tramos', { token: tokenAdmin, cuerpo: { pautaId: pauta.id, usuarioId: operadorId, dias: 'LMXJVSD', desde: '00:00', hasta: '23:59' } });
-    const hoy = new Date().toISOString().slice(0, 10);
+    // Fecha de Venezuela: con la de UTC fallaba entre las 20:00 y las 24:00
+    const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Caracas' }).format(new Date());
     await ctx.pedir('POST', '/turnos/guardias', { token: tokenAdmin, cuerpo: { usuarioId: supervisorId, fecha: hoy, desde: '00:00', hasta: '23:59', nota: 'cambio' } });
     expect((await ctx.pedir('GET', '/turnos', { token: tokenAdmin })).cuerpo.deGuardiaAhora).toEqual([supervisorId]);
   });

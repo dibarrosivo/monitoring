@@ -14,7 +14,9 @@ let clienteId: number;
 let panelId: number;
 let planId: number;
 
-const hoy = new Date().toISOString().slice(0, 10);
+// La fecha de Venezuela, como la usa el servidor. Con la de UTC, entre las 20:00
+// y las 24:00 «hoy» era mañana y la prueba fallaba (le pasó al CI el 14-10).
+const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Caracas' }).format(new Date());
 /** Las cuotas vencen 5 días después de empezar el período: la del mes en curso ya venció si pasó el día 6 */
 const actualVencida = hoy.slice(8) > '06';
 const vencidasIniciales = actualVencida ? 3 : 2;
@@ -42,9 +44,8 @@ beforeEach(async () => {
   const sitioId = (await ctx.pedir('POST', '/sitios', { token: tokenAdmin, cuerpo: { clienteId, nombre: 'Local' } })).cuerpo.id;
   planId = (await ctx.pedir('POST', '/planes', { token: tokenAdmin, cuerpo: { nombre: 'Comercial', precioUsd: 25, frecuenciaMeses: 1 } })).cuerpo.id;
   // El primer período empezó hace dos meses: al generar deben salir tres cuotas (dos vencidas y la actual)
-  const inicio = new Date();
+  const inicio = new Date(`${hoy.slice(0, 8)}01T12:00:00Z`);
   inicio.setUTCMonth(inicio.getUTCMonth() - 2);
-  inicio.setUTCDate(1);
   panelId = (await ctx.pedir('POST', '/paneles', { token: tokenAdmin, cuerpo: { sitioId, numeroCuenta: 'ABC3', planId, proximoVencimiento: inicio.toISOString().slice(0, 10) } })).cuerpo.id;
   await ctx.pedir('POST', '/accesos', { token: tokenAdmin, cuerpo: { usuarioId: clienteUsuarioId, clienteId } });
   tokenCliente = await ctx.ingresar('dueno@test.local', 'dueno123');
