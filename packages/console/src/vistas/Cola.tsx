@@ -268,9 +268,8 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
                 </th>
               )}
               <th className="px-3 py-2 font-medium">Hora</th>
-              <th className="px-3 py-2 font-medium">Código</th>
-              <th className="px-3 py-2 font-medium">Descripción</th>
-              <th className="px-3 py-2 font-medium">Cuenta</th>
+              <th className="px-3 py-2 font-medium">Cliente</th>
+              <th className="px-3 py-2 font-medium">Señal</th>
               <th className="px-3 py-2 font-medium whitespace-nowrap">Usuario / Zona</th>
               {cerradas ? (
                 <>
@@ -312,7 +311,7 @@ export function Cola({ alarmaReciente, filtro = 'abiertas' }: { alarmaReciente: 
             })}
             {ordenadas.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-10 text-center text-tenue font-ui">
+                <td colSpan={10} className="px-4 py-10 text-center text-tenue font-ui">
                   {cerradas
                     ? 'Sin alarmas cerradas todavía.'
                     : filtroTipo
@@ -454,8 +453,17 @@ function FilaAlarma({
         </td>
       )}
       <td className="px-3 py-1.5 text-tenue whitespace-nowrap">{fechaHora(alarma.evento.ocurridoEn)}</td>
-      <td className={`px-3 py-1.5 font-semibold whitespace-nowrap ${tipo.texto}`} title={NOMBRE_TIPO_SENAL[tipoDe(alarma.evento)]}>
-        {alarma.evento.codigo}
+      {/*
+        Primero DE QUIÉN es: cuenta (con el color del tipo de señal) y cliente.
+        Después la señal completa, con su código chico. Pedido del dueño, 14-10.
+      */}
+      <td className="px-3 py-1.5 whitespace-nowrap" title={NOMBRE_TIPO_SENAL[tipoDe(alarma.evento)]}>
+        <span className={`font-semibold ${tipo.texto}`}>
+          {alarma.evento.numeroCuenta ? nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta) : alarma.evento.codigo}
+        </span>
+        <span className="font-ui font-semibold text-texto ml-2">
+          {alarma.clienteNombre ?? (esFallaDeLaCentral(alarma) ? 'Falla de la central' : 'Cuenta sin cliente')}
+        </span>
       </td>
       <td className="px-3 py-1.5 font-ui">
         {continuacion && (
@@ -463,16 +471,13 @@ function FilaAlarma({
             ↳
           </span>
         )}
+        <span className="font-datos text-xs text-tenue mr-1.5">{alarma.evento.codigo}</span>
         {alarma.evento.descripcion}
         {grupo.length > 0 && (
           <span className="ml-2 font-datos text-xs text-tenue" title="Las que siguen son del mismo sitio">
             {grupo.length + 1} de este sitio
           </span>
         )}
-      </td>
-      <td className="px-3 py-1.5 whitespace-nowrap">
-        {nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta)}
-        {alarma.clienteNombre && <span className="font-ui text-texto"> {alarma.clienteNombre}</span>}
       </td>
       <td className="px-3 py-1.5 text-tenue">
         {numero ? `${numero.rotulo === 'usuario' ? 'usr' : 'zona'} ${numero.numero}` : '—'}
@@ -593,14 +598,21 @@ function PanelDetalle({ alarma, otrasDelSitio, alCerrarPanel }: { alarma: Alarma
   // Dos tiempos distintos: cuánto tardó en tomarse, y cuánto lleva en atención.
   // El segundo corre en vivo mientras la alarma sigue abierta.
   const t = tiempos(alarma, ahora);
-  const prio = clasesPrioridad(alarma.prioridad);
   const abierta = alarma.estado !== 'cerrada';
 
   return (
     <section className="h-[48vh] min-h-[26rem] shrink-0 bg-superficie border border-borde rounded-sm flex flex-col">
       <header className="flex items-center gap-3 px-4 py-2 border-b border-borde bg-superficie-2">
-        <span className={`font-datos font-semibold ${prio.texto}`}>{alarma.evento.codigo}</span>
-        <span className="font-semibold">{alarma.evento.descripcion}</span>
+        <span className={`font-datos font-semibold ${CLASES_TIPO[tipoDe(alarma.evento)].texto}`}>
+          {alarma.evento.numeroCuenta ? nombreCuenta(alarma.prefijo, alarma.evento.numeroCuenta) : alarma.evento.codigo}
+        </span>
+        <span className="font-semibold whitespace-nowrap">
+          {alarma.clienteNombre ?? (esFallaDeLaCentral(alarma) ? 'Falla de la central' : 'Cuenta sin cliente')}
+        </span>
+        <span>
+          <span className="font-datos text-xs text-tenue mr-1.5">{alarma.evento.codigo}</span>
+          {alarma.evento.descripcion}
+        </span>
         <span className="font-datos text-xs text-tenue">
           {fechaHora(alarma.evento.ocurridoEn)} · {NOMBRE_ESTADO[alarma.estado]}
           {alarma.operadorNombre && <span className="text-texto"> · {alarma.operadorNombre}</span>}
