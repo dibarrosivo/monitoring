@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cerrarAlarma, cerrarLote, listarEventosDePanel, listarEventosPorCodigo, registrarLlamada, verContexto } from '../api.js';
 import type { AccionAlarma, Alarma, ContextoAlarma, DesenlaceAlarma } from '../tipos.js';
 import { ETIQUETA_DESENLACE, fraseParaEvento, MOTIVOS_CIERRE, protocoloPara, RESULTADOS_LLAMADA, type ResultadoLlamada } from '@monitoring/shared';
-import { fechaHora } from '../tiempo.js';
+import { fechaHora, transcurrido } from '../tiempo.js';
 import { CLASES_TIPO, tipoDe } from '../ui.js';
 
 /**
@@ -272,8 +272,30 @@ export function UltimasAlarmas({ previas = [] }: { previas?: ContextoAlarma['pre
  */
 const PASO_SENALES = 100;
 
+const CLAVE_VER_PRUEBAS = 'monitoring.historialConPruebas';
+
+function leerVerPruebas(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_VER_PRUEBAS) === 'si';
+  } catch {
+    return false;
+  }
+}
+
 export function UltimasSenales({ panelId }: { panelId: number }) {
   const [limite, setLimite] = useState(PASO_SENALES);
+  // Las pruebas periódicas se ocultan por defecto (taparían los movimientos
+  // reales); el operador puede verlas con un toque y la elección se recuerda.
+  const [verPruebas, setVerPruebas] = useState(leerVerPruebas);
+  function alternarPruebas() {
+    const nuevo = !verPruebas;
+    setVerPruebas(nuevo);
+    try {
+      localStorage.setItem(CLAVE_VER_PRUEBAS, nuevo ? 'si' : 'no');
+    } catch {
+      // sin almacenamiento: vale para esta pantalla
+    }
+  }
   const { data: eventos, isLoading, isFetching } = useQuery({
     queryKey: ['eventos', 'panel', panelId, 'recientes', limite],
     queryFn: () => listarEventosDePanel(panelId, limite),
@@ -287,36 +309,65 @@ export function UltimasSenales({ panelId }: { panelId: number }) {
   });
   if (isLoading) return <p className="text-tenue text-xs">Cargando…</p>;
   const todos = eventos ?? [];
-  const visibles = todos.filter((e) => tipoDe(e) !== 'prueba');
+  const pruebas = todos.filter((e) => tipoDe(e) === 'prueba');
+  const visibles = verPruebas ? todos : todos.filter((e) => tipoDe(e) !== 'prueba');
   // Si el servidor devolvió el tope, puede haber más atrás
   const hayMas = todos.length >= limite;
-  if (visibles.length === 0 && !hayMas) return <p className="text-tenue text-xs">Sin señales recientes.</p>;
-  return (
-    <div className="max-h-72 overflow-y-auto overscroll-contain border border-borde/60 rounded p-2">
-      <ul className="flex flex-col gap-1 text-xs">
-        {visibles.map((e) => {
-          // La misma frase corta que recibe el cliente en el aviso ("Desarmado por
-          // Pedro Salas", "Armado rápido"): en un teléfono la descripción técnica
-          // completa ocupa tres líneas y repite el nombre
-          const frase = fraseParaEvento({ ...e, eventoId: e.id, zonaDescripcion: e.zonaDescripcion ?? null }, { nombrarSitio: false });
-          return (
-            <li key={e.id} className="text-tenue">
-              <span className="font-datos">{fechaHora(e.ocurridoEn)}</span>{' '}
-              <span className={`font-datos font-semibold ${CLASES_TIPO[tipoDe(e)].texto}`}>{e.codigo}</span>{' '}
-              <span className="text-texto">{frase?.cuerpo ?? e.descripcion}</span>
-            </li>
-          );
-        })}
-      </ul>
-      {hayMas && (
-        <button
-          onClick={() => setLimite((l) => l + PASO_SENALES)}
-          disabled={isFetching}
-          className="mt-2 w-full text-xs text-acento border border-borde rounded py-1.5 disabled:opacity-50"
-        >
-          {isFetching ? 'Cargando…' : 'Cargar señales anteriores'}
-        </button>
+  // ¿El equipo está comunicando? La última prueba y la última señal de cualquier tipo
+  const ultimaPrueba = pruebas[0]?.ocurridoEn;
+  const ultimaSenal = todos[0]?.ocurridoEn;
+  const resumen = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-datos text-xs text-tenue">
+      <span>
+        Última prueba periódica:{' '}
+        <span className="text-texto">{ultimaPrueba ? transcurrido(ultimaPrueba) : hayMas ? 'no en las últimas señales' : 'ninguna'}</span>
+      </span>
+      {ultimaSenal && (
+        <span>
+          última señal: <span className="text-texto">{transcurrido(ultimaSenal)}</span>
+        </span>
       )}
+      <button onClick={alternarPruebas} className="ml-auto font-ui text-acento underline underline-offset-2">
+        {verPruebas ? 'Ocultar pruebas' : `Mostrar pruebas${pruebas.length ? ` (${pruebas.length})` : ''}`}
+      </button>
+    </div>
+  );
+  if (visibles.length === 0 && !hayMas)
+    return (
+      <div className="flex flex-col gap-1.5">
+        {resumen}
+        <p className="text-tenue text-xs">Sin señales recientes.</p>
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-1.5">
+      {resumen}
+      <div className="max-h-72 overflow-y-auto overscroll-contain border border-borde/60 rounded p-2">
+        <ul className="flex flex-col gap-1 text-xs">
+          {visibles.map((e) => {
+            // La misma frase corta que recibe el cliente en el aviso ("Desarmado por
+            // Pedro Salas", "Armado rápido"): en un teléfono la descripción técnica
+            // completa ocupa tres líneas y repite el nombre
+            const frase = fraseParaEvento({ ...e, eventoId: e.id, zonaDescripcion: e.zonaDescripcion ?? null }, { nombrarSitio: false });
+            return (
+              <li key={e.id} className="text-tenue">
+                <span className="font-datos">{fechaHora(e.ocurridoEn)}</span>{' '}
+                <span className={`font-datos font-semibold ${CLASES_TIPO[tipoDe(e)].texto}`}>{e.codigo}</span>{' '}
+                <span className="text-texto">{frase?.cuerpo ?? e.descripcion}</span>
+              </li>
+            );
+          })}
+        </ul>
+        {hayMas && (
+          <button
+            onClick={() => setLimite((l) => l + PASO_SENALES)}
+            disabled={isFetching}
+            className="mt-2 w-full text-xs text-acento border border-borde rounded py-1.5 disabled:opacity-50"
+          >
+            {isFetching ? 'Cargando…' : 'Cargar señales anteriores'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

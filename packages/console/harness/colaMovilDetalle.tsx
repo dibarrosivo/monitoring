@@ -98,3 +98,6 @@ createRoot(document.getElementById('raiz')!).render(
   </QueryClientProvider>,
 );
 if (!varias) setTimeout(() => (document.querySelector('li button') as HTMLButtonElement | null)?.click(), 600);
+// ?pruebas: además toca «Mostrar pruebas» en el historial de la cuenta
+if (parametros.has('pruebas'))
+  setTimeout(() => [...document.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Mostrar pruebas'))?.click(), 1500);
