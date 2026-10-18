@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decidir, duracion } from './vigia.mjs';
 
-const cfg = { objetivo: 'Central FST', fallosParaAvisar: 3, recordarMin: 60, femenino: true };
+const cfg = { objetivo: 'Central FST', fallosParaAvisar: 3, recordarMin: 60 };
 const MIN = 60_000;
 const falla = [{ chequeo: 'https://monitoreo.falconseguridadtotal.com/api/salud', ok: false, detalle: 'ECONNREFUSED' }];
 
@@ -26,7 +26,8 @@ test('al tercer minuto seguido avisa la caída, con la duración y qué falla', 
   const { avisos } = vueltas([falla, falla, falla]);
   assert.equal(avisos.length, 1);
   assert.equal(avisos[0].minuto, 2);
-  assert.equal(avisos[0].titulo, 'CENTRAL FST CAÍDA');
+  assert.equal(avisos[0].titulo, 'SERVIDOR CAÍDO');
+  assert.match(avisos[0].cuerpo, /^Central FST no responde desde hace 3 min: /);
   assert.match(avisos[0].cuerpo, /monitoreo\.falconseguridadtotal\.com\/api\/salud \(ECONNREFUSED\)/);
 });
 
@@ -39,8 +40,8 @@ test('al volver avisa cuánto duró y deja el estado limpio', () => {
   const { avisos, estado } = vueltas([...Array(24).fill(falla), []]);
   const vuelta = avisos.at(-1);
   assert.equal(vuelta.tipo, 'vuelta');
-  assert.equal(vuelta.titulo, 'Central FST: restablecida');
-  assert.equal(vuelta.cuerpo, 'Volvió a responder tras 24 min sin servicio.');
+  assert.equal(vuelta.titulo, 'Servidor restablecido');
+  assert.equal(vuelta.cuerpo, 'Central FST volvió a responder tras 24 min sin servicio.');
   assert.deepEqual([estado.fallos, estado.caidoDesde, estado.avisadoEn], [0, null, null]);
 });
 

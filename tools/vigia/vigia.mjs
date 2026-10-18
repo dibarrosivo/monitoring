@@ -43,8 +43,6 @@ export function leerConfig(ruta) {
     fallosParaAvisar: Number(env.FALLOS_PARA_AVISAR ?? 3),
     recordarMin: Number(env.RECORDAR_MIN ?? 60),
     refrescarDestinosMin: Number(env.REFRESCAR_DESTINOS_MIN ?? 60),
-    // «Central FST caída», «TrueTracker caído»: el título concuerda con el objetivo
-    femenino: /^(si|sí|1|true)$/i.test(env.FEMENINO ?? ''),
   };
 }
 
@@ -91,24 +89,25 @@ export function duracion(ms) {
  */
 export function decidir(estado, fallidos, ahora, cfg) {
   const e = { fallos: 0, caidoDesde: null, avisadoEn: null, ...estado };
-  const caido = cfg.femenino ? 'CAÍDA' : 'CAÍDO';
-  const restablecido = cfg.femenino ? 'restablecida' : 'restablecido';
   if (fallidos.length === 0) {
     const aviso = e.avisadoEn
-      ? { tipo: 'vuelta', titulo: `${cfg.objetivo}: ${restablecido}`, cuerpo: `Volvió a responder tras ${duracion(ahora - e.caidoDesde)} sin servicio.` }
+      ? { tipo: 'vuelta', titulo: 'Servidor restablecido', cuerpo: `${cfg.objetivo} volvió a responder tras ${duracion(ahora - e.caidoDesde)} sin servicio.` }
       : null;
     return { estado: { ...e, fallos: 0, caidoDesde: null, avisadoEn: null }, aviso };
   }
   const caidoDesde = e.caidoDesde ?? ahora;
+  // La caída empezó hasta un minuto antes del primer chequeo fallido: tres fallas son «3 min»
+  const lleva = duracion(ahora - caidoDesde + 60_000);
   const fallos = e.fallos + 1;
   const que = fallidos.map((f) => `${f.chequeo.replace(/^https?:\/\//, '').replace(/^tcp:/, '')} (${f.detalle ?? 'falla'})`).join(', ');
   let aviso = null;
   let avisadoEn = e.avisadoEn;
   if (fallos >= cfg.fallosParaAvisar && !e.avisadoEn) {
-    aviso = { tipo: 'caida', titulo: `${cfg.objetivo.toUpperCase()} ${caido}`, cuerpo: `No responde desde hace ${duracion(ahora - caidoDesde)}: ${que}` };
+    // El título dice qué pasó; el cuerpo, cuál de los servidores (pedido del dueño, 18-10)
+    aviso = { tipo: 'caida', titulo: 'SERVIDOR CAÍDO', cuerpo: `${cfg.objetivo} no responde desde hace ${lleva}: ${que}` };
     avisadoEn = ahora;
   } else if (e.avisadoEn && ahora - e.avisadoEn >= cfg.recordarMin * 60_000) {
-    aviso = { tipo: 'recordatorio', titulo: `${cfg.objetivo.toUpperCase()} SIGUE ${caido}`, cuerpo: `Lleva ${duracion(ahora - caidoDesde)} sin responder: ${que}` };
+    aviso = { tipo: 'recordatorio', titulo: 'SERVIDOR SIGUE CAÍDO', cuerpo: `${cfg.objetivo} lleva ${lleva} sin responder: ${que}` };
     avisadoEn = ahora;
   }
   return { estado: { ...e, fallos, caidoDesde, avisadoEn }, aviso };
