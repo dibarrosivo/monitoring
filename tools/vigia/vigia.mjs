@@ -43,6 +43,8 @@ export function leerConfig(ruta) {
     fallosParaAvisar: Number(env.FALLOS_PARA_AVISAR ?? 3),
     recordarMin: Number(env.RECORDAR_MIN ?? 60),
     refrescarDestinosMin: Number(env.REFRESCAR_DESTINOS_MIN ?? 60),
+    // «Central FST caída», «TrueTracker caído»: el título concuerda con el objetivo
+    femenino: /^(si|sí|1|true)$/i.test(env.FEMENINO ?? ''),
   };
 }
 
@@ -89,9 +91,11 @@ export function duracion(ms) {
  */
 export function decidir(estado, fallidos, ahora, cfg) {
   const e = { fallos: 0, caidoDesde: null, avisadoEn: null, ...estado };
+  const caido = cfg.femenino ? 'CAÍDA' : 'CAÍDO';
+  const restablecido = cfg.femenino ? 'restablecida' : 'restablecido';
   if (fallidos.length === 0) {
     const aviso = e.avisadoEn
-      ? { tipo: 'vuelta', titulo: `${cfg.objetivo}: restablecido`, cuerpo: `Volvió a responder tras ${duracion(ahora - e.caidoDesde)} caído.` }
+      ? { tipo: 'vuelta', titulo: `${cfg.objetivo}: ${restablecido}`, cuerpo: `Volvió a responder tras ${duracion(ahora - e.caidoDesde)} sin servicio.` }
       : null;
     return { estado: { ...e, fallos: 0, caidoDesde: null, avisadoEn: null }, aviso };
   }
@@ -101,10 +105,10 @@ export function decidir(estado, fallidos, ahora, cfg) {
   let aviso = null;
   let avisadoEn = e.avisadoEn;
   if (fallos >= cfg.fallosParaAvisar && !e.avisadoEn) {
-    aviso = { tipo: 'caida', titulo: `${cfg.objetivo.toUpperCase()} CAÍDO`, cuerpo: `No responde desde hace ${duracion(ahora - caidoDesde)}: ${que}` };
+    aviso = { tipo: 'caida', titulo: `${cfg.objetivo.toUpperCase()} ${caido}`, cuerpo: `No responde desde hace ${duracion(ahora - caidoDesde)}: ${que}` };
     avisadoEn = ahora;
   } else if (e.avisadoEn && ahora - e.avisadoEn >= cfg.recordarMin * 60_000) {
-    aviso = { tipo: 'recordatorio', titulo: `${cfg.objetivo.toUpperCase()} SIGUE CAÍDO`, cuerpo: `Lleva ${duracion(ahora - caidoDesde)} sin responder: ${que}` };
+    aviso = { tipo: 'recordatorio', titulo: `${cfg.objetivo.toUpperCase()} SIGUE ${caido}`, cuerpo: `Lleva ${duracion(ahora - caidoDesde)} sin responder: ${que}` };
     avisadoEn = ahora;
   }
   return { estado: { ...e, fallos, caidoDesde, avisadoEn }, aviso };

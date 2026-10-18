@@ -31,6 +31,7 @@ cat /opt/vigia/estado.json    # último resultado, fallas seguidas, teléfonos g
 
 ```
 OBJETIVO=Central FST
+FEMENINO=si
 CHEQUEOS=https://monitoreo.falconseguridadtotal.com/api/salud,tcp:monitoreo.falconseguridadtotal.com:9999
 DESTINOS_URL=https://monitoreo.falconseguridadtotal.com/api/vigia/destinos
 DESTINOS_CLAVE=<VIGIA_CLAVE>
