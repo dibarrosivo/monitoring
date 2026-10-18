@@ -104,10 +104,10 @@ export function decidir(estado, fallidos, ahora, cfg) {
   let avisadoEn = e.avisadoEn;
   if (fallos >= cfg.fallosParaAvisar && !e.avisadoEn) {
     // El título dice qué pasó; el cuerpo, cuál de los servidores (pedido del dueño, 18-10)
-    aviso = { tipo: 'caida', titulo: 'SERVIDOR CAÍDO', cuerpo: `${cfg.objetivo} no responde desde hace ${lleva}: ${que}` };
+    aviso = { tipo: 'caida', titulo: 'SERVIDOR CAÍDO', cuerpo: `${cfg.objetivo} no responde desde hace ${lleva}.`, detalle: que };
     avisadoEn = ahora;
   } else if (e.avisadoEn && ahora - e.avisadoEn >= cfg.recordarMin * 60_000) {
-    aviso = { tipo: 'recordatorio', titulo: 'SERVIDOR SIGUE CAÍDO', cuerpo: `${cfg.objetivo} lleva ${lleva} sin responder: ${que}` };
+    aviso = { tipo: 'recordatorio', titulo: 'SERVIDOR SIGUE CAÍDO', cuerpo: `${cfg.objetivo} lleva ${lleva} sin responder.`, detalle: que };
     avisadoEn = ahora;
   }
   return { estado: { ...e, fallos, caidoDesde, avisadoEn }, aviso };
@@ -224,7 +224,7 @@ async function principal() {
     const etiqueta = `vigia-${cfg.objetivo.replace(/\W+/g, '').toLowerCase()}-${estado.caidoDesde ?? anterior.caidoDesde ?? ahora}`;
     const destinos = estado.destinos ?? [];
     const enviados = destinos.length ? await avisar(cfg, destinos, aviso, etiqueta) : 0;
-    console.log(`${aviso.titulo} — ${aviso.cuerpo} → ${enviados} mensajes a ${destinos.length} teléfonos`);
+    console.log(`${aviso.titulo} — ${aviso.cuerpo}${aviso.detalle ? ` [${aviso.detalle}]` : ''} → ${enviados} mensajes a ${destinos.length} teléfonos`);
   } else if (fallidos.length) {
     console.log(`Falla ${estado.fallos}/${cfg.fallosParaAvisar}: ${fallidos.map((f) => `${f.chequeo} (${f.detalle})`).join(', ')}`);
   }

@@ -27,8 +27,9 @@ test('al tercer minuto seguido avisa la caída, con la duración y qué falla', 
   assert.equal(avisos.length, 1);
   assert.equal(avisos[0].minuto, 2);
   assert.equal(avisos[0].titulo, 'SERVIDOR CAÍDO');
-  assert.match(avisos[0].cuerpo, /^Central FST no responde desde hace 3 min: /);
-  assert.match(avisos[0].cuerpo, /monitoreo\.falconseguridadtotal\.com\/api\/salud \(ECONNREFUSED\)/);
+  // Al teléfono, solo lo necesario; qué falló exactamente queda en el registro del servidor
+  assert.equal(avisos[0].cuerpo, 'Central FST no responde desde hace 3 min.');
+  assert.match(avisos[0].detalle, /monitoreo\.falconseguridadtotal\.com\/api\/salud \(ECONNREFUSED\)/);
 });
 
 test('mientras sigue caído recuerda cada hora, no cada minuto', () => {
