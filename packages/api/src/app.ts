@@ -20,6 +20,7 @@ import { registrarTablero } from './modulos/tablero.js';
 import { registrarTasa } from './modulos/tasa.js';
 import { registrarCobros } from './modulos/cobros.js';
 import { registrarContactoPublico, registrarContactos } from './modulos/contacto.js';
+import { registrarVigia } from './modulos/vigia.js';
 import { registrarDispositivosPush } from './modulos/dispositivos.js';
 import { registrarTurnos } from './modulos/turnos.js';
 import { registrarSupervision } from './modulos/supervision.js';
@@ -157,6 +158,7 @@ export async function crearApp(opciones: OpcionesApp = {}): Promise<{
 
       registrarAuth(api);
       registrarContactoPublico(api);
+      registrarVigia(api);
       // Acuse de recibo del push desde el servicio nativo del teléfono (sin sesión; la clave va firmada)
       api.post('/push/eco', async (request, reply) => {
         const { verificarEco } = await import('./push/fcm.js');

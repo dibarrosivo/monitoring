@@ -1,0 +1,10 @@
+[Unit]
+Description=Vigía: revisa que el otro servidor responda y avisa por FST Alarma si se cae
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Node no está instalado en los servidores: corre en la imagen oficial, con la red del host
+ExecStart=/usr/bin/docker run --rm --network host -v /opt/vigia:/vigia node:22-alpine node /vigia/vigia.mjs /vigia/vigia.env
+TimeoutStartSec=50
