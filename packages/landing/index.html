@@ -312,6 +312,13 @@
     box-shadow: var(--boton-sombra);
   }
   .boton-primario:hover { box-shadow: var(--boton-sombra-hover); }
+  /* Insignia oficial de Google Play (no se recolorea ni se deforma: así lo piden
+     sus normas de marca). El PNG trae margen transparente, por eso 60 px de alto
+     quedan a la par de los botones de 46 px. */
+  .insignia-play { display: inline-flex; align-items: center; margin: -7px 0; border-radius: 10px; }
+  .insignia-play img { display: block; height: 60px; width: auto; }
+  .insignia-play:focus-visible { outline: 2px solid var(--ruta); outline-offset: 2px; }
+  .bolsillo-texto .insignia-play { margin-top: 14px; }
   .boton-fantasma { border-color: var(--linea); color: var(--texto); }
   .boton-fantasma:hover { border-color: var(--ruta); }
   .boton-entrar { padding: 8px 18px; font-size: 13.5px; }
@@ -658,7 +665,7 @@
       </p>
       <div class="acciones">
         <button type="button" class="boton boton-primario abrir-contacto" data-motivo="monitoreo">Quiero monitoreo →</button>
-        <a class="boton boton-fantasma" href="https://monitoreo.falconseguridadtotal.com/app/">Descargar la app</a>
+        <a class="insignia-play" href="https://play.google.com/store/apps/details?id=com.falconseguridadtotal.alarma" target="_blank" rel="noopener"><img src="media/google-play-es.png" alt="Descargar en Google Play" width="155" height="60" /></a>
       </div>
     </div>
 
@@ -794,6 +801,7 @@
         <li>Botón de pánico que llega directo al operador</li>
         <li>Tú decides qué recibir y en qué horario no molestar</li>
       </ul>
+      <a class="insignia-play" href="https://play.google.com/store/apps/details?id=com.falconseguridadtotal.alarma" target="_blank" rel="noopener"><img src="media/google-play-es.png" alt="Descargar en Google Play" width="155" height="60" /></a>
     </div>
     <div class="bolsillo-fono">
       <figure class="fono">
@@ -943,7 +951,7 @@
     </p>
     <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
       <button type="button" class="boton boton-primario abrir-contacto" data-motivo="monitoreo">Quiero monitoreo →</button>
-      <a class="boton boton-fantasma" href="https://monitoreo.falconseguridadtotal.com/app/">Descargar la app</a>
+      <a class="insignia-play" href="https://play.google.com/store/apps/details?id=com.falconseguridadtotal.alarma" target="_blank" rel="noopener"><img src="media/google-play-es.png" alt="Descargar en Google Play" width="155" height="60" /></a>
     </div>
   </section>
 
