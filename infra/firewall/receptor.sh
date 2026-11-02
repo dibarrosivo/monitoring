@@ -6,17 +6,20 @@
 # y se puede volver a correr a mano: limpia y vuelve a cargar.
 #
 #   9999  SIA DC-09 (Hikvision): abierto, los paneles salen por SIM con IP variable
-#   10050 puente PIMA crudo: solo desde la central
-#   10060 Sur-Gard (EBS): solo desde el OSM de la central
+#   10050 puente PIMA crudo: cerrado desde internet
+#   10060 Sur-Gard (EBS): cerrado desde internet
 #
+# Hasta el 02-11-2026 10050 y 10060 aceptaban solo al servidor Windows de la
+# central (156.67.31.152). Ese servidor se dio de baja a fines de octubre y su
+# IP pudo pasar a otro cliente de Contabo, que habría podido meter señales
+# falsas. Hoy nadie de afuera los usa: PIMA entra por el puente (HTTPS) y EBS
+# por el OSM propio, que entrega desde adentro del servidor (no pasa por eth0).
 set -euo pipefail
 IFAZ=${IFAZ:-eth0}
-CENTRAL=${CENTRAL:-156.67.31.152}
 
 iptables -N DOCKER-USER 2>/dev/null || true
 iptables -F DOCKER-USER
 for puerto in 10050 10060; do
-  iptables -A DOCKER-USER -i "$IFAZ" -p tcp --dport "$puerto" -s "$CENTRAL" -j RETURN
   iptables -A DOCKER-USER -i "$IFAZ" -p tcp --dport "$puerto" -j DROP
 done
 iptables -A DOCKER-USER -j RETURN
@@ -30,4 +33,4 @@ if command -v ip6tables >/dev/null; then
   done
   ip6tables -A DOCKER-USER -j RETURN
 fi
-echo "Reglas cargadas: 10050 y 10060 solo desde $CENTRAL por $IFAZ"
+echo "Reglas cargadas: 10050 y 10060 cerrados desde internet ($IFAZ)"

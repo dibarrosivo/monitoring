@@ -21,8 +21,10 @@ DIAS_HISTORIAL=30
 CONTENEDOR=monitoring-postgres-1
 BASE=monitoring
 USUARIO=monitoring
-# Copia fuera del VPS: servidor Windows de la central, por SSH con llave propia
-DESTINO_REMOTO="Administrator@156.67.31.152:C:/Respaldos/monitoreo/"
+# Copia fuera del VPS: servidor de TrueTracker (otra máquina), usuario propio
+# y restringido, por SSH con llave propia. Hasta el 28-10-2026 iba al Windows
+# de la central, que se dio de baja.
+DESTINO_REMOTO="respaldo-fst@169.58.22.24:monitoreo/"
 LLAVE_REMOTA=/root/.ssh/id_ed25519_respaldo
 
 mkdir -p "$CARPETA"
@@ -50,7 +52,7 @@ if [ -f "$LLAVE_REMOTA" ]; then
     echo "[$(date '+%F %T')] Copiado a $DESTINO_REMOTO"
     # En el destino se conservan 60 días; lo demás se borra desde acá
     ssh -i "$LLAVE_REMOTA" -o BatchMode=yes -o ConnectTimeout=20 "${DESTINO_REMOTO%%:*}" \
-      'powershell -NoProfile -Command "Get-ChildItem C:\Respaldos\monitoreo -Filter monitoring-*.sql.gz | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-60) } | Remove-Item"' \
+      "find monitoreo -name 'monitoring-*.sql.gz' -mtime +60 -delete" \
       || echo "[$(date '+%F %T')] Aviso: no se pudo depurar el historial remoto" >&2
   else
     echo "[$(date '+%F %T')] ERROR: no se pudo copiar el respaldo fuera del VPS" >&2
